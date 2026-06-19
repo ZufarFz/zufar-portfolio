@@ -1,0 +1,8 @@
+{
+  "name": "Analyst Portfolio V2",
+  "description": "An interactive data analyst and business intelligence strategist portfolio featuring live interactive models, segmentation tools, and dynamic case studies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
