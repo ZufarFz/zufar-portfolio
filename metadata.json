@@ -1,0 +1,8 @@
+{
+  "name": "Portfolio web v3",
+  "description": "A futuristic web portfolio for junior data analysts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,194 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  .data-grid-overlay {
+    background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.bento-card {
+  border: 1px solid #e2e8f0;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.bento-card:hover {
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
+}
+
+/* ==========================================
+   SMOOTH GLOBAL TRANSITIONS & LIGHT THEME OVERRIDES
+   ========================================== */
+
+/* Lux transition profiles */
+.bg-slate-900, 
+.bg-slate-950, 
+.border-slate-800, 
+.text-slate-100, 
+.text-slate-200, 
+.text-slate-400,
+input,
+textarea,
+aside,
+main,
+header {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Adaptive Light Theme adjustments */
+html:not(.dark) {
+  --admin-accent: #059669;
+}
+
+html:not(.dark) .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-slate-950\/40 {
+  background-color: rgba(241, 245, 249, 0.4) !important;
+}
+
+html:not(.dark) .bg-slate-950\/60 {
+  background-color: rgba(241, 245, 249, 0.6) !important;
+}
+
+html:not(.dark) .bg-slate-950\/65 {
+  background-color: rgba(241, 245, 249, 0.65) !important;
+}
+
+html:not(.dark) .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .bg-slate-850 {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-800\/60 {
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .border-slate-700,
+html:not(.dark) .border-slate-755,
+html:not(.dark) .border-slate-750 {
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) .text-slate-100 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .text-slate-150,
+html:not(.dark) .text-slate-200 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #475569 !important;
+}
+
+html:not(.dark) .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .hover\:border-slate-700:hover {
+  border-color: #94a3b8 !important;
+}
+
+html:not(.dark) input,
+html:not(.dark) textarea {
+  color: #0f172a !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* ==========================================
+   OFFLINE VECTOR PDF (REAL TEXT COPYABLE)
+   ========================================== */
+body.is-printing #root {
+  display: none !important;
+}
+
+.print-only-container {
+  display: none;
+}
+
+@media print {
+  #root {
+    display: none !important;
+  }
+  
+  body {
+    background-color: white !important;
+    background-image: none !important;
+  }
+  
+  .print-only-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 12mm 16mm !important;
+    margin: 0 !important;
+    background-color: white !important;
+    color: #0f172a !important;
+    box-sizing: border-box !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Remove margins and headers/footers default browser additions completely */
+  @page {
+    size: A4 portrait;
+    margin: 0 !important;
+  }
+}
+
+/* ==========================================
+   VIEW TRANSITION CIRCULAR REVEAL ANIMATION
+   ========================================== */
+::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  display: block;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
