@@ -46,6 +46,52 @@ import { CVData, saveCVData, isSupabaseConfigured, supabase, uploadFileToStorage
 import PPTSlideEditor from './PPTSlideEditor';
 import ResumeModal from './ResumeModal';
 import { CaseStudy, SkillItem } from '../types';
+import SocialIcon from './SocialIcon';
+
+const AVAILABLE_PLATFORMS = [
+  "BeReal", "Bluesky", "Clubhouse", "Discord", "Email", "Facebook", "GitHub", "IMO", 
+  "Instagram", "KakaoTalk", "Kuaishou", "Lemon8", "Likee", "LINE", "LinkedIn", "Mastodon", 
+  "Nextdoor", "Pinterest", "QQ", "Quora", "Reddit", "Signal", "Sina Weibo", "Skype", "Slack", 
+  "Snapchat", "Teams", "Threads", "TikTok", "Triller", "Tumblr", "Twitch", "Viber", "WeChat", 
+  "WhatsApp", "X", "YouTube", "YouNow", "Zoom"
+].sort();
+
+function migrateLegacySocials(base: CVData): CVData {
+  const data = { ...base };
+  const customList = [...(data.customSocials || [])];
+  
+  const standards = [
+    { key: 'linkedin' as const, name: 'LinkedIn' },
+    { key: 'instagram' as const, name: 'Instagram' },
+    { key: 'whatsapp' as const, name: 'WhatsApp' },
+    { key: 'github' as const, name: 'GitHub' }
+  ];
+
+  let migrated = false;
+
+  standards.forEach(({ key, name }) => {
+    const val = data[key];
+    if (val && typeof val === 'string' && val.trim() !== '') {
+      const exists = customList.some(item => item.name?.toLowerCase().trim() === name.toLowerCase());
+      if (!exists) {
+        customList.push({
+          id: `social-${key}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          name,
+          value: val,
+          showOnWeb: true,
+          showOnCvHeader: data.headerContacts?.includes(key) ?? false,
+          showOnCvFooter: data.footerSocials?.includes(key) ?? true,
+        });
+        migrated = true;
+      }
+    }
+  });
+
+  if (migrated) {
+    data.customSocials = customList;
+  }
+  return data;
+}
 
 interface AdminPageProps {
   cvData: CVData;
@@ -63,11 +109,25 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   // Local state for full database editing
-  const [localCV, setLocalCV] = useState<CVData>({ ...cvData });
-  const [activeTab, setActiveTab] = useState<'profile' | 'skills' | 'projects' | 'experience' | 'education' | 'technical' | 'methodology' | 'layout' | 'preview'>('profile');
+  const [localCV, setLocalCV] = useState<CVData>(() => migrateLegacySocials(cvData));
+  const [activeTab, setActiveTab] = useState<'profile' | 'web_texts' | 'skills' | 'projects' | 'experience' | 'education' | 'technical' | 'methodology' | 'layout' | 'db_setup' | 'preview'>('profile');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const [isSaving, setIsSaving] = useState(false);
+
+  const isDark = theme === 'dark';
+  const textTitleColor = isDark ? 'text-white' : 'text-slate-900';
+  const textLabelColor = isDark ? 'text-slate-400' : 'text-slate-600';
+  const inputBgBorder = isDark 
+    ? 'bg-slate-950 border-slate-800 text-slate-100 hover:border-slate-700' 
+    : 'bg-slate-50 border-slate-205 text-slate-900 hover:bg-slate-100 focus:bg-white';
+  const selectBgBorder = isDark 
+    ? 'bg-slate-900 border-slate-800 text-slate-150' 
+    : 'bg-slate-50 border-slate-205 text-slate-800 focus:bg-white';
+  const containerBgBorder = isDark 
+    ? 'bg-slate-950/60 border-slate-800 text-slate-100' 
+    : 'bg-white border-slate-200 text-slate-800 shadow-sm';
+  const dividerColor = isDark ? 'border-slate-800' : 'border-slate-200';
 
   // Check Supabase session
   useEffect(() => {
@@ -88,7 +148,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
   // Sync state if base data changes
   useEffect(() => {
-    setLocalCV({ ...cvData });
+    setLocalCV(migrateLegacySocials(cvData));
   }, [cvData]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -134,10 +194,26 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
     setIsSaving(true);
     setSaveStatus({ type: null, message: '' });
 
+    // Synchronize legacy fields with values inside customSocials
+    const currentSocials = localCV.customSocials || [];
+    const linkedinItem = currentSocials.find(s => s.name?.toLowerCase().trim() === 'linkedin');
+    const instagramItem = currentSocials.find(s => s.name?.toLowerCase().trim() === 'instagram');
+    const whatsappItem = currentSocials.find(s => s.name?.toLowerCase().trim() === 'whatsapp');
+    const githubItem = currentSocials.find(s => s.name?.toLowerCase().trim() === 'github');
+
+    const syncedCV = {
+      ...localCV,
+      linkedin: linkedinItem ? linkedinItem.value : '',
+      instagram: instagramItem ? instagramItem.value : '',
+      whatsapp: whatsappItem ? whatsappItem.value : '',
+      github: githubItem ? githubItem.value : ''
+    };
+
     try {
-      const response = await saveCVData(localCV);
+      const response = await saveCVData(syncedCV);
       if (response.success) {
-        onUpdate(localCV);
+        onUpdate(syncedCV);
+        setLocalCV(syncedCV);
         setSaveStatus({
           type: 'success',
           message: isSupabaseConfigured 
@@ -510,12 +586,14 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                 </span>
                 {[
                   { id: 'profile', label: 'Profil & Deskripsi', icon: User },
+                  { id: 'web_texts', label: 'Tulisan Web', icon: FileText },
                   { id: 'skills', label: 'Skills & Technical Arsenal', icon: Code },
                   { id: 'projects', label: 'Projek & Study Kasus', icon: LayoutGrid },
                   { id: 'experience', label: 'Pengalaman Karir', icon: Briefcase },
                   { id: 'education', label: 'Riwayat Pendidikan', icon: GraduationCap },
                   { id: 'methodology', label: 'Filosofi Kerja', icon: Sparkles },
                   { id: 'layout', label: 'Desain & Tata Letak CV', icon: Palette },
+                  { id: 'db_setup', label: 'Setup Database', icon: Database },
                   { id: 'preview', label: 'Pratinjau CV (Live)', icon: Eye }
                 ].map((menu) => {
                   const SelectedIcon = menu.icon;
@@ -600,12 +678,14 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       theme === 'dark' ? 'text-white' : 'text-slate-900'
                     }`}>
                       {activeTab === 'profile' && 'Profil Utama & Bio Singkat'}
+                      {activeTab === 'web_texts' && 'Tulisan & Keterangan Web'}
                       {activeTab === 'skills' && 'Skills & Technical Arsenal'}
                       {activeTab === 'projects' && 'Projek Portfolio Utama'}
                       {activeTab === 'experience' && 'Professional Career Chronology'}
                       {activeTab === 'education' && 'Academic Background & Achievements'}
                       {activeTab === 'methodology' && 'Filosofi & Core Methodology'}
                       {activeTab === 'layout' && 'Desain & Tata Letak CV (A4 standard)'}
+                      {activeTab === 'db_setup' && 'Setup Database & SQL Copy Panel'}
                       {activeTab === 'preview' && 'Pratinjau CV (Live Standard A4)'}
                     </h3>
                     <p className="text-xs text-slate-400 mt-1 leading-relaxed">
@@ -661,62 +741,349 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                 <div className={`rounded-2xl p-6 md:p-8 shadow-xl border transition-colors duration-250 ${
                   theme === 'dark' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-850 shadow-sm'
                 }`}>
-                
+
+                {activeTab === 'web_texts' && (
+                  <div className="space-y-6">
+                    <div className={`flex items-center gap-2 border-b pb-3 mb-2 ${dividerColor}`}>
+                      <FileText className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`} />
+                      <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Kelola Tulisan &amp; Salinan Web Utama</h4>
+                    </div>
+
+                    <p className="text-xs text-slate-400 font-mono">
+                      Gunakan bagian ini untuk memodifikasi teks/tulisan di halaman utama portfolio landing page Anda. Perubahan akan langsung disinkronkan ke tabel <code className="text-emerald-400 font-bold font-mono">portfolio_texts</code> di database Supabase Anda.
+                    </p>
+
+                    <div className="space-y-6">
+                      {/* HERO SECTION */}
+                      <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
+                        <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Hero Atas (Landing Hero)</h5>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Badge (Plaintext Label atas)</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.hero_badge || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, hero_badge: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Title (Judul Utama)</label>
+                            <textarea 
+                              rows={2}
+                              value={localCV.webTexts?.hero_title || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, hero_title: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Subtitle (Deskripsi Paragraf di Samping Foto)</label>
+                            <textarea 
+                              rows={4}
+                              value={localCV.webTexts?.hero_subtitle || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, hero_subtitle: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* PROJECTS SECTION */}
+                      <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
+                        <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Projek &amp; Study Kasus (Selected Case Studies)</h5>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Badge Text</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.projects_badge || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, projects_badge: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Judul Utama</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.projects_title || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, projects_title: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Subtitle / Paragraf Deskripsi</label>
+                            <textarea 
+                              rows={2}
+                              value={localCV.webTexts?.projects_subtitle || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, projects_subtitle: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SKILLS SECTION */}
+                      <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
+                        <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Skills (Technical Arsenal)</h5>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Badge Text</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.skills_badge || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, skills_badge: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Judul Utama</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.skills_title || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, skills_title: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Subtitle / Paragraf Deskripsi</label>
+                            <textarea 
+                              rows={2}
+                              value={localCV.webTexts?.skills_subtitle || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, skills_subtitle: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* EXPERIENCES SECTION */}
+                      <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
+                        <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Pengalaman Karir (Professional Journey)</h5>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Badge Text</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.experience_badge || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, experience_badge: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Judul Utama</label>
+                            <input 
+                              type="text" 
+                              value={localCV.webTexts?.experience_title || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, experience_title: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Subtitle / Paragraf Deskripsi</label>
+                            <textarea 
+                              rows={2}
+                              value={localCV.webTexts?.experience_subtitle || ''} 
+                              onChange={e => {
+                                const currentTexts = localCV.webTexts || {};
+                                setLocalCV(prev => ({
+                                  ...prev,
+                                  webTexts: { ...currentTexts, experience_subtitle: e.target.value }
+                                }));
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'db_setup' && (
+                  <div className="space-y-6">
+                    <div className={`flex items-center gap-2 border-b pb-3 mb-2 ${dividerColor}`}>
+                      <Database className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`} />
+                      <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Setup Database - Supabase SQL Editor</h4>
+                    </div>
+
+                    <p className={`text-xs leading-relaxed font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Salin kueri SQL di bawah ini, lalu jalankan di <strong className={`font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600'}`}>SQL Editor</strong> di dashboard Supabase Anda. Kueri ini akan memperbarui tabel profil Anda, beralih dari <code className="text-red-400 font-bold font-mono">portfolio_cv</code> yang usang, serta membuat tabel baru untuk <code className="text-emerald-400 font-bold font-mono">portfolio_socials</code> dan <code className="text-emerald-400 font-bold font-mono">portfolio_texts</code> sesuai struktur database yang semakin terorganisir rapi.
+                    </p>
+
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <div className={`flex justify-between items-center border border-b-0 px-4 py-2.5 rounded-t-xl ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-100 border-slate-200'}`}>
+                          <span className={`text-[10px] font-mono font-bold flex items-center gap-1.5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                            <Terminal className={`w-3.5 h-3.5 ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-600'}`} />
+                            TABEL_BARU_MIGRATION.SQL
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(SUPABASE_SQL_CODE);
+                              alert("Kueri SQL berhasil disalin! Silakan tempel (paste) di SQL Editor Supabase Anda.");
+                            }}
+                            className={`px-2.5 py-1 text-[10px] font-bold font-mono tracking-wider rounded-lg transition-all cursor-pointer border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-800 hover:text-emerald-400 border-slate-750 text-slate-300' : 'bg-slate-50 hover:bg-slate-100 hover:text-emerald-700 border-slate-250 text-slate-700'}`}
+                          >
+                             SALIN KODE SQL
+                          </button>
+                        </div>
+                        <pre className={`border rounded-b-xl p-4 overflow-x-auto text-[10px] sm:text-xs font-mono leading-relaxed max-h-[350px] select-all ${theme === 'dark' ? 'bg-slate-950 border-slate-800 text-emerald-400' : 'bg-slate-50 border-slate-200 text-emerald-850'}`}>
+                          {SUPABASE_SQL_CODE}
+                        </pre>
+                      </div>
+
+                      <div className="p-4 bg-emerald-950/20 border border-emerald-500/20 text-emerald-300 text-xs leading-relaxed space-y-2 rounded-xl">
+                        <p className="font-bold flex items-center gap-1.5 uppercase tracking-wide">
+                          <Check className="w-4 h-4 text-emerald-400" /> LANGKAH SETUP SUPABASE:
+                        </p>
+                        <ol className="list-decimal list-inside space-y-1.5 mt-1 font-mono text-[11px] pl-1">
+                          <li>Buka dashboard proyek <a href="https://supabase.com" target="_blank" rel="noreferrer" className="underline font-bold text-emerald-400 hover:text-emerald-500">Supabase</a> Anda.</li>
+                          <li>Pergi ke menu <strong className="font-bold">"SQL Editor"</strong> di tab samping kiri.</li>
+                          <li>Klik <strong className="font-bold font-mono">"+ New Query"</strong> untuk membuat editor kueri scratchpad baru.</li>
+                          <li>Tempel (Ctrl+V / Cmd+V) kode SQL yang disalin di atas.</li>
+                          <li>Klik tombol hijau <strong className="font-bold text-emerald-400 font-mono">"Run"</strong> untuk mengeksekusi migrasi tabel.</li>
+                          <li>Selesai! Database Supabase Anda telah sukses termigrasi rapi tanpa redundansi data lagi.</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'profile' && (
                   <div className="space-y-6">
-                    <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-2">
-                      <User className="w-5 h-5 text-emerald-400" />
-                      <h4 className="font-bold text-sm uppercase tracking-wider text-white">Identitas Diri &amp; Kontak</h4>
+                    <div className={`flex items-center gap-2 border-b pb-3 mb-2 ${dividerColor}`}>
+                      <User className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`} />
+                      <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Identitas Diri &amp; Kontak</h4>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Nama Lengkap</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Lengkap</label>
                         <input 
                           type="text" 
                           value={localCV.name} 
                           onChange={e => updateGeneralField('name', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs font-sans outline-none text-slate-100 transition-colors"
+                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Gelar Profesional / Title</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Gelar Profesional / Title</label>
                         <input 
                           type="text" 
                           value={localCV.title} 
                           onChange={e => updateGeneralField('title', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs font-sans outline-none text-slate-100 transition-colors"
+                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Lokasi Domisili</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Lokasi Domisili</label>
                         <input 
                           type="text" 
                           value={localCV.location || ''} 
                           onChange={e => updateGeneralField('location', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs font-sans outline-none text-slate-100 transition-colors"
+                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Email Informasi</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Email Informasi</label>
                         <input 
                           type="email" 
                           value={localCV.email || ''} 
                           onChange={e => updateGeneralField('email', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs font-sans outline-none text-slate-100 transition-colors"
+                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
                     </div>
 
                     {/* PHOTO/AVATAR COMPONENT */}
                     <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Foto Profil / Avatar CV</label>
-                      <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-slate-800 rounded-lg bg-slate-950/40">
+                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Foto Profil / Avatar CV</label>
+                      <div className={`flex flex-col sm:flex-row items-center gap-4 p-4 border rounded-lg ${containerBgBorder}`}>
                         {localCV.avatarUrl ? (
                           <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-700 group shrink-0 flex items-center justify-center bg-slate-950">
                             <img 
@@ -750,7 +1117,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             </button>
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-xl bg-slate-800/80 border border-dashed border-slate-700 flex items-center justify-center shrink-0 text-slate-500 text-[10px] font-mono text-center font-bold">
+                          <div className={`w-16 h-16 rounded-xl border border-dashed flex items-center justify-center shrink-0 text-slate-500 text-[10px] font-mono text-center font-bold ${theme === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
                             NO IMAGE
                           </div>
                         )}
@@ -786,7 +1153,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           />
                           <label 
                             htmlFor="admin-photo-file-input"
-                            className="inline-block px-4 py-2 bg-slate-850 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-750 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none"
+                            className={`inline-block px-4 py-2 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-800 text-slate-200 border-slate-750 hover:text-white' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:text-slate-900'}`}
                           >
                             Pilih Foto PNG/JPG
                           </label>
@@ -798,8 +1165,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                       {/* Dynamic Circle Viewport and Drag Slider Adjustment */}
                       {localCV.avatarUrl && (
-                        <div className="mt-4 p-5 border border-slate-800 rounded-xl bg-slate-900/60 space-y-4">
-                          <div className="text-[10px] font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider font-mono">
+                        <div className={`mt-4 p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-slate-50'}`}>
+                          <div className={`text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-wider font-mono ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>
                             <Sliders className="w-3.5 h-3.5" />
                             <span>Atur Posisi &amp; Skala (Bebas Memotong Dari Gambar Asli)</span>
                           </div>
@@ -807,8 +1174,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           <div className="flex flex-col md:flex-row items-center gap-6">
                             {/* Original Image Reference Box */}
                             <div className="flex flex-col items-center gap-2 shrink-0">
-                              <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">Gambar Asli:</span>
-                              <div className="relative w-28 h-28 bg-slate-950 rounded-xl overflow-hidden border border-slate-700 flex items-center justify-center p-1.5">
+                              <span className={`text-[9px] font-mono font-bold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Gambar Asli:</span>
+                              <div className={`relative w-28 h-28 rounded-xl overflow-hidden border flex items-center justify-center p-1.5 ${theme === 'dark' ? 'bg-slate-950 border-slate-700' : 'bg-white border-slate-250 shadow-sm'}`}>
                                 <img
                                   src={localCV.avatarUrl}
                                   alt="Full Raw"
@@ -819,8 +1186,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             
                             {/* Circle Viewport Preview */}
                             <div className="flex flex-col items-center gap-2 shrink-0">
-                              <span className="text-[9px] font-mono text-emerald-400 font-bold uppercase">Pratinjau CV:</span>
-                              <div className="relative w-28 h-28 rounded-full overflow-hidden border-2 border-emerald-500 bg-slate-950 shrink-0 flex items-center justify-center">
+                              <span className={`text-[9px] font-mono font-bold uppercase ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`}>Pratinjau CV:</span>
+                              <div className={`relative w-28 h-28 rounded-full overflow-hidden border-2 bg-slate-950 shrink-0 flex items-center justify-center ${theme === 'dark' ? 'border-emerald-500 bg-slate-950' : 'border-emerald-600 bg-slate-100 shadow-sm'}`}>
                                 <img
                                   src={localCV.avatarUrl}
                                   alt="Posisi Avatar Preview"
@@ -846,9 +1213,9 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                               <div className="space-y-3 font-sans">
                                 {/* Scale Zoom Slider */}
                                 <div className="space-y-1">
-                                  <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                                  <div className={`flex justify-between text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                                     <span>UKURAN / ZOOM: {Math.round((localCV.avatarScale || 1) * 100)}%</span>
-                                    <span className="text-emerald-500 font-bold">Min 10% — Max 500%</span>
+                                    <span className={`font-bold ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-650'}`}>Min 10% — Max 500%</span>
                                   </div>
                                   <input
                                     type="range"
@@ -857,14 +1224,14 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                     step="0.01"
                                     value={localCV.avatarScale || 1}
                                     onChange={(e) => updateGeneralField('avatarScale', parseFloat(e.target.value))}
-                                    className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                    className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${theme === 'dark' ? 'bg-slate-955' : 'bg-slate-205'}`}
                                   />
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {/* Horizontal X Slider */}
                                   <div className="space-y-1">
-                                    <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                                    <div className={`flex justify-between text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                                       <span>GESER X (KIRI - KANAN): {localCV.avatarX || 0}px</span>
                                     </div>
                                     <input
@@ -874,13 +1241,13 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       step="1"
                                       value={localCV.avatarX || 0}
                                       onChange={(e) => updateGeneralField('avatarX', parseInt(e.target.value))}
-                                      className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                      className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${theme === 'dark' ? 'bg-slate-955' : 'bg-slate-205'}`}
                                     />
                                   </div>
 
                                   {/* Vertical Y Slider */}
                                   <div className="space-y-1">
-                                    <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                                    <div className={`flex justify-between text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                                       <span>GESER Y (ATAS - BAWAH): {localCV.avatarY || 0}px</span>
                                     </div>
                                     <input
@@ -890,7 +1257,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       step="1"
                                       value={localCV.avatarY || 0}
                                       onChange={(e) => updateGeneralField('avatarY', parseInt(e.target.value))}
-                                      className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                      className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${theme === 'dark' ? 'bg-slate-955' : 'bg-slate-205'}`}
                                     />
                                   </div>
                                 </div>
@@ -918,11 +1285,11 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                     </div>
 
                     {/* KEY HOMEPAGE ILLUSTRATION SETTINGS */}
-                    <div className="pt-6 border-t border-slate-800">
-                      <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Gambar Hero / Ilustrasi Utama Home Web</label>
-                      <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-slate-800 rounded-lg bg-slate-950/40">
+                    <div className={`pt-6 border-t ${dividerColor}`}>
+                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Gambar Hero / Ilustrasi Utama Home Web</label>
+                      <div className={`flex flex-col sm:flex-row items-center gap-4 p-4 border rounded-lg ${containerBgBorder}`}>
                         {localCV.homeImageUrl ? (
-                          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-700 group shrink-0 flex items-center justify-center bg-slate-950">
+                          <div className={`relative w-16 h-16 rounded-xl overflow-hidden border group shrink-0 flex items-center justify-center ${theme === 'dark' ? 'bg-slate-950 border-slate-700' : 'bg-slate-105 border-slate-205'}`}>
                             <img 
                               src={localCV.homeImageUrl} 
                               alt="Home Hero Preview" 
@@ -951,7 +1318,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             </button>
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-xl bg-slate-800/80 border border-dashed border-slate-700 flex items-center justify-center shrink-0 text-slate-500 text-[10px] font-mono text-center font-bold">
+                          <div className={`w-16 h-16 rounded-xl border border-dashed flex items-center justify-center shrink-0 text-slate-500 text-[10px] font-mono text-center font-bold ${theme === 'dark' ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100 border-slate-200'}`}>
                             NO IMAGE
                           </div>
                         )}
@@ -987,7 +1354,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           />
                           <label 
                             htmlFor="admin-home-hero-file-input"
-                            className="inline-block px-4 py-2 bg-slate-850 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-750 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none"
+                            className={`inline-block px-4 py-2 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-800 text-slate-200 border-slate-750 hover:text-white' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:text-slate-900'}`}
                           >
                             Pilih Gambar Hero PNG/JPG
                           </label>
@@ -999,8 +1366,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                       {/* Home Hero Slider Controls */}
                       {localCV.homeImageUrl && (
-                        <div className="mt-4 p-5 border border-slate-800 rounded-xl bg-slate-900/60 space-y-4">
-                          <div className="text-[10px] font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider font-mono">
+                        <div className={`mt-4 p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-slate-50'}`}>
+                          <div className={`text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-wider font-mono ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}>
                             <Sliders className="w-3.5 h-3.5" />
                             <span>Atur Posisi &amp; Skala Gambar Hero Home Web</span>
                           </div>
@@ -1008,8 +1375,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           <div className="flex flex-col md:flex-row items-center gap-6">
                             {/* Raw Image Review */}
                             <div className="flex flex-col items-center gap-2 shrink-0">
-                              <span className="text-[9px] font-mono text-slate-400 font-bold uppercase">Gambar Asli:</span>
-                              <div className="relative w-28 h-28 bg-slate-950 rounded-xl overflow-hidden border border-slate-700 flex items-center justify-center p-1.5">
+                              <span className={`text-[9px] font-mono font-bold uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>Gambar Asli:</span>
+                              <div className={`relative w-28 h-28 rounded-xl overflow-hidden border flex items-center justify-center p-1.5 ${theme === 'dark' ? 'bg-slate-950 border-slate-700' : 'bg-white border-slate-250 shadow-sm'}`}>
                                 <img
                                   src={localCV.homeImageUrl}
                                   alt="Raw Home Hero"
@@ -1020,8 +1387,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             
                             {/* Rectangular Viewport Preview */}
                             <div className="flex flex-col items-center gap-2 shrink-0">
-                              <span className="text-[9px] font-mono text-emerald-400 font-bold uppercase">Pratinjau Home:</span>
-                              <div className="relative w-28 h-28 rounded-2xl overflow-hidden border-2 border-emerald-500 bg-slate-950 shrink-0 flex items-center justify-center">
+                              <span className={`text-[9px] font-mono font-bold uppercase ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`}>Pratinjau Home:</span>
+                              <div className={`relative w-28 h-28 rounded-2xl overflow-hidden border-2 bg-slate-950 shrink-0 flex items-center justify-center ${theme === 'dark' ? 'border-emerald-500 bg-slate-950' : 'border-emerald-600 bg-slate-100 shadow-sm'}`}>
                                 <img
                                   src={localCV.homeImageUrl}
                                   alt="Posisi Hero Preview"
@@ -1043,9 +1410,9 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                               <div className="space-y-3 font-sans">
                                 {/* Scale / Zoom */}
                                 <div className="space-y-1">
-                                  <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                                  <div className={`flex justify-between text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                                     <span>UKURAN / ZOOM: {Math.round((localCV.homeImageScale || 1) * 100)}%</span>
-                                    <span className="text-emerald-500 font-bold">Min 10% — Max 500%</span>
+                                    <span className={`font-bold ${theme === 'dark' ? 'text-emerald-500' : 'text-emerald-650'}`}>Min 10% — Max 500%</span>
                                   </div>
                                   <input
                                     type="range"
@@ -1054,14 +1421,14 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                     step="0.01"
                                     value={localCV.homeImageScale || 1}
                                     onChange={(e) => updateGeneralField('homeImageScale', parseFloat(e.target.value))}
-                                    className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                    className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${theme === 'dark' ? 'bg-slate-955' : 'bg-slate-205'}`}
                                   />
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                   {/* Horiz X */}
                                   <div className="space-y-1">
-                                    <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                                    <div className={`flex justify-between text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                                       <span>GESER X: {localCV.homeImageX || 0}px</span>
                                     </div>
                                     <input
@@ -1071,13 +1438,13 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       step="1"
                                       value={localCV.homeImageX || 0}
                                       onChange={(e) => updateGeneralField('homeImageX', parseInt(e.target.value))}
-                                      className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                      className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${theme === 'dark' ? 'bg-slate-955' : 'bg-slate-205'}`}
                                     />
                                   </div>
 
                                   {/* Vert Y */}
                                   <div className="space-y-1">
-                                    <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                                    <div className={`flex justify-between text-[9px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                                       <span>GESER Y: {localCV.homeImageY || 0}px</span>
                                     </div>
                                     <input
@@ -1087,7 +1454,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       step="1"
                                       value={localCV.homeImageY || 0}
                                       onChange={(e) => updateGeneralField('homeImageY', parseInt(e.target.value))}
-                                      className="w-full h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                                      className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${theme === 'dark' ? 'bg-slate-955' : 'bg-slate-205'}`}
                                     />
                                   </div>
                                 </div>
@@ -1103,7 +1470,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       homeImageY: 0
                                     }));
                                   }}
-                                  className="text-[9px] font-mono px-2 py-1 hover:bg-slate-700 text-slate-300 hover:text-white transition-all uppercase cursor-pointer rounded bg-slate-850"
+                                  className={`text-[9px] font-mono px-2 py-1 transition-all uppercase cursor-pointer rounded border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-700 border-slate-750 text-slate-300 hover:text-white' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-705 hover:text-slate-900'}`}
                                 >
                                   ✓ Reset Posisi Default
                                 </button>
@@ -1115,12 +1482,12 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                     </div>
 
                     {/* BIO DESCRIPTION (ABOUT ME) */}
-                    <div className="pt-4 border-t border-slate-800">
+                    <div className={`pt-4 border-t ${dividerColor}`}>
                       <div className="flex justify-between items-baseline mb-1.5">
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase">
+                        <label className={`text-[10px] font-mono font-bold block uppercase ${textLabelColor}`}>
                           Deskripsi Singkat Tentang Saya (Tentang Saya di CV)
                         </label>
-                        <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-1.5 py-0.2 rounded">
+                        <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`}>
                           1 - 2 PARAGRAF
                         </span>
                       </div>
@@ -1129,22 +1496,21 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                         onChange={e => updateGeneralField('aboutMe', e.target.value)}
                         rows={6}
                         placeholder="Tuliskan 1 atau 2 paragraf singkat mengenai spesialisasi Anda, pencapaian karir, dan dedikasi profesional. Ini akan ditampilkan di bagian atas CV Anda."
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs font-sans outline-none text-slate-100 leading-relaxed font-sans"
+                        className={`w-full px-4 py-3 rounded-lg text-xs leading-relaxed font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                       />
-                      <p className="text-[10px] text-slate-500 mt-1 leading-normal font-mono">
+                      <p className="text-[10px] text-slate-505 mt-1 leading-normal font-mono">
                         Informasi deskripsi ini akan disinkronisasikan langsung ke lembaran CV standar A4 universal di bagian atas.
                       </p>
                     </div>
-
                   </div>
                 )}
 
                 {activeTab === 'skills' && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-2">
+                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
                       <div className="flex items-center gap-2">
-                        <Code className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-white">Skills &amp; Technical Arsenal</h4>
+                        <Code className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Skills &amp; Technical Arsenal</h4>
                       </div>
                       <button
                         type="button"
@@ -1155,13 +1521,13 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       </button>
                     </div>
 
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                       Bagian ini mengatur lencana keterampilan (badges) yang terlihat secara visual pada halaman utama website portfolio ("Technical Arsenal").
                     </p>
 
                     <div className="space-y-4">
                       {(localCV.skills || []).map((skill, index) => (
-                        <div key={skill.id} className="relative p-5 bg-slate-950/60 border border-slate-800 rounded-xl space-y-4">
+                        <div key={skill.id} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                           <button
                             type="button"
                             onClick={() => handleRemoveSkillIdx(skill.id)}
@@ -1171,27 +1537,27 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className="text-[10px] font-bold text-emerald-400 font-mono uppercase bg-emerald-500/10 w-fit px-2 py-0.5 rounded">
+                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
                             Lencana Skill #{index + 1}
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Nama Skill</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Skill</label>
                               <input 
                                 type="text" 
                                 value={skill.name} 
                                 onChange={e => handleUpdateSkillIdx(skill.id, 'name', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Kategori Filter &amp; CV Group</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori Filter &amp; CV Group</label>
                               <select 
                                 value={skill.category} 
                                 onChange={e => handleUpdateSkillIdx(skill.id, 'category', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-150"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${selectBgBorder}`}
                               >
                                 <option value="dbms">DBMS / Querying (CV Group 1)</option>
                                 <option value="scientific">Scientific Languages (CV Group 2)</option>
@@ -1202,11 +1568,11 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Lucide Icon Name</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Lucide Icon Name</label>
                               <select 
                                 value={skill.icon} 
                                 onChange={e => handleUpdateSkillIdx(skill.id, 'icon', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-150"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${selectBgBorder}`}
                               >
                                 <option value="Database">Database Icon (SQL)</option>
                                 <option value="Terminal">Terminal Icon (Python)</option>
@@ -1219,17 +1585,17 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Deskripsi Singkat Penggunaan</label>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Singkat Penggunaan</label>
                             <input 
                               type="text" 
                               value={skill.description} 
                               onChange={e => handleUpdateSkillIdx(skill.id, 'description', e.target.value)}
-                              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               placeholder="Gunakan kalimat aksi berkinerja tinggi..."
                             />
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-900">
+                          <div className={`grid grid-cols-2 gap-4 pt-2 border-t ${theme === 'dark' ? 'border-slate-900' : 'border-slate-200'}`}>
                             <label className="flex items-center gap-2.5 cursor-pointer select-none">
                               <input 
                                 type="checkbox" 
@@ -1238,7 +1604,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 className="w-4 h-4 rounded text-emerald-600 bg-slate-900 border-slate-800 focus:ring-emerald-500 cursor-pointer"
                               />
                               <div className="space-y-0.5">
-                                <span className="text-[11px] font-bold text-slate-200 block">Tampilkan di Website</span>
+                                <span className={`text-[11px] font-bold block ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Tampilkan di Website</span>
                                 <span className="text-[9px] text-slate-500 block leading-tight">Terlihat di visual grid web portfolio.</span>
                               </div>
                             </label>
@@ -1251,7 +1617,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 className="w-4 h-4 rounded text-emerald-600 bg-slate-900 border-slate-800 focus:ring-emerald-500 cursor-pointer"
                               />
                               <div className="space-y-0.5">
-                                <span className="text-[11px] font-bold text-slate-200 block">Tampilkan di Lembaran CV</span>
+                                <span className={`text-[11px] font-bold block ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>Tampilkan di Lembaran CV</span>
                                 <span className="text-[9px] text-slate-500 block leading-tight">Tergabung otomatis di PDF CV cetak.</span>
                               </div>
                             </label>
@@ -1260,7 +1626,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       ))}
 
                       {(localCV.skills || []).length === 0 && (
-                        <div className="text-center py-8 text-slate-500 border border-dashed border-slate-800 rounded-xl font-mono text-xs select-none">
+                        <div className={`text-center py-8 border border-dashed rounded-xl font-mono text-xs select-none ${theme === 'dark' ? 'text-slate-500 border-slate-800' : 'text-slate-500 border-slate-300'}`}>
                           Belum ada lencana skill kustom. Silakan klik tombol "Tambah Badge Skill" di samping kanan atas.
                         </div>
                       )}
@@ -1270,10 +1636,10 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                 {activeTab === 'projects' && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-2">
+                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
                       <div className="flex items-center gap-2">
-                        <LayoutGrid className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-white">Studi Kasus &amp; Projek Utama</h4>
+                        <LayoutGrid className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Studi Kasus &amp; Projek Utama</h4>
                       </div>
                       <button
                         type="button"
@@ -1284,13 +1650,13 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       </button>
                     </div>
 
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                       Bagian ini menampung deretan Projek Case Studies visual utama pada landing page website portfolio Anda.
                     </p>
 
                     <div className="space-y-6">
                       {(localCV.caseStudies || []).map((proj, idx) => (
-                        <div key={proj.id} className="relative p-5 bg-slate-950/65 border border-slate-800 rounded-xl space-y-4">
+                        <div key={proj.id} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
                           <button
                             type="button"
                             onClick={() => handleRemoveProject(proj.id)}
@@ -1300,59 +1666,59 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className="text-[10px] font-bold text-emerald-400 font-mono uppercase bg-emerald-500/10 w-fit px-2 py-0.5 rounded">
+                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
                             Portfolio Projek #{idx + 1}
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Judul Projek</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Projek</label>
                               <input 
                                 type="text" 
                                 value={proj.title} 
                                 onChange={e => handleUpdateProjectField(proj.id, 'title', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Kategori Bidang</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori Bidang</label>
                               <input 
                                 type="text" 
                                 value={proj.category} 
                                 onChange={e => handleUpdateProjectField(proj.id, 'category', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div className="sm:col-span-1">
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Dampak Bisnis (Impact Metric)</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Dampak Bisnis (Impact Metric)</label>
                               <input 
                                 type="text" 
                                 value={proj.impactMetric} 
                                 onChange={e => handleUpdateProjectField(proj.id, 'impactMetric', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 font-mono text-emerald-400 font-semibold"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono font-semibold ${inputBgBorder} ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}
                                 placeholder="e.g. +24% Sales"
                               />
                             </div>
 
                             <div className="sm:col-span-2">
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Tools Terpakai (Pisahkan dengan koma)</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Tools Terpakai (Pisahkan dengan koma)</label>
                               <input 
                                 type="text" 
                                 value={proj.tools ? proj.tools.join(', ') : ''} 
                                 onChange={e => handleUpdateProjectField(proj.id, 'tools', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                                 placeholder="SQL, Python, PowerBI"
                               />
                             </div>
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-2">Gambar Ilustrasi Projek (Upload File)</label>
-                            <div className="flex flex-col sm:flex-row items-center gap-4 p-4 border border-slate-800 rounded-lg bg-slate-950/40">
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-2 ${textLabelColor}`}>Gambar Ilustrasi Projek (Upload File)</label>
+                            <div className={`flex flex-col sm:flex-row items-center gap-4 p-4 border rounded-lg ${theme === 'dark' ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-white'}`}>
                               {proj.image ? (
                                 <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-700 group shrink-0">
                                   <img 
@@ -1369,7 +1735,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                   </button>
                                 </div>
                               ) : (
-                                <div className="w-24 h-16 rounded-xl bg-slate-800 border border-slate-700 border-dashed flex items-center justify-center shrink-0 text-slate-500 text-[10px] font-mono text-center font-bold">
+                                <div className={`w-24 h-16 rounded-xl border border-dashed flex items-center justify-center shrink-0 text-[10px] font-mono text-center font-bold ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-350 text-slate-400'}`}>
                                   NO IMAGE
                                 </div>
                               )}
@@ -1399,7 +1765,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 />
                                 <label 
                                   htmlFor={`project-file-input-${proj.id}`}
-                                  className="inline-block px-4 py-2 bg-slate-850 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-750 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none"
+                                  className={`inline-block px-4 py-2 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-800 text-slate-200 hover:text-white border-slate-750' : 'bg-slate-100 hover:bg-slate-150 text-slate-705 hover:text-slate-900 border-slate-250'}`}
                                 >
                                   Pilih Berkas Gambar
                                 </label>
@@ -1411,17 +1777,17 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Deskripsi Penjelasan Solusi Analitik</label>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Penjelasan Solusi Analitik</label>
                             <textarea 
                               value={proj.description} 
                               onChange={e => handleUpdateProjectField(proj.id, 'description', e.target.value)}
                               rows={4}
-                              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 leading-normal"
+                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none leading-normal border focus:border-emerald-500 ${inputBgBorder}`}
                             />
                           </div>
 
                           {/* PPT SLIDER DECK BUILDER */}
-                          <div className="pt-4 border-t border-slate-800/40">
+                          <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-800/40' : 'border-slate-200'}`}>
                             <PPTSlideEditor 
                               slides={proj.slides || []}
                               onUpdateSlides={(updatedSlides) => handleUpdateProjectField(proj.id, 'slides', updatedSlides)}
@@ -1432,7 +1798,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       ))}
 
                       {(localCV.caseStudies || []).length === 0 && (
-                        <div className="text-center py-8 text-slate-500 border border-dashed border-slate-800 rounded-xl font-mono text-xs select-none">
+                        <div className={`text-center py-8 border border-dashed rounded-xl font-mono text-xs select-none ${theme === 'dark' ? 'text-slate-500 border-slate-800' : 'text-slate-550 border-slate-300'}`}>
                           Belum ada projek kustom. Silakan ketuk tombol "Tambah Projek Baru" di samping kanan atas.
                         </div>
                       )}
@@ -1442,10 +1808,10 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                 {activeTab === 'experience' && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-2">
+                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
                       <div className="flex items-center gap-2">
-                        <Briefcase className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-white">Riwayat Karir Professional</h4>
+                        <Briefcase className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Riwayat Karir Professional</h4>
                       </div>
                       <button
                         type="button"
@@ -1458,7 +1824,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                     <div className="space-y-6">
                       {localCV.experiences.map((exp, idx) => (
-                        <div key={exp.id} className="relative p-5 bg-slate-950/65 border border-slate-800 rounded-xl space-y-4">
+                        <div key={exp.id} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
                           <button
                             type="button"
                             onClick={() => handleRemoveExp(exp.id)}
@@ -1468,63 +1834,63 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className="text-[10px] font-bold text-emerald-400 font-mono uppercase bg-emerald-500/10 w-fit px-2 py-0.5 rounded">
+                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
                             Record Karir #{idx + 1}
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Nama Peran / Jabatan</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Peran / Jabatan</label>
                               <input 
                                 type="text" 
                                 value={exp.role} 
                                 onChange={e => handleUpdateExpField(exp.id, 'role', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Perusahaan / Company</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Perusahaan / Company</label>
                               <input 
                                 type="text" 
                                 value={exp.company} 
                                 onChange={e => handleUpdateExpField(exp.id, 'company', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Periode Pekerjaan</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Periode Pekerjaan</label>
                               <input 
                                 type="text" 
                                 value={exp.period} 
                                 onChange={e => handleUpdateExpField(exp.id, 'period', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 font-mono"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
 
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Teknologi Terpakai (Pisahkan dengan koma)</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Teknologi Terpakai (Pisahkan dengan koma)</label>
                               <input 
                                 type="text" 
                                 value={exp.tools ? exp.tools.join(', ') : ''} 
                                 onChange={e => handleUpdateExpTools(exp.id, e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                                 placeholder="SQL, Python, Tableau"
                               />
                             </div>
                           </div>
 
                           {/* Bullets List and edit controls */}
-                          <div className="space-y-3 pt-4 border-t border-slate-800/60">
+                          <div className={`space-y-3 pt-4 border-t ${dividerColor}`}>
                             <div className="flex justify-between items-center">
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase">Poin Pencapaian &amp; Tugas Analis</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase ${textLabelColor}`}>Poin Pencapaian &amp; Tugas Analis</label>
                               <button
                                 type="button"
                                 onClick={() => handleAddExpBullet(exp.id)}
-                                className="text-[9.5px] font-black font-sans text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5 cursor-pointer bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10"
+                                className={`text-[9.5px] font-black font-sans flex items-center gap-0.5 cursor-pointer px-2 py-0.5 rounded border transition-colors ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/10 hover:text-emerald-300' : 'text-emerald-705 bg-emerald-50 border-emerald-200 hover:text-emerald-800 shadow-sm'}`}
                               >
                                 <Plus className="w-3.5 h-3.5" /> Tambah Poin Penceritaan
                               </button>
@@ -1537,12 +1903,12 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                     type="text"
                                     value={bullet}
                                     onChange={e => handleUpdateExpBullet(exp.id, bulletIdx, e.target.value)}
-                                    className="flex-grow px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                    className={`flex-grow px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                                   />
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveExpBullet(exp.id, bulletIdx)}
-                                    className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                                    className={`p-2 rounded transition-colors cursor-pointer ${theme === 'dark' ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800' : 'text-slate-455 hover:text-red-600 hover:bg-slate-100'}`}
                                     title="Hapus"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -1561,10 +1927,10 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                 {activeTab === 'education' && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-2">
+                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
                       <div className="flex items-center gap-2">
-                        <GraduationCap className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-bold text-sm uppercase tracking-wider text-white">Latar Belakang Akademis</h4>
+                        <GraduationCap className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Latar Belakang Akademis</h4>
                       </div>
                       <button
                         type="button"
@@ -1577,7 +1943,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                     <div className="space-y-4">
                       {localCV.education.map((edu, idx) => (
-                        <div key={idx} className="relative p-5 bg-slate-950/65 border border-slate-800 rounded-xl space-y-4">
+                        <div key={idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
                           <button
                             type="button"
                             onClick={() => handleRemoveEdu(idx)}
@@ -1587,39 +1953,39 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className="text-[10px] font-bold text-emerald-400 font-mono uppercase bg-emerald-500/10 w-fit px-2 py-0.5 rounded">
+                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
                             Record Pendidikan #{idx + 1}
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Periode Akademis</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Periode Akademis</label>
                               <input 
                                 type="text" 
                                 value={edu.period} 
                                 onChange={e => handleUpdateEdu(idx, 'period', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 font-mono"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
 
                             <div className="sm:col-span-2">
-                              <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Jurusan / Gelar Pendidikan</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Jurusan / Gelar Pendidikan</label>
                               <input 
                                 type="text" 
                                 value={edu.degree} 
                                 onChange={e => handleUpdateEdu(idx, 'degree', e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                               />
                             </div>
                           </div>
 
                           <div>
-                            <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">Nama Institusi &amp; Lokasi</label>
+                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Institusi &amp; Lokasi</label>
                             <input 
                               type="text" 
                               value={edu.institution} 
                               onChange={e => handleUpdateEdu(idx, 'institution', e.target.value)}
-                              className="w-full px-3 py-2 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                             />
                           </div>
 
@@ -1633,29 +1999,29 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                 {activeTab === 'methodology' && (
                   <div className="space-y-6">
-                    <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-2">
-                      <Sparkles className="w-5 h-5 text-emerald-400" />
-                      <h4 className="font-bold text-sm uppercase tracking-wider text-white">Core Methodology &amp; Filosofi Kerja</h4>
+                    <div className={`flex items-center gap-2 border-b pb-3 mb-2 ${dividerColor}`}>
+                      <Sparkles className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
+                      <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Core Methodology &amp; Filosofi Kerja</h4>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">DOKTRIN / JUDUL FILOSOFI</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>DOKTRIN / JUDUL FILOSOFI</label>
                         <input 
                           type="text" 
                           value={localCV.methodologyTitle || ''} 
                           onChange={e => updateGeneralField('methodologyTitle', e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100"
+                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase mb-1.5">PERNYATAAN FILOSOFIS UTAMA</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>PERNYATAAN FILOSOFIS UTAMA</label>
                         <textarea 
                           value={localCV.methodologyText || ''} 
                           onChange={e => updateGeneralField('methodologyText', e.target.value)}
                           rows={5}
-                          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 leading-relaxed italic"
+                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none leading-relaxed italic border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
                     </div>
@@ -2046,13 +2412,9 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             const options = [
                               { id: 'location', name: 'Lokasi Domisili', value: localCV.location },
                               { id: 'email', name: 'Email Informasi', value: localCV.email },
-                              { id: 'linkedin', name: 'LinkedIn', value: localCV.linkedin },
-                              { id: 'instagram', name: 'Instagram', value: localCV.instagram },
-                              { id: 'whatsapp', name: 'WhatsApp', value: localCV.whatsapp },
-                              { id: 'github', name: 'GitHub', value: localCV.github },
                               ...(localCV.customSocials || []).map(s => ({
                                 id: s.id,
-                                name: `Kustom: ${s.name || 'Medsos Baru'}`,
+                                name: s.name || 'Medsos Baru',
                                 value: s.value
                               }))
                             ];
@@ -2090,22 +2452,34 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                         onClick={() => handleToggleHeader(opt.id)}
                                         className={`p-3 border rounded-xl flex items-center justify-between text-left transition-all ${
                                           !hasValue 
-                                            ? 'bg-slate-900/30 border-slate-900/50 opacity-40 cursor-not-allowed'
+                                            ? theme === 'dark'
+                                              ? 'bg-slate-900/30 border-slate-900/50 opacity-40 cursor-not-allowed'
+                                              : 'bg-slate-100/50 border-slate-200/50 opacity-40 cursor-not-allowed'
                                             : isChecked
-                                              ? 'bg-emerald-950/40 border-emerald-500 text-emerald-300 cursor-pointer'
+                                              ? theme === 'dark'
+                                                ? 'bg-emerald-950/40 border-emerald-500 text-emerald-300 cursor-pointer'
+                                                : 'bg-emerald-50 border-emerald-500 text-emerald-700 cursor-pointer'
                                               : isDisabled
-                                                ? 'bg-slate-950 border-slate-900 text-slate-600 opacity-60'
-                                                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-850 cursor-pointer'
+                                                ? theme === 'dark'
+                                                  ? 'bg-slate-950 border-slate-900 text-slate-600 opacity-60'
+                                                  : 'bg-slate-150 border-slate-200 text-slate-400 opacity-60'
+                                                : theme === 'dark'
+                                                  ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-850 cursor-pointer'
+                                                  : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 cursor-pointer'
                                         }`}
                                       >
                                         <div className="flex items-center gap-2.5 min-w-0 pr-1">
                                           <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                            isChecked ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'border-slate-650'
+                                            isChecked 
+                                              ? 'bg-emerald-500 border-emerald-400 text-slate-950' 
+                                              : theme === 'dark' ? 'border-slate-650' : 'border-slate-300'
                                           }`}>
                                             {isChecked && <Check className="w-3 h-3 stroke-[2.5]" />}
                                           </div>
                                           <div className="truncate">
-                                            <p className="text-[11px] font-bold block truncate leading-none mb-1 text-slate-200">{opt.name}</p>
+                                            <p className={`text-[11px] font-bold block truncate leading-none mb-1 ${
+                                              theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
+                                            }`}>{opt.name}</p>
                                             <span className="text-[9px] text-slate-500 block truncate font-mono">
                                               {hasValue ? opt.value : '(Belum Diisi)'}
                                             </span>
@@ -2126,15 +2500,23 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                         </div>
 
                         {/* Section 2: Footer Socials Choice */}
-                        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-4">
-                          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                        <div className={`p-6 rounded-2xl border space-y-4 shadow-sm ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                        }`}>
+                          <div className={`flex items-center gap-2 border-b pb-3 ${
+                            theme === 'dark' ? 'border-slate-800' : 'border-slate-200'
+                          }`}>
                             <Share2 className="w-5 h-5 text-emerald-400" />
-                            <h4 className="font-bold text-sm uppercase tracking-wider text-white">
+                            <h4 className={`font-bold text-sm uppercase tracking-wider ${
+                              theme === 'dark' ? 'text-white' : 'text-slate-900'
+                            }`}>
                               Pilih Sosmed di Bagian Bawah CV (Footer)
                             </h4>
                           </div>
                           
-                          <p className="text-xs text-slate-400 leading-normal">
+                          <p className={`text-xs leading-normal ${
+                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+                          }`}>
                             Centang media sosial atau tautan eksternal yang ingin ditampilkan di bagian kaki (footer) lembar CV.
                           </p>
 
@@ -2142,10 +2524,6 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             const footerSocials = localCV.footerSocials || ['linkedin', 'instagram', 'whatsapp'];
                             
                             const options = [
-                              { id: 'linkedin', name: 'LinkedIn', value: localCV.linkedin },
-                              { id: 'instagram', name: 'Instagram', value: localCV.instagram },
-                              { id: 'whatsapp', name: 'WhatsApp', value: localCV.whatsapp },
-                              { id: 'github', name: 'GitHub', value: localCV.github },
                               ...(localCV.customSocials || []).map(s => ({
                                 id: s.id,
                                 name: s.name || 'Medsos Baru',
@@ -2180,20 +2558,30 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       onClick={() => handleToggleFooter(opt.id)}
                                       className={`p-3 border rounded-xl flex items-center justify-between text-left transition-all ${
                                         !hasValue
-                                          ? 'bg-slate-900/30 border-slate-900/50 opacity-40 cursor-not-allowed'
+                                          ? theme === 'dark'
+                                            ? 'bg-slate-900/30 border-slate-900/50 opacity-40 cursor-not-allowed'
+                                            : 'bg-slate-100/50 border-slate-200/50 opacity-40 cursor-not-allowed'
                                           : isChecked
-                                            ? 'bg-emerald-950/40 border-emerald-500 text-emerald-300 cursor-pointer'
-                                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-855 cursor-pointer'
+                                            ? theme === 'dark'
+                                              ? 'bg-emerald-950/40 border-emerald-500 text-emerald-300 cursor-pointer'
+                                              : 'bg-emerald-50 border-emerald-500 text-emerald-700 cursor-pointer'
+                                            : theme === 'dark'
+                                              ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-855 cursor-pointer'
+                                              : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 cursor-pointer'
                                       }`}
                                     >
                                       <div className="flex items-center gap-2.5 min-w-0 pr-1">
                                         <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                          isChecked ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'border-slate-650'
+                                          isChecked 
+                                            ? 'bg-emerald-500 border-emerald-400 text-slate-950' 
+                                            : theme === 'dark' ? 'border-slate-650' : 'border-slate-300'
                                         }`}>
                                           {isChecked && <Check className="w-3 h-3 stroke-[2.5]" />}
                                         </div>
                                         <div className="truncate">
-                                          <p className="text-[11px] font-bold block truncate leading-none mb-1 text-slate-200">{opt.name}</p>
+                                          <p className={`text-[11px] font-bold block truncate leading-none mb-1 ${
+                                            theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
+                                          }`}>{opt.name}</p>
                                           <span className="text-[9px] text-slate-500 block truncate font-mono">
                                             {hasValue ? opt.value : '(Belum Diisi)'}
                                           </span>
@@ -2207,142 +2595,20 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           })()}
                         </div>
 
-                        {/* Section 3: Custom Socials Adder & Manager */}
-                        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 space-y-6">
+                        {/* Section 3: Media Sosial Manager */}
+                        <div className={`p-6 rounded-2xl border space-y-6 shadow-sm ${
+                          theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                        }`}>
                           
-                          {/* Sub-section 3a: Standard Socials Inputs */}
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2 border-b border-slate-800 pb-2.5">
-                              <Sliders className="w-4 h-4 text-emerald-400 animate-pulse" />
-                              <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-300">
-                                Media Sosial Utama (LinkedIn, Instagram, WhatsApp, GitHub)
-                              </h5>
-                            </div>
-                            
-                            <p className="text-[11px] text-slate-400 leading-normal">
-                              Masukkan URL atau nomor kontak Anda di bawah ini secara langsung. Data ini otomatis digunakan di seluruh web portfolio dan layout CV formal Anda.
-                            </p>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {/* LinkedIn Input */}
-                              <div className="p-3.5 bg-slate-900/40 rounded-xl border border-slate-850 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="p-1 rounded bg-slate-950 text-emerald-500 font-bold text-[10px] uppercase font-mono w-6 h-6 flex items-center justify-center border border-slate-800">ln</span>
-                                    <span className="text-[10px] font-sans font-bold text-slate-300">Profil LinkedIn</span>
-                                  </div>
-                                  {localCV.linkedin && (
-                                    <button
-                                      type="button"
-                                      onClick={() => updateGeneralField('linkedin', '')}
-                                      className="text-[10px] font-sans hover:text-red-400 text-slate-500 flex items-center gap-1 transition-colors cursor-pointer select-none border border-slate-800 hover:border-red-500/20 px-2 py-0.5 rounded bg-slate-900"
-                                      title="Hapus / Kosongkan LinkedIn"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5 text-red-500" />
-                                      <span>Hapus</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="contoh: linkedin.com/in/nama-anda"
-                                  value={localCV.linkedin || ''}
-                                  onChange={e => updateGeneralField('linkedin', e.target.value)}
-                                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 transition-colors"
-                                />
-                              </div>
-
-                              {/* Instagram Input */}
-                              <div className="p-3.5 bg-slate-900/40 rounded-xl border border-slate-850 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="p-1 rounded bg-slate-950 text-emerald-500 font-bold text-[10px] uppercase font-mono w-6 h-6 flex items-center justify-center border border-slate-800">ig</span>
-                                    <span className="text-[10px] font-sans font-bold text-slate-300">Profil Instagram</span>
-                                  </div>
-                                  {localCV.instagram && (
-                                    <button
-                                      type="button"
-                                      onClick={() => updateGeneralField('instagram', '')}
-                                      className="text-[10px] font-sans hover:text-red-400 text-slate-500 flex items-center gap-1 transition-colors cursor-pointer select-none border border-slate-800 hover:border-red-500/20 px-2 py-0.5 rounded bg-slate-900"
-                                      title="Hapus / Kosongkan Instagram"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5 text-red-500" />
-                                      <span>Hapus</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="contoh: instagram.com/username"
-                                  value={localCV.instagram || ''}
-                                  onChange={e => updateGeneralField('instagram', e.target.value)}
-                                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 transition-colors"
-                                />
-                              </div>
-
-                              {/* WhatsApp Input */}
-                              <div className="p-3.5 bg-slate-900/40 rounded-xl border border-slate-850 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="p-1 rounded bg-slate-950 text-emerald-500 font-bold text-[10px] uppercase font-mono w-6 h-6 flex items-center justify-center border border-slate-800">wa</span>
-                                    <span className="text-[10px] font-sans font-bold text-slate-300">Nomor WhatsApp</span>
-                                  </div>
-                                  {localCV.whatsapp && (
-                                    <button
-                                      type="button"
-                                      onClick={() => updateGeneralField('whatsapp', '')}
-                                      className="text-[10px] font-sans hover:text-red-400 text-slate-500 flex items-center gap-1 transition-colors cursor-pointer select-none border border-slate-800 hover:border-red-500/20 px-2 py-0.5 rounded bg-slate-900"
-                                      title="Hapus / Kosongkan WhatsApp"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5 text-red-500" />
-                                      <span>Hapus</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="contoh: +6281234567890"
-                                  value={localCV.whatsapp || ''}
-                                  onChange={e => updateGeneralField('whatsapp', e.target.value)}
-                                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 transition-colors"
-                                />
-                              </div>
-
-                              {/* GitHub Input */}
-                              <div className="p-3.5 bg-slate-900/40 rounded-xl border border-slate-850 space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="p-1 rounded bg-slate-950 text-emerald-500 font-bold text-[10px] uppercase font-mono w-6 h-6 flex items-center justify-center border border-slate-800">gh</span>
-                                    <span className="text-[10px] font-sans font-bold text-slate-300">Profil GitHub</span>
-                                  </div>
-                                  {localCV.github && (
-                                    <button
-                                      type="button"
-                                      onClick={() => updateGeneralField('github', '')}
-                                      className="text-[10px] font-sans hover:text-red-400 text-slate-500 flex items-center gap-1 transition-colors cursor-pointer select-none border border-slate-800 hover:border-red-500/20 px-2 py-0.5 rounded bg-slate-900"
-                                      title="Hapus / Kosongkan GitHub"
-                                    >
-                                      <Trash2 className="w-2.5 h-2.5 text-red-500" />
-                                      <span>Hapus</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  placeholder="contoh: github.com/username"
-                                  value={localCV.github || ''}
-                                  onChange={e => updateGeneralField('github', e.target.value)}
-                                  className="w-full px-3 py-2 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 transition-colors"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-center border-b border-slate-800 pb-3 pt-2">
+                          <div className={`flex justify-between items-center border-b pb-3 ${
+                            theme === 'dark' ? 'border-slate-800' : 'border-slate-200'
+                          }`}>
                             <div className="flex items-center gap-2">
                               <PlusCircle className="w-5 h-5 text-emerald-400" />
-                              <h4 className="font-bold text-sm uppercase tracking-wider text-white">
-                                Tambah &amp; Atur Media Sosial Kustom
+                              <h4 className={`font-bold text-sm uppercase tracking-wider ${
+                                theme === 'dark' ? 'text-white' : 'text-slate-900'
+                              }`}>
+                                Tambah &amp; Atur Media Sosial
                               </h4>
                             </div>
                             
@@ -2351,8 +2617,9 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                               onClick={() => {
                                 const newSocial = {
                                   id: 'social-' + Date.now(),
-                                  name: '',
+                                  name: 'LinkedIn',
                                   value: '',
+                                  usernameOrUrl: '',
                                   showOnWeb: true,
                                   showOnCvHeader: false,
                                   showOnCvFooter: true
@@ -2370,8 +2637,10 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             </button>
                           </div>
 
-                          <p className="text-xs text-slate-400 leading-normal">
-                            Tambahkan media sosial kustom baru (seperti Instagram tambahan, YouTube, TikTok, Facebook, Portfolio Pribadi, dsb) secara bebas. Anda dapat mengunggah logo kustom Anda sendiri untuk masing-masing media sosial tersebut.
+                          <p className={`text-xs leading-normal ${
+                            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+                          }`}>
+                            Pilih dari daftar platform media sosial populer yang telah disediakan dengan logo resmi rapi (LinkedIn, Instagram, WhatsApp, GitHub, dsb). Tidak perlu mengunggah gambar logo.
                           </p>
 
                           {(() => {
@@ -2379,15 +2648,20 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                             if (customSocials.length === 0) {
                               return (
-                                <div className="border border-dashed border-slate-800 p-8 rounded-xl text-center space-y-2 bg-slate-900/10">
-                                  <p className="text-xs text-slate-500 font-mono">Belum ada media sosial kustom tambahan.</p>
+                                <div className={`border border-dashed p-8 rounded-xl text-center space-y-2 ${
+                                  theme === 'dark' ? 'border-slate-800 bg-slate-900/10' : 'border-slate-300 bg-slate-100/50'
+                                }`}>
+                                  <p className={`text-xs font-mono ${
+                                    theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+                                  }`}>Belum ada media sosial kustom tambahan.</p>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       const newSocial = {
                                         id: 'social-' + Date.now(),
-                                        name: '',
+                                        name: 'Facebook',
                                         value: '',
+                                        usernameOrUrl: '',
                                         showOnWeb: true,
                                         showOnCvHeader: false,
                                         showOnCvFooter: true
@@ -2397,7 +2671,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                         customSocials: [newSocial]
                                       }));
                                     }}
-                                    className="px-3.5 py-1.5 text-xs text-emerald-400 border border-emerald-800 hover:border-emerald-600 rounded-lg hover:bg-slate-900/50 transition-all font-bold cursor-pointer"
+                                    className="px-3.5 py-1.5 text-xs text-emerald-400 border border-emerald-800 hover:border-emerald-600 rounded-lg hover:bg-emerald-950/20 transition-all font-bold cursor-pointer"
                                   >
                                     + Buat Pertama Kali
                                   </button>
@@ -2436,10 +2710,16 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 {customSocials.map((social, index) => (
                                   <div 
                                     key={social.id}
-                                    className="bg-slate-900/60 border border-slate-800 p-4 rounded-xl space-y-4 relative"
+                                    className={`p-4 rounded-xl space-y-4 border relative ${
+                                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                                    }`}
                                   >
-                                    <div className="flex justify-between items-center bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-850">
-                                      <span className="text-[9px] font-mono font-bold text-slate-500">
+                                    <div className={`flex justify-between items-center px-3 py-1.5 rounded-lg border ${
+                                      theme === 'dark' ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-150'
+                                    }`}>
+                                      <span className={`text-[9px] font-mono font-bold ${
+                                        theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+                                      }`}>
                                         # {index + 1} - MEDIA SOSIAL KUSTOM
                                       </span>
                                       
@@ -2454,108 +2734,117 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                                      <div className="md:col-span-3 space-y-2 flex flex-col items-center justify-center p-3 border border-slate-850 rounded-xl bg-slate-950/40 text-center">
-                                        <label className="text-[9px] font-mono font-bold text-slate-400 block uppercase">
-                                          Logo / Ikon
+                                      <div className={`md:col-span-3 space-y-2 flex flex-col items-center justify-center p-3 border rounded-xl text-center ${
+                                        theme === 'dark' ? 'border-slate-850 bg-slate-950/40' : 'border-slate-200 bg-slate-50/20'
+                                      }`}>
+                                        <label className={`text-[9px] font-mono font-bold block uppercase ${
+                                          theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                                        }`}>
+                                          Logo / Ikon Resmi
                                         </label>
                                         
-                                        {social.logoUrl ? (
-                                          <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center group shrink-0">
-                                            <img 
-                                              src={social.logoUrl} 
-                                              alt="Logo"
-                                              className="w-full h-full object-contain p-1"
-                                              referrerPolicy="no-referrer"
-                                            />
-                                            <button
-                                              type="button"
-                                              onClick={() => updateCustomSocial(social.id, 'logoUrl', '')}
-                                              className="absolute inset-0 bg-red-950/80 text-white font-mono text-[8px] font-bold opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
-                                            >
-                                              HAPUS
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <div className="w-10 h-10 rounded-lg bg-slate-800 border border-dashed border-slate-650 flex items-center justify-center shrink-0 text-slate-500">
-                                            <Globe className="w-4 h-4 text-slate-500" />
-                                          </div>
-                                        )}
-
-                                        <div className="w-full">
-                                          <input 
-                                            type="file" 
-                                            accept="image/*"
-                                            id={`logo-upload-${social.id}`}
-                                            onChange={async (e) => {
-                                              const file = e.target.files?.[0];
-                                              if (file) {
-                                                if (file.size > 1 * 1024 * 1024) {
-                                                  alert("Ukuran ikon maksimal 1MB.");
-                                                  return;
-                                                }
-                                                try {
-                                                  const url = await uploadFileToStorage(file);
-                                                  updateCustomSocial(social.id, 'logoUrl', url);
-                                                } catch (err: any) {
-                                                  alert("Gagal mengunggah gambar icon: " + err.message);
-                                                }
-                                              }
-                                            }}
-                                            className="hidden"
-                                          />
-                                          <label
-                                            htmlFor={`logo-upload-${social.id}`}
-                                            className="px-2.5 py-1 bg-slate-950 hover:bg-slate-850 border border-slate-800 rounded text-[9px] text-slate-300 font-bold block cursor-pointer transition-colors text-center w-full"
-                                          >
-                                            UNGGAH LOGO
-                                          </label>
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow transition-transform hover:scale-105 ${
+                                          theme === 'dark' ? 'bg-slate-900 border border-slate-800' : 'bg-slate-50 border border-slate-200'
+                                        }`}>
+                                          <SocialIcon platform={social.name || 'Facebook'} size={28} useBrandColor={true} />
+                                        </div>
+                                        
+                                        <div className={`text-[10px] font-mono font-bold mt-1 px-2 py-0.5 rounded border ${
+                                          theme === 'dark' ? 'text-emerald-400 bg-slate-950/80 border-slate-800/80' : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                        }`}>
+                                          {social.name || 'Facebook'}
                                         </div>
                                       </div>
 
                                       <div className="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="space-y-1">
-                                          <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase">
-                                            Nama Platform
+                                          <label className={`text-[10px] font-mono font-bold block uppercase ${
+                                            theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                                          }`}>
+                                            Pilih Platform Medsos
+                                          </label>
+                                          <select 
+                                            value={social.name || 'Facebook'}
+                                            onChange={(e) => updateCustomSocial(social.id, 'name', e.target.value)}
+                                            className={`w-full px-3 py-2 border rounded-lg text-xs outline-none transition-colors cursor-pointer ${
+                                              theme === 'dark' 
+                                                ? 'bg-slate-955 border-slate-800 text-slate-100 hover:border-slate-700 focus:border-emerald-500' 
+                                                : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 focus:border-emerald-500'
+                                            }`}
+                                          >
+                                            {AVAILABLE_PLATFORMS.map((plat) => (
+                                              <option key={plat} value={plat} className={theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-800'}>
+                                                {plat}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className={`text-[10px] font-mono font-bold block uppercase ${
+                                            theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                                          }`}>
+                                            Teks yang Ditampilkan
                                           </label>
                                           <input 
                                             type="text"
-                                            placeholder="contoh: Youtube, Portfolio, TikTok" 
-                                            value={social.name}
-                                            onChange={(e) => updateCustomSocial(social.id, 'name', e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 transition-colors"
+                                            placeholder="contoh: Nama Saya" 
+                                            value={social.value}
+                                            onChange={(e) => updateCustomSocial(social.id, 'value', e.target.value)}
+                                            className={`w-full px-3 py-2 border rounded-lg text-xs outline-none transition-colors ${
+                                              theme === 'dark'
+                                                ? 'bg-slate-955 border-slate-800 text-slate-100 hover:border-slate-700 focus:border-emerald-500'
+                                                : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 focus:border-emerald-500'
+                                            }`}
                                           />
                                         </div>
 
                                         <div className="space-y-1">
-                                          <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase">
-                                            URL / Tautan Link
+                                          <label className={`text-[10px] font-mono font-bold block uppercase ${
+                                            theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                                          }`}>
+                                            Username / Link Tujuan
                                           </label>
                                           <input 
                                             type="text"
-                                            placeholder="contoh: youtube.com/c/username" 
-                                            value={social.value}
-                                            onChange={(e) => updateCustomSocial(social.id, 'value', e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-955 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-lg text-xs outline-none text-slate-100 transition-colors"
+                                            placeholder="contoh: nama-saya atau link lengkap" 
+                                            value={social.usernameOrUrl || ''}
+                                            onChange={(e) => updateCustomSocial(social.id, 'usernameOrUrl', e.target.value)}
+                                            className={`w-full px-3 py-2 border rounded-lg text-xs outline-none transition-colors ${
+                                              theme === 'dark'
+                                                ? 'bg-slate-955 border-slate-800 text-slate-100 hover:border-slate-700 focus:border-emerald-500'
+                                                : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 focus:border-emerald-500'
+                                            }`}
                                           />
                                         </div>
 
-                                        <div className="sm:col-span-2 pt-2 border-t border-slate-850/60 mt-1 flex flex-wrap gap-4 items-center justify-between">
-                                          <span className="text-[9px] font-mono text-slate-500 uppercase">
+                                        <div className={`sm:col-span-2 pt-2 mt-1 flex flex-wrap gap-4 items-center justify-between border-t ${
+                                          theme === 'dark' ? 'border-slate-850/60' : 'border-slate-200'
+                                        }`}>
+                                          <span className={`text-[9px] font-mono uppercase ${
+                                            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+                                          }`}>
                                             Tampilkan sosial media kustom ini di:
                                           </span>
                                           
                                           <div className="flex flex-wrap items-center gap-3.5">
-                                            <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-400 hover:text-white select-none">
+                                            <label className={`flex items-center gap-1.5 cursor-pointer text-[10px] select-none transition-colors ${
+                                              theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                                            }`}>
                                               <input 
                                                 type="checkbox" 
                                                 checked={!!social.showOnWeb}
                                                 onChange={(e) => updateCustomSocial(social.id, 'showOnWeb', e.target.checked)}
-                                                className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-850 accent-emerald-500 cursor-pointer"
+                                                className={`w-3.5 h-3.5 rounded cursor-pointer accent-emerald-500 ${
+                                                  theme === 'dark' ? 'bg-slate-950 border-slate-850' : 'bg-white border-slate-300'
+                                                }`}
                                               />
                                               <span>Landing Web Portfolio</span>
                                             </label>
 
-                                            <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-400 hover:text-white select-none">
+                                            <label className={`flex items-center gap-1.5 cursor-pointer text-[10px] select-none transition-colors ${
+                                              theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                                            }`}>
                                               <input 
                                                 type="checkbox" 
                                                 checked={!!social.showOnCvHeader}
@@ -2579,12 +2868,16 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                                     }
                                                     updateCustomSocial(social.id, 'showOnCvHeader', checked);
                                                 }}
-                                                className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-850 accent-emerald-500 cursor-pointer"
+                                                className={`w-3.5 h-3.5 rounded cursor-pointer accent-emerald-500 ${
+                                                  theme === 'dark' ? 'bg-slate-950 border-slate-850' : 'bg-white border-slate-300'
+                                                }`}
                                               />
                                               <span>CV Header (Maks 3)</span>
                                             </label>
 
-                                            <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-400 hover:text-white select-none">
+                                            <label className={`flex items-center gap-1.5 cursor-pointer text-[10px] select-none transition-colors ${
+                                              theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                                            }`}>
                                               <input 
                                                 type="checkbox" 
                                                 checked={!!social.showOnCvFooter}
@@ -2604,7 +2897,9 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                                     }
                                                     updateCustomSocial(social.id, 'showOnCvFooter', checked);
                                                 }}
-                                                className="w-3.5 h-3.5 rounded bg-slate-950 border-slate-850 accent-emerald-500 cursor-pointer"
+                                                className={`w-3.5 h-3.5 rounded cursor-pointer accent-emerald-500 ${
+                                                  theme === 'dark' ? 'bg-slate-950 border-slate-850' : 'bg-white border-slate-300'
+                                                }`}
                                               />
                                               <span>CV Footer</span>
                                             </label>
@@ -2629,8 +2924,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
               )}
 
               {/* STAGE SAVE ACTIONS FOOTER RAIL */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex flex-col sm:flex-row gap-4 justify-between items-center shadow-lg sticky bottom-6 select-none shadow-[#000]/40">
-                <span className="text-[11px] font-mono text-slate-400">
+              <div className={`p-6 rounded-2xl flex flex-col sm:flex-row gap-4 justify-between items-center shadow-lg sticky bottom-6 select-none shadow-[#000]/40 border ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
+                <span className={`text-[11px] font-mono ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
                   {isSupabaseConfigured 
                     ? '⚡ Terkoneksi secara aman dengan Cloud Supabase Database. Seluruh data disinkronkan langsung.' 
                     : '📂 Mode draft offline: Menulis ke Storage Browser lokal secara aman.'}
@@ -2661,3 +2956,59 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
     </div>
   );
 }
+
+const SUPABASE_SQL_CODE = `-- 1. Hapus tabel lama portfolio_cv yang kurang berguna / tidak digunakan lagi
+DROP TABLE IF EXISTS portfolio_cv;
+
+-- 2. Rapikan tabel portfolio_profile dengan menghapus sosmed yang double
+ALTER TABLE portfolio_profile DROP COLUMN IF EXISTS linkedin;
+ALTER TABLE portfolio_profile DROP COLUMN IF EXISTS github;
+ALTER TABLE portfolio_profile DROP COLUMN IF EXISTS instagram;
+ALTER TABLE portfolio_profile DROP COLUMN IF EXISTS whatsapp;
+
+-- 3. Buat tabel baru untuk menyimpan info semua sosmed kustom secara dinamis
+CREATE TABLE IF NOT EXISTS portfolio_socials (
+  id VARCHAR PRIMARY KEY,
+  platform VARCHAR NOT NULL,
+  label VARCHAR NOT NULL, -- "Nama Saya" (yang ditampilkan)
+  username_or_url VARCHAR NOT NULL, -- "nama-saya" (yang diarahkan)
+  show_on_web BOOLEAN DEFAULT TRUE,
+  show_on_cv_header BOOLEAN DEFAULT FALSE,
+  show_on_cv_footer BOOLEAN DEFAULT TRUE,
+  sort_order INTEGER DEFAULT 0
+);
+
+-- 4. Buat tabel baru untuk menyimpan teks-teks dinamis di landing web
+CREATE TABLE IF NOT EXISTS portfolio_texts (
+  key VARCHAR PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- 5. Seed default texts ke dalam tabel portfolio_texts
+INSERT INTO portfolio_texts (key, value) VALUES
+('hero_badge', 'DATA ANALYST & BI STRATEGIST'),
+('hero_title', 'Turning Raw Data\\ninto Enterprise Decisions'),
+('hero_subtitle', 'Specializing in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence. I transform transactional records into clean, validated, and actionable optimization roadmaps.'),
+('projects_badge', 'CASE CHRONICLES'),
+('projects_title', 'Selected Case Studies'),
+('projects_subtitle', 'A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits.'),
+('skills_badge', 'STACK CLASSIFICATION'),
+('skills_title', 'Technical Arsenal'),
+('skills_subtitle', 'Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters.'),
+('experience_badge', 'CAREER TRACEABILITY'),
+('experience_title', 'Professional Journey'),
+('experience_subtitle', 'Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries.')
+ON CONFLICT (key) DO NOTHING;
+
+-- 6. Aktifkan kebijakan RLS (Row Level Security) agar aman
+ALTER TABLE portfolio_socials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_texts ENABLE ROW LEVEL SECURITY;
+
+-- 7. Buat kebijakan akses publik (Dapat Dibaca Oleh Semua Orang)
+CREATE POLICY "Allow public reads on socials" ON portfolio_socials FOR SELECT USING (true);
+CREATE POLICY "Allow public reads on texts" ON portfolio_texts FOR SELECT USING (true);
+
+-- 8. Buat kebijakan akses admin (Dapat Dimodifikasi Oleh Pengguna yang Terotentikasi)
+CREATE POLICY "Allow admin writes on socials" ON portfolio_socials FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Allow admin writes on texts" ON portfolio_texts FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+`;

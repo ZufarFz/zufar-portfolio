@@ -38,16 +38,31 @@ export async function uploadFileToStorage(file: File, bucketName: string = 'port
   return publicUrl;
 }
 
+export const DEFAULT_WEB_TEXTS: Record<string, string> = {
+  hero_badge: "DATA ANALYST & BI STRATEGIST",
+  hero_title: "Turning Raw Data\ninto Enterprise Decisions",
+  hero_subtitle: "Specializing in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence. I transform transactional records into clean, validated, and actionable optimization roadmaps.",
+  projects_badge: "CASE CHRONICLES",
+  projects_title: "Selected Case Studies",
+  projects_subtitle: "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits.",
+  skills_badge: "STACK CLASSIFICATION",
+  skills_title: "Technical Arsenal",
+  skills_subtitle: "Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters.",
+  experience_badge: "CAREER TRACEABILITY",
+  experience_title: "Professional Journey",
+  experience_subtitle: "Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries."
+};
+
 // Initial default CV data matching the original portfolio CV perfectly with slides integration
 export const DEFAULT_CV_DATA = {
   name: "Jonathan Vance",
   title: "Senior Data Analyst & BI Decision Strategist",
   location: "New York City, NY",
   email: "analyst@portfolio.com",
-  linkedin: "linkedin.com/in/vance-analyst",
-  github: "github.com/vance-analyst",
-  instagram: "instagram.com/vance.analyst",
-  whatsapp: "wa.me/628123456789",
+  linkedin: "",
+  github: "",
+  instagram: "",
+  whatsapp: "",
   aboutMe: "Driven and detail-oriented Senior Data Analyst with over 6 years of experience engineering high-impact SQL pipelines, advanced predictive models, and intuitive executive-level BI dashboards. Adept at turning complex unstructured transactional records into optimized operational decisions and actionable revenue insights.\n\nPassionate about data transparency, pipeline performance alignment, and strategic growth. Committed to driving efficiency through statistical verification frameworks and transparent KPIs.",
   technicalArsenal: {
     dbms: "SQL, PostgreSQL, Snowflake, BigQuery, CTEs, Window Functions",
@@ -255,15 +270,16 @@ export const DEFAULT_CV_DATA = {
   ] as CaseStudy[],
   methodologyTitle: "Core Methodology",
   methodologyText: "My analyst philosophy centers around absolute transparency of pipeline metrics. Rather than larping with mock structures, I prioritize rigorous statistical validation (ANOVA, significance tests) and intuitive visual UX dashboards that drive executive-level decision making.",
-  avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80",
+  avatarUrl: "",
   avatarScale: 1,
   avatarX: 0,
   avatarY: 0,
-  homeImageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCx5HToTCRRNc-WdOu-V5TBxXn5nv6D4tUTHNYPFTqireXzy3qytpxRbIjxuK3sOdu0A8jQwuEwReAlKpUCIWEz3dv2iyfNx-LiA5WJo1_K-AEsEo3lxWzFFex7uvz2dXUQPNrFSvrfeK8dt5k-xfgNyPCha7Ks3FWVNNaVdA-Lsln37OKxdZWRGRmgJXyjrZLdon3a85_0mNN-abPutS_nR4mJXGtwcL5OYlXEHTeG8__SZUp2o6PbflTLwruIQX15u_e9R_kNpF4",
+  homeImageUrl: "",
   homeImageScale: 1,
   homeImageX: 0,
   homeImageY: 0,
   customSocials: [] as CustomSocial[],
+  webTexts: DEFAULT_WEB_TEXTS,
   headerContacts: ["location", "email", "linkedin"],
   footerSocials: ["linkedin", "instagram", "whatsapp"]
 };
@@ -272,6 +288,7 @@ export interface CustomSocial {
   id: string;
   name: string;
   value: string;
+  usernameOrUrl?: string; // New redirection URL or username
   logoUrl?: string;
   showOnWeb: boolean;
   showOnCvHeader: boolean;
@@ -288,6 +305,7 @@ export interface CVData {
   instagram?: string;
   whatsapp?: string;
   aboutMe?: string;
+  webTexts?: Record<string, string>; // New Website Texts configuration dict
   technicalArsenal: {
     dbms: string;
     scientificLanguages: string;
@@ -350,19 +368,43 @@ export async function fetchCVData(): Promise<CVData> {
 
   try {
     // 1. Try to fetch from separate structured tables to fulfill user's core database separation request
-    const [profileRes, skillsRes, projectsRes, expRes, eduRes, layoutRes] = await Promise.all([
+    const [profileRes, skillsRes, projectsRes, expRes, eduRes, layoutRes, socialsRes, textsRes] = await Promise.all([
       supabase.from('portfolio_profile').select('*').eq('id', 'primary').maybeSingle(),
       supabase.from('portfolio_skills').select('*').order('sort_order', { ascending: true }),
       supabase.from('portfolio_projects').select('*').order('sort_order', { ascending: true }),
       supabase.from('portfolio_experiences').select('*').order('sort_order', { ascending: true }),
       supabase.from('portfolio_education').select('*').order('sort_order', { ascending: true }),
-      supabase.from('portfolio_layout').select('*').eq('id', 'primary').maybeSingle()
+      supabase.from('portfolio_layout').select('*').eq('id', 'primary').maybeSingle(),
+      supabase.from('portfolio_socials').select('*').order('sort_order', { ascending: true }),
+      supabase.from('portfolio_texts').select('*')
     ]);
 
     // Check if the primary structured tables exist (if not, they return specific DB errors)
     if (!profileRes.error && !skillsRes.error && !projectsRes.error && !expRes.error && !eduRes.error) {
       const dbProfile = profileRes.data || {};
       const dbLayout = layoutRes.data || {};
+
+      // Map socials if available
+      let socialsList: CustomSocial[] = [];
+      if (socialsRes && !socialsRes.error && socialsRes.data && socialsRes.data.length > 0) {
+        socialsList = socialsRes.data.map((s: any) => ({
+          id: s.id,
+          name: s.platform,
+          value: s.label,
+          usernameOrUrl: s.username_or_url,
+          showOnWeb: s.show_on_web !== false,
+          showOnCvHeader: s.show_on_cv_header === true,
+          showOnCvFooter: s.show_on_cv_footer !== false
+        }));
+      }
+
+      // Map texts if available
+      const textsDict: Record<string, string> = { ...DEFAULT_WEB_TEXTS };
+      if (textsRes && !textsRes.error && textsRes.data) {
+        textsRes.data.forEach((r: any) => {
+          textsDict[r.key] = r.value;
+        });
+      }
 
       const mappedCVData: CVData = {
         name: dbProfile.name || DEFAULT_CV_DATA.name,
@@ -422,6 +464,9 @@ export async function fetchCVData(): Promise<CVData> {
           slides: p.slides || []
         })),
 
+        customSocials: socialsList,
+        webTexts: textsDict,
+
         layoutSettings: dbLayout.theme_color ? {
           themeColor: dbLayout.theme_color,
           fontSize: dbLayout.font_size,
@@ -441,7 +486,10 @@ export async function fetchCVData(): Promise<CVData> {
           .maybeSingle();
         if (legacyData?.content) {
           const lObj = legacyData.content;
-          mappedCVData.customSocials = lObj.customSocials || [];
+          mappedCVData.customSocials = mappedCVData.customSocials && mappedCVData.customSocials.length > 0
+            ? mappedCVData.customSocials
+            : (lObj.customSocials || []);
+          mappedCVData.webTexts = { ...DEFAULT_WEB_TEXTS, ...lObj.webTexts, ...textsDict };
           mappedCVData.avatarScale = lObj.avatarScale !== undefined ? lObj.avatarScale : 1;
           mappedCVData.avatarX = lObj.avatarX !== undefined ? lObj.avatarX : 0;
           mappedCVData.avatarY = lObj.avatarY !== undefined ? lObj.avatarY : 0;
@@ -523,22 +571,13 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
   }
 
   try {
-    // 1. Keep legacy table 'portfolio_cv' in sync as a primary fallback
-    const legacyPromise = supabase
-      .from('portfolio_cv')
-      .upsert({ id: 'primary', content: newData, updated_at: new Date().toISOString() });
-
-    // 2. Profile splits upsert
+    // 1. Profile splits upsert (without duplicate social columns)
     const profilePromise = supabase.from('portfolio_profile').upsert({
       id: 'primary',
       name: newData.name,
       title: newData.title,
       location: newData.location,
       email: newData.email,
-      linkedin: newData.linkedin,
-      github: newData.github || "",
-      instagram: newData.instagram || "",
-      whatsapp: newData.whatsapp || "",
       about_me: newData.aboutMe || "",
       avatar_url: newData.avatarUrl || "",
       methodology_title: newData.methodologyTitle || "",
@@ -546,7 +585,7 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       updated_at: new Date().toISOString()
     });
 
-    // 3. Clear & Insert Skills
+    // 2. Clear & Insert Skills
     const cleanSkills = async () => {
       await supabase.from('portfolio_skills').delete().neq('id', 'dummy_exclusion');
       if (newData.skills && newData.skills.length > 0) {
@@ -564,7 +603,7 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       }
     };
 
-    // 4. Clear & Insert Projects
+    // 3. Clear & Insert Projects
     const cleanProjects = async () => {
       await supabase.from('portfolio_projects').delete().neq('id', 'dummy_exclusion');
       if (newData.caseStudies && newData.caseStudies.length > 0) {
@@ -584,7 +623,7 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       }
     };
 
-    // 5. Experiences
+    // 4. Experiences
     const cleanExperiences = async () => {
       await supabase.from('portfolio_experiences').delete().neq('id', 'dummy_exclusion');
       if (newData.experiences && newData.experiences.length > 0) {
@@ -601,7 +640,7 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       }
     };
 
-    // 6. Education
+    // 5. Education
     const cleanEducation = async () => {
       await supabase.from('portfolio_education').delete().neq('id', 'dummy_exclusion');
       if (newData.education && newData.education.length > 0) {
@@ -616,7 +655,39 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       }
     };
 
-    // 7. Layout Setting
+    // 6. Clear & Insert customSocials
+    const cleanSocials = async () => {
+      // Clean previous records
+      await supabase.from('portfolio_socials').delete().neq('id', 'dummy_exclusion');
+      if (newData.customSocials && newData.customSocials.length > 0) {
+        const socialsToInsert = newData.customSocials.map((s, idx) => ({
+          id: s.id,
+          platform: s.name,
+          label: s.value,
+          username_or_url: s.usernameOrUrl || s.value || '',
+          show_on_web: s.showOnWeb !== false,
+          show_on_cv_header: s.showOnCvHeader === true,
+          show_on_cv_footer: s.showOnCvFooter !== false,
+          sort_order: idx
+        }));
+        await supabase.from('portfolio_socials').insert(socialsToInsert);
+      }
+    };
+
+    // 7. Clear & Upsert webTexts
+    const cleanTexts = async () => {
+      if (newData.webTexts) {
+        const textsToUpsert = Object.entries(newData.webTexts).map(([k, v]) => ({
+          key: k,
+          value: v
+        }));
+        if (textsToUpsert.length > 0) {
+          await supabase.from('portfolio_texts').upsert(textsToUpsert);
+        }
+      }
+    };
+
+    // 8. Layout Setting
     const layoutPromise = newData.layoutSettings ? supabase.from('portfolio_layout').upsert({
       id: 'primary',
       theme_color: newData.layoutSettings.themeColor,
@@ -628,15 +699,17 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       updated_at: new Date().toISOString()
     }) : Promise.resolve();
 
-    // Fire legacy + profile + layout upserts
-    await Promise.all([legacyPromise, profilePromise, layoutPromise]);
+    // Fire profile + layout upserts
+    await Promise.all([profilePromise, layoutPromise]);
 
-    // Handle split tables cleanly (catch locally if any particular sub-table table fails constraints or rule checks)
+    // Handle split tables cleanly (catch locally if any particular sub-table save fails)
     await Promise.all([
       cleanSkills().catch(e => console.warn('portfolio_skills save failed structure logic:', e.message)),
       cleanProjects().catch(e => console.warn('portfolio_projects save failed structure logic:', e.message)),
       cleanExperiences().catch(e => console.warn('portfolio_experiences save failed structure logic:', e.message)),
-      cleanEducation().catch(e => console.warn('portfolio_education save failed structure logic:', e.message))
+      cleanEducation().catch(e => console.warn('portfolio_education save failed structure logic:', e.message)),
+      cleanSocials().catch(e => console.warn('portfolio_socials save failed structure logic:', e.message)),
+      cleanTexts().catch(e => console.warn('portfolio_texts save failed structure logic:', e.message))
     ]);
 
     return { success: true };

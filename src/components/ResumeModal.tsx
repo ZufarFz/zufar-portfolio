@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CVData, saveCVData, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
+import SocialIcon, { getAbsoluteSocialUrl } from './SocialIcon';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 
@@ -188,44 +189,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
     }
   }, [cvData]);
 
-  const getAbsoluteUrl = (link: string, type: 'linkedin' | 'instagram' | 'github' | 'whatsapp') => {
+  const getAbsoluteUrl = (link: string, type: string) => {
     if (!link) return '';
-    const trimmed = link.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return trimmed;
-    }
-    if (type === 'linkedin') {
-      if (trimmed.includes('linkedin.com')) {
-        return `https://${trimmed}`;
-      }
-      return `https://linkedin.com/in/${trimmed}`;
-    }
-    if (type === 'instagram') {
-      if (trimmed.includes('instagram.com')) {
-        return `https://${trimmed}`;
-      }
-      return `https://instagram.com/${trimmed}`;
-    }
-    if (type === 'github') {
-      if (trimmed.includes('github.com')) {
-        return `https://${trimmed}`;
-      }
-      return `https://github.com/${trimmed}`;
-    }
-    if (type === 'whatsapp') {
-      if (trimmed.toLowerCase().includes('wa.me') || trimmed.toLowerCase().includes('whatsapp.com')) {
-        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-          return trimmed;
-        }
-        return `https://${trimmed}`;
-      }
-      let cleanNum = trimmed.replace(/[^\d]/g, '');
-      if (cleanNum.startsWith('0')) {
-        cleanNum = '62' + cleanNum.slice(1);
-      }
-      return `https://wa.me/${cleanNum}`;
-    }
-    return `https://${trimmed}`;
+    return getAbsoluteSocialUrl(link, type);
   };
 
   // Check if admin session is active on mount
@@ -893,6 +859,28 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                 const items: React.ReactNode[] = [];
                 const visibleIds = cvData.headerContacts || ['location', 'email', 'linkedin'];
                 
+                // Get unified list of social channels
+                const unifiedSocials = [...(cvData.customSocials || [])];
+                const standards = [
+                  { key: 'linkedin', name: 'LinkedIn', val: cvData.linkedin },
+                  { key: 'github', name: 'GitHub', val: cvData.github },
+                  { key: 'instagram', name: 'Instagram', val: cvData.instagram },
+                  { key: 'whatsapp', name: 'WhatsApp', val: cvData.whatsapp }
+                ];
+                standards.forEach(({ key, name, val }) => {
+                  const exists = unifiedSocials.some(s => s.id === key || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+                  if (val && !exists) {
+                    unifiedSocials.push({
+                      id: key,
+                      name,
+                      value: val,
+                      showOnWeb: true,
+                      showOnCvHeader: cvData.headerContacts?.includes(key) ?? false,
+                      showOnCvFooter: cvData.footerSocials?.includes(key) ?? true
+                    });
+                  }
+                });
+
                 visibleIds.forEach((id) => {
                   if (id === 'location' && cvData.location) {
                     items.push(<span key="loc">{cvData.location}</span>);
@@ -902,47 +890,30 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                         {cvData.email}
                       </a>
                     );
-                  } else if (id === 'linkedin' && cvData.linkedin) {
-                    const cleanLink = cvData.linkedin.trim().replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '');
-                    items.push(
-                      <a key="linkedin" href={getAbsoluteUrl(cvData.linkedin, 'linkedin')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                        {cleanLink}
-                      </a>
-                    );
-                  } else if (id === 'instagram' && cvData.instagram) {
-                    const cleanInsta = cvData.instagram.trim().replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '');
-                    const displayHandle = cleanInsta.startsWith('@') ? cleanInsta : `@${cleanInsta}`;
-                    items.push(
-                      <a key="instagram" href={getAbsoluteUrl(cvData.instagram, 'instagram')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                        {displayHandle}
-                      </a>
-                    );
-                  } else if (id === 'whatsapp' && cvData.whatsapp) {
-                    const displayNum = cvData.whatsapp;
-                    const formattedWaLink = getAbsoluteUrl(cvData.whatsapp, 'whatsapp');
-                    items.push(
-                      <a key="whatsapp" href={formattedWaLink} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                        {displayNum}
-                      </a>
-                    );
-                  } else if (id === 'github' && cvData.github) {
-                    const cleanGit = cvData.github.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '').replace(/\/$/, '');
-                    items.push(
-                      <a key="github" href={getAbsoluteUrl(cvData.github, 'github')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                        {cleanGit}
-                      </a>
-                    );
                   } else {
-                    // Check in custom socials
-                    const found = cvData.customSocials?.find(s => s.id === id);
+                    // Look in unified socials for matching ID
+                    const found = unifiedSocials.find(s => s.id === id);
                     if (found && found.value) {
                       const cleanVal = found.value.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+                      
+                      let displayLabel = `${found.name}: ${cleanVal}`;
+                      if (found.name?.toLowerCase().trim() === 'linkedin') {
+                        const cleanLink = found.value.trim().replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '');
+                        displayLabel = cleanLink;
+                      } else if (found.name?.toLowerCase().trim() === 'instagram') {
+                        const cleanInsta = found.value.trim().replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '');
+                        displayLabel = cleanInsta.startsWith('@') ? cleanInsta : `@${cleanInsta}`;
+                      } else if (found.name?.toLowerCase().trim() === 'whatsapp') {
+                        displayLabel = found.value.trim();
+                      } else if (found.name?.toLowerCase().trim() === 'github') {
+                        const cleanGit = found.value.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '').replace(/\/$/, '');
+                        displayLabel = cleanGit;
+                      }
+
                       items.push(
-                        <a key={found.id} href={getAbsoluteUrl(found.value, 'linkedin')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
-                          {found.logoUrl && (
-                            <img src={found.logoUrl} className="w-3 h-3 object-contain inline print:hidden shrink-0" alt="" referrerPolicy="no-referrer" />
-                          )}
-                          <span>{found.name}: {cleanVal}</span>
+                        <a key={found.id} href={getAbsoluteUrl(found.value, found.name)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
+                          <SocialIcon platform={found.name} size={11} className="w-2.5 h-2.5 inline shrink-0" useBrandColor={true} />
+                          <span>{displayLabel}</span>
                         </a>
                       );
                     }
@@ -1004,7 +975,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                           }`}
                         >
                           <img 
-                            src={cvData.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80"} 
+                            src={cvData.avatarUrl} 
                             alt={cvData.name} 
                             style={{
                               position: 'absolute',
@@ -1091,120 +1062,54 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                   const visibleIds = cvData.footerSocials || ['linkedin', 'instagram', 'whatsapp'];
                   const footerItems: React.ReactNode[] = [];
 
-                  // Standard Socials
-                  if (visibleIds.includes('linkedin') && cvData.linkedin) {
-                    const cleanLink = cvData.linkedin.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-                    footerItems.push(
-                      <a 
-                        key="linkedin"
-                        href={getAbsoluteUrl(cvData.linkedin, 'linkedin')} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="flex items-center gap-1.5 text-slate-700 hover:text-emerald-600 transition-colors cursor-pointer group"
-                        title="Buka LinkedIn"
-                      >
-                        <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#0a66c2] transition-colors shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                        </svg>
-                        <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                          {cleanLink}
-                        </span>
-                      </a>
-                    );
-                  }
+                  // Get unified list of social channels
+                  const unifiedSocials = [...(cvData.customSocials || [])];
+                  const standards = [
+                    { key: 'linkedin', name: 'LinkedIn', val: cvData.linkedin },
+                    { key: 'github', name: 'GitHub', val: cvData.github },
+                    { key: 'instagram', name: 'Instagram', val: cvData.instagram },
+                    { key: 'whatsapp', name: 'WhatsApp', val: cvData.whatsapp }
+                  ];
+                  standards.forEach(({ key, name, val }) => {
+                    const exists = unifiedSocials.some(s => s.id === key || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+                    if (val && !exists) {
+                      unifiedSocials.push({
+                        id: key,
+                        name,
+                        value: val,
+                        showOnWeb: true,
+                        showOnCvHeader: cvData.headerContacts?.includes(key) ?? false,
+                        showOnCvFooter: cvData.footerSocials?.includes(key) ?? true
+                      });
+                    }
+                  });
 
-                  if (visibleIds.includes('instagram') && cvData.instagram) {
-                    const cleanInsta = cvData.instagram.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-                    const parts = cleanInsta.split('/');
-                    let handle = parts[parts.length - 1];
-                    handle = handle.startsWith('@') ? handle : `@${handle}`;
-                    footerItems.push(
-                      <a 
-                        key="instagram"
-                        href={getAbsoluteUrl(cvData.instagram, 'instagram')} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="flex items-center gap-1.5 text-slate-705 hover:text-emerald-600 transition-colors cursor-pointer group"
-                        title="Buka Instagram"
-                      >
-                        <svg className="w-3.5 h-3.5 fill-none stroke-current text-slate-500 group-hover:text-[#e1306c] transition-colors shrink-0" viewBox="0 0 24 24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                        </svg>
-                        <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                          {handle}
-                        </span>
-                      </a>
-                    );
-                  }
-
-                  if (visibleIds.includes('whatsapp') && cvData.whatsapp) {
-                    const displayNum = cvData.whatsapp.trim();
-                    footerItems.push(
-                      <a 
-                        key="whatsapp"
-                        href={getAbsoluteUrl(cvData.whatsapp, 'whatsapp')} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="flex items-center gap-1.5 text-slate-705 hover:text-emerald-600 transition-colors cursor-pointer group"
-                        title="Hubungi WhatsApp"
-                      >
-                        <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#25d366] fill-current transition-colors shrink-0" viewBox="0 0 24 24">
-                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.454L0 24zm6.59-4.846c1.6.95 3.1 1.455 4.793 1.456 5.4 0 9.794-4.302 9.797-9.585.002-2.559-1-4.965-2.819-6.784-1.817-1.819-4.231-2.822-6.791-2.822-5.4 0-9.796 4.302-9.799 9.587-.001 1.832.511 3.593 1.481 5.111l-.97 3.543 3.69-.966zm11.393-7.64c-.312-.156-1.847-.91-2.128-1.012-.282-.101-.487-.156-.692.156-.204.311-.79.91-.969 1.112-.178.203-.357.228-.669.072-.312-.156-1.317-.485-2.51-1.549-.928-.827-1.554-1.85-1.736-2.162-.182-.312-.02-.48.136-.635.14-.14.312-.363.468-.545.156-.182.208-.311.312-.518.104-.207.052-.389-.026-.545-.078-.156-.692-1.666-.949-2.285-.25-.6-.525-.515-.712-.524-.183-.009-.394-.01-.606-.01-.212 0-.559.08-.85.397-.29.317-1.11 1.085-1.11 2.644 0 1.56 1.135 3.064 1.291 3.272.156.208 2.235 3.411 5.412 4.78.756.326 1.345.521 1.805.667.76.241 1.45.207 1.996.126.608-.091 1.848-.755 2.11-1.485.262-.73.262-1.353.184-1.485-.078-.133-.283-.211-.595-.367z" />
-                        </svg>
-                        <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                          {displayNum}
-                        </span>
-                      </a>
-                    );
-                  }
-
-                  if (visibleIds.includes('github') && cvData.github) {
-                    const cleanGithub = cvData.github.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-                    footerItems.push(
-                      <a 
-                        key="github"
-                        href={getAbsoluteUrl(cvData.github, 'github')} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="flex items-center gap-1.5 text-slate-700 hover:text-slate-900 transition-colors cursor-pointer group"
-                        title="Buka GitHub"
-                      >
-                        <svg className="w-3.5 h-3.5 fill-current text-slate-500 group-hover:text-slate-900 transition-colors shrink-0" viewBox="0 0 24 24">
-                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                        </svg>
-                        <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                          {cleanGithub}
-                        </span>
-                      </a>
-                    );
-                  }
-
-                  // Render Custom Socials in footer if checked/visible
-                  cvData.customSocials?.forEach((social) => {
+                  unifiedSocials.forEach((social) => {
                     if (visibleIds.includes(social.id) && social.value) {
                       const cleanVal = social.value.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+                      
+                      let displayLabel = cleanVal;
+                      if (social.name?.toLowerCase().trim() === 'instagram') {
+                        const cleanInsta = social.value.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+                        const parts = cleanInsta.split('/');
+                        let handle = parts[parts.length - 1];
+                        displayLabel = handle.startsWith('@') ? handle : `@${handle}`;
+                      } else if (social.name?.toLowerCase().trim() === 'whatsapp') {
+                        displayLabel = social.value.trim();
+                      }
+
                       footerItems.push(
                         <a 
                           key={social.id}
-                          href={getAbsoluteUrl(social.value, 'linkedin')} 
+                          href={getAbsoluteUrl(social.value, social.name)} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="flex items-center gap-1.5 text-slate-750 hover:text-emerald-500 transition-colors cursor-pointer group"
+                          className="flex items-center gap-1.5 text-slate-755 hover:text-emerald-500 transition-colors cursor-pointer group"
                           title={`Buka ${social.name}`}
                         >
-                          {social.logoUrl ? (
-                            <img src={social.logoUrl} className="w-3.5 h-3.5 object-contain shrink-0" alt="" referrerPolicy="no-referrer" />
-                          ) : (
-                            <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-900 fill-none stroke-current transition-colors shrink-0" viewBox="0 0 24 24" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10"></circle>
-                              <line x1="2" y1="12" x2="22" y2="12"></line>
-                              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                            </svg>
-                          )}
+                          <SocialIcon platform={social.name} size={14} className="w-3.5 h-3.5 shrink-0" useBrandColor={true} />
                           <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                            {cleanVal}
+                            {displayLabel}
                           </span>
                         </a>
                       );
@@ -1593,6 +1498,28 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                   const items: React.ReactNode[] = [];
                   const visibleIds = cvData.headerContacts || ['location', 'email', 'linkedin'];
                   
+                  // Get unified list of social channels
+                  const unifiedSocials = [...(cvData.customSocials || [])];
+                  const standards = [
+                    { key: 'linkedin', name: 'LinkedIn', val: cvData.linkedin },
+                    { key: 'github', name: 'GitHub', val: cvData.github },
+                    { key: 'instagram', name: 'Instagram', val: cvData.instagram },
+                    { key: 'whatsapp', name: 'WhatsApp', val: cvData.whatsapp }
+                  ];
+                  standards.forEach(({ key, name, val }) => {
+                    const exists = unifiedSocials.some(s => s.id === key || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+                    if (val && !exists) {
+                      unifiedSocials.push({
+                        id: key,
+                        name,
+                        value: val,
+                        showOnWeb: true,
+                        showOnCvHeader: cvData.headerContacts?.includes(key) ?? false,
+                        showOnCvFooter: cvData.footerSocials?.includes(key) ?? true
+                      });
+                    }
+                  });
+
                   visibleIds.forEach((id) => {
                     if (id === 'location' && cvData.location) {
                       items.push(<span key="loc">{cvData.location}</span>);
@@ -1602,47 +1529,30 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                           {cvData.email}
                         </a>
                       );
-                    } else if (id === 'linkedin' && cvData.linkedin) {
-                      const cleanLink = cvData.linkedin.trim().replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '');
-                      items.push(
-                        <a key="linkedin" href={getAbsoluteUrl(cvData.linkedin, 'linkedin')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                          {cleanLink}
-                        </a>
-                      );
-                    } else if (id === 'instagram' && cvData.instagram) {
-                      const cleanInsta = cvData.instagram.trim().replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '');
-                      const displayHandle = cleanInsta.startsWith('@') ? cleanInsta : `@${cleanInsta}`;
-                      items.push(
-                        <a key="instagram" href={getAbsoluteUrl(cvData.instagram, 'instagram')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                          {displayHandle}
-                        </a>
-                      );
-                    } else if (id === 'whatsapp' && cvData.whatsapp) {
-                      const displayNum = cvData.whatsapp;
-                      const formattedWaLink = getAbsoluteUrl(cvData.whatsapp, 'whatsapp');
-                      items.push(
-                        <a key="whatsapp" href={formattedWaLink} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                          {displayNum}
-                        </a>
-                      );
-                    } else if (id === 'github' && cvData.github) {
-                      const cleanGit = cvData.github.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '').replace(/\/$/, '');
-                      items.push(
-                        <a key="github" href={getAbsoluteUrl(cvData.github, 'github')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors font-mono">
-                          {cleanGit}
-                        </a>
-                      );
                     } else {
-                      // Check in custom socials
-                      const found = cvData.customSocials?.find(s => s.id === id);
+                      // Look in unified socials for matching ID
+                      const found = unifiedSocials.find(s => s.id === id);
                       if (found && found.value) {
                         const cleanVal = found.value.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+                        
+                        let displayLabel = `${found.name}: ${cleanVal}`;
+                        if (found.name?.toLowerCase().trim() === 'linkedin') {
+                          const cleanLink = found.value.trim().replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//, '').replace(/\/$/, '');
+                          displayLabel = cleanLink;
+                        } else if (found.name?.toLowerCase().trim() === 'instagram') {
+                          const cleanInsta = found.value.trim().replace(/^(https?:\/\/)?(www\.)?instagram\.com\//, '').replace(/\/$/, '');
+                          displayLabel = cleanInsta.startsWith('@') ? cleanInsta : `@${cleanInsta}`;
+                        } else if (found.name?.toLowerCase().trim() === 'whatsapp') {
+                          displayLabel = found.value.trim();
+                        } else if (found.name?.toLowerCase().trim() === 'github') {
+                          const cleanGit = found.value.trim().replace(/^(https?:\/\/)?(www\.)?github\.com\//, '').replace(/\/$/, '');
+                          displayLabel = cleanGit;
+                        }
+
                         items.push(
-                          <a key={found.id} href={getAbsoluteUrl(found.value, 'linkedin')} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
-                            {found.logoUrl && (
-                              <img src={found.logoUrl} className="w-3 h-3 object-contain inline print:hidden shrink-0" alt="" referrerPolicy="no-referrer" />
-                            )}
-                            <span>{found.name}: {cleanVal}</span>
+                          <a key={found.id} href={getAbsoluteUrl(found.value, found.name)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
+                            <SocialIcon platform={found.name} size={11} className="w-2.5 h-2.5 inline shrink-0" useBrandColor={true} />
+                            <span>{displayLabel}</span>
                           </a>
                         );
                       }
@@ -1704,7 +1614,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                             }`}
                           >
                             <img 
-                              src={cvData.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80"} 
+                              src={cvData.avatarUrl} 
                               alt={cvData.name} 
                               style={{
                                 position: 'absolute',
@@ -1791,120 +1701,54 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     const visibleIds = cvData.footerSocials || ['linkedin', 'instagram', 'whatsapp'];
                     const footerItems: React.ReactNode[] = [];
 
-                    // Standard Socials
-                    if (visibleIds.includes('linkedin') && cvData.linkedin) {
-                      const cleanLink = cvData.linkedin.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-                      footerItems.push(
-                        <a 
-                          key="linkedin"
-                          href={getAbsoluteUrl(cvData.linkedin, 'linkedin')} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex items-center gap-1.5 text-slate-700 hover:text-emerald-600 transition-colors cursor-pointer group"
-                          title="Buka LinkedIn"
-                        >
-                          <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#0a66c2] transition-colors shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                          </svg>
-                          <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                            {cleanLink}
-                          </span>
-                        </a>
-                      );
-                    }
+                    // Get unified list of social channels
+                    const unifiedSocials = [...(cvData.customSocials || [])];
+                    const standards = [
+                      { key: 'linkedin', name: 'LinkedIn', val: cvData.linkedin },
+                      { key: 'github', name: 'GitHub', val: cvData.github },
+                      { key: 'instagram', name: 'Instagram', val: cvData.instagram },
+                      { key: 'whatsapp', name: 'WhatsApp', val: cvData.whatsapp }
+                    ];
+                    standards.forEach(({ key, name, val }) => {
+                      const exists = unifiedSocials.some(s => s.id === key || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+                      if (val && !exists) {
+                        unifiedSocials.push({
+                          id: key,
+                          name,
+                          value: val,
+                          showOnWeb: true,
+                          showOnCvHeader: cvData.headerContacts?.includes(key) ?? false,
+                          showOnCvFooter: cvData.footerSocials?.includes(key) ?? true
+                        });
+                      }
+                    });
 
-                    if (visibleIds.includes('instagram') && cvData.instagram) {
-                      const cleanInsta = cvData.instagram.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-                      const parts = cleanInsta.split('/');
-                      let handle = parts[parts.length - 1];
-                      handle = handle.startsWith('@') ? handle : `@${handle}`;
-                      footerItems.push(
-                        <a 
-                          key="instagram"
-                          href={getAbsoluteUrl(cvData.instagram, 'instagram')} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex items-center gap-1.5 text-slate-705 hover:text-emerald-600 transition-colors cursor-pointer group"
-                          title="Buka Instagram"
-                        >
-                          <svg className="w-3.5 h-3.5 fill-none stroke-current text-slate-500 group-hover:text-[#e1306c] transition-colors shrink-0" viewBox="0 0 24 24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                          </svg>
-                          <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                            {handle}
-                          </span>
-                        </a>
-                      );
-                    }
-
-                    if (visibleIds.includes('whatsapp') && cvData.whatsapp) {
-                      const displayNum = cvData.whatsapp.trim();
-                      footerItems.push(
-                        <a 
-                          key="whatsapp"
-                          href={getAbsoluteUrl(cvData.whatsapp, 'whatsapp')} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex items-center gap-1.5 text-slate-705 hover:text-emerald-600 transition-colors cursor-pointer group"
-                          title="Hubungi WhatsApp"
-                        >
-                          <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-[#25d366] fill-current transition-colors shrink-0" viewBox="0 0 24 24">
-                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.454L0 24zm6.59-4.846c1.6.95 3.1 1.455 4.793 1.456 5.4 0 9.794-4.302 9.797-9.585.002-2.559-1-4.965-2.819-6.784-1.817-1.819-4.231-2.822-6.791-2.822-5.4 0-9.796 4.302-9.799 9.587-.001 1.832.511 3.593 1.481 5.111l-.97 3.543 3.69-.966zm11.393-7.64c-.312-.156-1.847-.91-2.128-1.012-.282-.101-.487-.156-.692.156-.204.311-.79.91-.969 1.112-.178.203-.357.228-.669.072-.312-.156-1.317-.485-2.51-1.549-.928-.827-1.554-1.85-1.736-2.162-.182-.312-.02-.48.136-.635.14-.14.312-.363.468-.545.156-.182.208-.311.312-.518.104-.207.052-.389-.026-.545-.078-.156-.692-1.666-.949-2.285-.25-.6-.525-.515-.712-.524-.183-.009-.394-.01-.606-.01-.212 0-.559.08-.85.397-.29.317-1.11 1.085-1.11 2.644 0 1.56 1.135 3.064 1.291 3.272.156.208 2.235 3.411 5.412 4.78.756.326 1.345.521 1.805.667.76.241 1.45.207 1.996.126.608-.091 1.848-.755 2.11-1.485.262-.73.262-1.353.184-1.485-.078-.133-.283-.211-.595-.367z" />
-                          </svg>
-                          <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                            {displayNum}
-                          </span>
-                        </a>
-                      );
-                    }
-
-                    if (visibleIds.includes('github') && cvData.github) {
-                      const cleanGithub = cvData.github.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-                      footerItems.push(
-                        <a 
-                          key="github"
-                          href={getAbsoluteUrl(cvData.github, 'github')} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="flex items-center gap-1.5 text-slate-700 hover:text-slate-900 transition-colors cursor-pointer group"
-                          title="Buka GitHub"
-                        >
-                          <svg className="w-3.5 h-3.5 fill-current text-slate-500 group-hover:text-slate-900 transition-colors shrink-0" viewBox="0 0 24 24">
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                          </svg>
-                          <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                            {cleanGithub}
-                          </span>
-                        </a>
-                      );
-                    }
-
-                    // Render Custom Socials in footer if checked/visible
-                    cvData.customSocials?.forEach((social) => {
+                    unifiedSocials.forEach((social) => {
                       if (visibleIds.includes(social.id) && social.value) {
                         const cleanVal = social.value.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+                        
+                        let displayLabel = cleanVal;
+                        if (social.name?.toLowerCase().trim() === 'instagram') {
+                          const cleanInsta = social.value.trim().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+                          const parts = cleanInsta.split('/');
+                          let handle = parts[parts.length - 1];
+                          displayLabel = handle.startsWith('@') ? handle : `@${handle}`;
+                        } else if (social.name?.toLowerCase().trim() === 'whatsapp') {
+                          displayLabel = social.value.trim();
+                        }
+
                         footerItems.push(
                           <a 
                             key={social.id}
-                            href={getAbsoluteUrl(social.value, 'linkedin')} 
+                            href={getAbsoluteUrl(social.value, social.name)} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className="flex items-center gap-1.5 text-slate-750 hover:text-emerald-500 transition-colors cursor-pointer group"
+                            className="flex items-center gap-1.5 text-slate-755 hover:text-emerald-500 transition-colors cursor-pointer group"
                             title={`Buka ${social.name}`}
                           >
-                            {social.logoUrl ? (
-                              <img src={social.logoUrl} className="w-3.5 h-3.5 object-contain shrink-0" alt="" referrerPolicy="no-referrer" />
-                            ) : (
-                              <svg className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-900 fill-none stroke-current transition-colors shrink-0" viewBox="0 0 24 24" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="2" y1="12" x2="22" y2="12"></line>
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                              </svg>
-                            )}
+                            <SocialIcon platform={social.name} size={14} className="w-3.5 h-3.5 shrink-0" useBrandColor={true} />
                             <span className="text-[10px] tracking-tight hover:underline underline-offset-2 text-slate-600 group-hover:text-slate-900 transition-colors">
-                              {cleanVal}
+                              {displayLabel}
                             </span>
                           </a>
                         );

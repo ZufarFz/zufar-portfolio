@@ -29,22 +29,12 @@ import ResumeModal from './components/ResumeModal';
 import AdminPage from './components/AdminPage';
 import CaseStudyPresentationPage from './components/CaseStudyPresentationPage';
 import { fetchCVData, DEFAULT_CV_DATA, CVData } from './lib/supabaseClient';
+import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 
 // Helper to format unstructured phone numbers or domain strings into clean absolute hyperlinks
-function formatSocialLink(link: string | undefined, platform: 'linkedin' | 'github' | 'instagram' | 'whatsapp' | 'custom' | string, defaultValue: string): string {
+function formatSocialLink(link: string | undefined, platform: string, defaultValue: string): string {
   if (!link) return defaultValue;
-  const cleaned = link.trim();
-  if (cleaned.startsWith('http://') || cleaned.startsWith('https://')) {
-    return cleaned;
-  }
-  if (platform === 'whatsapp') {
-    let numeric = cleaned.replace(/[^0-9]/g, '');
-    if (numeric.startsWith('0')) {
-      numeric = '62' + numeric.slice(1);
-    }
-    return `https://wa.me/${numeric}`;
-  }
-  return `https://${cleaned}`;
+  return getAbsoluteSocialUrl(link, platform);
 }
 
 export default function App() {
@@ -374,7 +364,7 @@ export default function App() {
                   theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-50 border-emerald-500/10'
                 }`}
               >
-                DATA ANALYST &amp; BI STRATEGIST
+                {cvData.webTexts?.hero_badge || "DATA ANALYST & BI STRATEGIST"}
               </motion.span>
               
               <motion.h1 
@@ -385,8 +375,17 @@ export default function App() {
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}
               >
-                Turning Raw Data <br/>
-                into Enterprise <span className="text-emerald-600">Decisions</span>
+                {(cvData.webTexts?.hero_title || "Turning Raw Data\ninto Enterprise Decisions").split('\n').map((line, i) => {
+                  if (line.includes("Decisions")) {
+                    return (
+                      <span key={i} className="block">
+                        {line.replace("Decisions", "")}
+                        <span className="text-emerald-600">Decisions</span>
+                      </span>
+                    );
+                  }
+                  return <span key={i} className="block">{line}</span>;
+                })}
               </motion.h1>
               
               <motion.p 
@@ -397,7 +396,7 @@ export default function App() {
                   theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                Specializing in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence. I transform transactional records into clean, validated, and actionable optimization roadmaps.
+                {cvData.webTexts?.hero_subtitle || "Specializing in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence. I transform transactional records into clean, validated, and actionable optimization roadmaps."}
               </motion.p>
 
               <motion.div 
@@ -448,18 +447,24 @@ export default function App() {
                     ? 'bg-transparent border-transparent' 
                     : (theme === 'dark' ? 'border border-slate-800 bg-slate-900/60 shadow-xl' : 'border border-slate-200 bg-slate-100 shadow-xl')
                 }`}>
-                  <img 
-                    className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
-                      isPng ? 'object-contain' : 'object-cover grayscale-[15%] group-hover:scale-102'
-                    }`}
-                    referrerPolicy="no-referrer"
-                    alt="Professional Portfolio Visual" 
-                    src={cvData.homeImageUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuCx5HToTCRRNc-WdOu-V5TBxXn5nv6D4tUTHNYPFTqireXzy3qytpxRbIjxuK3sOdu0A8jQwuEwReAlKpUCIWEz3dv2iyfNx-LiA5WJo1_K-AEsEo3lxWzFFex7uvz2dXUQPNrFSvrfeK8dt5k-xfgNyPCha7Ks3FWVNNaVdA-Lsln37OKxdZWRGRmgJXyjrZLdon3a85_0mNN-abPutS_nR4mJXGtwcL5OYlXEHTeG8__SZUp2o6PbflTLwruIQX15u_e9R_kNpF4"}
-                    style={cvData.homeImageUrl ? {
-                      transform: `scale(${cvData.homeImageScale || 1}) translate(${(cvData.homeImageX || 0) * 3.75}px, ${(cvData.homeImageY || 0) * 3.75}px)`,
-                      transformOrigin: 'center center'
-                    } : undefined}
-                  />
+                  {cvData.homeImageUrl ? (
+                    <img 
+                      className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
+                        isPng ? 'object-contain' : 'object-cover grayscale-[15%] group-hover:scale-102'
+                      }`}
+                      referrerPolicy="no-referrer"
+                      alt="Professional Portfolio Visual" 
+                      src={cvData.homeImageUrl}
+                      style={{
+                        transform: `scale(${cvData.homeImageScale || 1}) translate(${(cvData.homeImageX || 0) * 3.75}px, ${(cvData.homeImageY || 0) * 3.75}px)`,
+                        transformOrigin: 'center center'
+                      }}
+                    />
+                  ) : (
+                    <div className={`text-center p-6 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                      <p className="text-xs font-mono">Belum ada gambar</p>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Ribbon-style Banner displaying the Professional Title */}
@@ -504,17 +509,17 @@ export default function App() {
               <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5 rounded border transition-colors duration-200 ${
                 theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-100/60 border-emerald-200/50'
               }`}>
-                CASE CHRONICLES
+                {cvData.webTexts?.projects_badge || "CASE CHRONICLES"}
               </span>
               <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                Selected Case Studies
+                {cvData.webTexts?.projects_title || "Selected Case Studies"}
               </h2>
               <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits.
+                {cvData.webTexts?.projects_subtitle || "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits."}
               </p>
             </motion.div>
 
@@ -618,17 +623,17 @@ export default function App() {
               <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5 rounded border transition-colors duration-200 ${
                 theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-100/60 border-emerald-200/50'
               }`}>
-                STACK CLASSIFICATION
+                {cvData.webTexts?.skills_badge || "STACK CLASSIFICATION"}
               </span>
               <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                Technical Arsenal
+                {cvData.webTexts?.skills_title || "Technical Arsenal"}
               </h2>
               <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters.
+                {cvData.webTexts?.skills_subtitle || "Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters."}
               </p>
             </motion.div>
 
@@ -651,17 +656,17 @@ export default function App() {
               <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5 rounded border transition-colors duration-200 ${
                 theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-100/60 border-emerald-200/50'
               }`}>
-                CAREER TRACEABILITY
+                {cvData.webTexts?.experience_badge || "CAREER TRACEABILITY"}
               </span>
               <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                Professional Journey
+                {cvData.webTexts?.experience_title || "Professional Journey"}
               </h2>
               <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries.
+                {cvData.webTexts?.experience_subtitle || "Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries."}
               </p>
             </motion.div>
 
@@ -812,112 +817,33 @@ export default function App() {
           <p className="font-mono text-[10px] text-slate-500 text-center sm:text-left">
             © 2026 Data Decisions Index. Standard Vectorized Layout. All rights reserved.
           </p>
-
           <div className="flex items-center gap-3">
-            {/* LinkedIn */}
-            {cvData.linkedin && (
-              <button
-                onClick={() => {
-                  const url = formatSocialLink(cvData.linkedin, 'linkedin', 'https://linkedin.com');
-                  window.open(url, '_blank', 'noreferrer');
-                }}
-                className={`p-2 rounded-lg transition-all border cursor-pointer ${
-                  theme === 'dark' 
-                    ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-sky-600 hover:border-slate-300 shadow-sm'
-                }`}
-                title="Connect on LinkedIn"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                </svg>
-              </button>
-            )}
-            
-            {/* GitHub */}
-            {cvData.github && (
-              <button
-                onClick={() => {
-                  const url = formatSocialLink(cvData.github, 'github', 'https://github.com');
-                  window.open(url, '_blank', 'noreferrer');
-                }}
-                className={`p-2 rounded-lg transition-all border cursor-pointer ${
-                  theme === 'dark' 
-                    ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-950 hover:border-slate-300 shadow-sm'
-                }`}
-                title="Browse on GitHub"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-              </button>
-            )}
+            {/* Unified Social Media Icon Controls */}
+            {(() => {
+              const list = [...(cvData.customSocials || [])];
 
-            {/* Instagram */}
-            {cvData.instagram && (
-              <button
-                onClick={() => {
-                  const url = formatSocialLink(cvData.instagram, 'instagram', 'https://instagram.com');
-                  window.open(url, '_blank', 'noreferrer');
-                }}
-                className={`p-2 rounded-lg transition-all border cursor-pointer ${
-                  theme === 'dark' 
-                    ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-rose-600 hover:border-slate-300 shadow-sm'
-                }`}
-                title="Follow on Instagram"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
-                </svg>
-              </button>
-            )}
-
-            {/* WhatsApp */}
-            {cvData.whatsapp && (
-              <button
-                onClick={() => {
-                  const url = formatSocialLink(cvData.whatsapp, 'whatsapp', 'https://wa.me/');
-                  window.open(url, '_blank', 'noreferrer');
-                }}
-                className={`p-2 rounded-lg transition-all border cursor-pointer ${
-                  theme === 'dark' 
-                    ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
-                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-emerald-600 hover:border-slate-300 shadow-sm'
-                }`}
-                title="Chat on WhatsApp"
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.457L0 24zm6.59-4.846c1.6.95 2.766 1.464 4.8 1.465 5.485 0 9.94-4.5 9.943-10.02a9.715 9.715 0 0 0-2.888-6.953l-.117-.111c-1.884-1.883-4.394-2.92-7.073-2.922C5.786 1.613 1.332 6.113 1.33 11.636c0 2.054.536 3.037 1.42 4.678l-.947 3.456 3.541-.929s.258.14.703.353zm11.393-7.531c-.345-.172-2.036-1.002-2.348-1.116-.312-.114-.539-.172-.767.172-.227.343-.88 1.115-1.079 1.343-.198.228-.397.256-.742.085-.345-.172-1.456-.537-2.774-1.711-1.025-.914-1.717-2.043-1.918-2.386-.201-.343-.021-.528.151-.7a12.63 12.63 0 0 0 .504-.686c.119-.2.06-.372-.03-.543-.09-.172-.767-1.85-.1.171-1.05-2.528-.344-.61-.312-.767-.343-.114-.54-.112-1.353-.112-.482-.001-.794.111-1.22.112-.426.001-1.107.159-1.687.799-.58.641-2.213 2.164-2.148 5.275.064 3.111 2.3 6.112 2.613 6.541.312.428 4.542 6.936 10.1 7.234l.87.01c1.55-.069 2.53-.15 3.32-.23.854-.08 2.016-.82 2.3-1.58.28-.76.28-1.41.2-1.55-.08-.14-.3-.22-.646-.393z"/>
-                </svg>
-              </button>
-            )}
-
-            {/* Custom Social Channels */}
-            {(cvData.customSocials || [])
-              .filter(s => s.value && s.showOnWeb !== false)
-              .map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    const url = formatSocialLink(s.value, 'custom', '');
-                    window.open(url, '_blank', 'noreferrer');
-                  }}
-                  className={`p-2 rounded-lg transition-all border cursor-pointer flex items-center justify-center gap-1 min-w-[34px] min-h-[34px] ${
-                    theme === 'dark' 
-                      ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
-                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-emerald-600 hover:border-slate-300 shadow-sm'
-                  }`}
-                  title={`Open ${s.name}`}
-                >
-                  {s.logoUrl ? (
-                    <img src={s.logoUrl} className="w-4 h-4 object-contain shrink-0" alt="" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span className="font-mono text-[9px] uppercase font-bold">{s.name ? s.name.substring(0, 2) : 'S'}</span>
-                  )}
-                </button>
-              ))}
+              return list
+                .filter(s => (s.value || s.usernameOrUrl) && s.showOnWeb !== false)
+                .map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      const target = s.usernameOrUrl || s.value || '';
+                      const url = formatSocialLink(target, s.name || 'custom', '');
+                      window.open(url, '_blank', 'noreferrer');
+                    }}
+                    className={`p-2 rounded-lg transition-all border cursor-pointer flex items-center justify-center gap-1.5 min-w-[34px] min-h-[34px] group ${
+                      theme === 'dark' 
+                        ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
+                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
+                    }`}
+                    title={`Open ${s.name}: ${s.value || s.usernameOrUrl}`}
+                  >
+                    <SocialIcon platform={s.name} size={16} className="w-4 h-4 transition-transform group-hover:scale-110" useBrandColor={true} />
+                    <span className="text-[10px] hidden sm:inline group-hover:text-emerald-500 font-mono transition-colors">{s.value || s.name}</span>
+                  </button>
+                ));
+            })()}
           </div>
         </div>
       </footer>
