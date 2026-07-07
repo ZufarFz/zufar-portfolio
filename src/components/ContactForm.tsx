@@ -12,11 +12,21 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ContactMessage } from '../types';
 
-export default function ContactForm() {
+interface ContactFormProps {
+  email?: string;
+  location?: string;
+  webTexts?: Record<string, string>;
+}
+
+export default function ContactForm({ 
+  email = '', 
+  location = '', 
+  webTexts 
+}: ContactFormProps) {
   const [formData, setFormData] = useState<ContactMessage>({
     name: '',
     email: '',
-    inquiryType: 'Project Collaboration',
+    inquiryType: '',
     message: ''
   });
 
@@ -25,7 +35,7 @@ export default function ContactForm() {
   const [errorText, setErrorText] = useState<string | null>(null);
 
   // Stats computed on dynamic form fields
-  const computedSla = formData.inquiryType === 'Employment Opportunity' ? '1.5 Hours' : formData.inquiryType === 'Consulting Request' ? '4.0 Hours' : '6.5 Hours';
+  const computedSla = formData.inquiryType ? '4.0 Hours' : '6.5 Hours';
   const estimatedMessageComplexity = Math.round(formData.message.length * 1.2);
 
   const handleInputChange = (
@@ -92,62 +102,38 @@ export default function ContactForm() {
       >
         <div>
           <span className="text-[10px] uppercase font-mono tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded inline-block border border-emerald-500/10 dark:border-emerald-500/20 mb-2">
-            INQUIRY MATRIX
+            {webTexts?.contact_badge || "INQUIRY MATRIX"}
           </span>
           <h2 className="font-display text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Let's connect
+            {webTexts?.contact_title || "Let's connect"}
           </h2>
-          <p className="font-sans text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-3 leading-relaxed max-w-sm">
-            Available for corporate consulting engagements, full-time senior analyst roles, or panel speaking opportunities regarding advanced business intelligence.
+          <p className="font-sans text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-3 leading-relaxed max-w-sm text-justify">
+            {webTexts?.contact_subtitle || "Available for corporate consulting engagements, full-time senior analyst roles, or panel speaking opportunities regarding advanced business intelligence."}
           </p>
 
           <div className="space-y-4 mt-8">
             <div className="flex items-center gap-4 text-slate-700 dark:text-slate-300">
-              <span className="material-symbols-outlined p-2 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-lg shrink-0">mail</span>
+              <span className="p-2 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-lg shrink-0 flex items-center justify-center">
+                <Mail className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+              </span>
               <div>
                 <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 block uppercase font-bold">Email Channel</span>
-                <a href="mailto:analyst@portfolio.com" className="font-sans font-semibold text-sm hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
-                  analyst@portfolio.com
+                <a href={`mailto:${email}`} className="font-sans font-semibold text-sm hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
+                  {email}
                 </a>
               </div>
             </div>
 
             <div className="flex items-center gap-4 text-slate-700 dark:text-slate-300">
-              <span className="material-symbols-outlined p-2 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-lg shrink-0">location_on</span>
+              <span className="p-2 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-lg shrink-0 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+              </span>
               <div>
                 <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 block uppercase font-bold">Location Base</span>
                 <span className="font-sans font-semibold text-sm">
-                  New York, NY (EST Timezone)
+                  {location}
                 </span>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Analytics Live Widget inside Sidebar */}
-        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 border border-slate-200 dark:border-slate-800 rounded-xl mt-8">
-          <div className="flex items-center gap-1.5 mb-2.5 select-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[9px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              MESSAGE METADATA PARSER
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white dark:bg-slate-950 px-3 py-2 rounded-lg border border-slate-200/55 dark:border-slate-800/80">
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono block">EST. RESP SLA</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 font-mono mt-0.5">
-                <Clock className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                {computedSla}
-              </span>
-            </div>
-
-            <div className="bg-white dark:bg-slate-950 px-3 py-2 rounded-lg border border-slate-200/55 dark:border-slate-800/80">
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono block">COMPLEXITY INDEX</span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 font-mono mt-0.5">
-                <Cpu className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                {estimatedMessageComplexity} points
-              </span>
             </div>
           </div>
         </div>
@@ -229,7 +215,7 @@ export default function ContactForm() {
                     value={formData.name}
                     onChange={handleInputChange}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                    placeholder="John Doe"
+                    placeholder="Your Name"
                     disabled={loading}
                   />
                 </div>
@@ -244,7 +230,7 @@ export default function ContactForm() {
                     value={formData.email}
                     onChange={handleInputChange}
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                    placeholder="john@company.com"
+                    placeholder="youremail@company.com"
                     disabled={loading}
                   />
                 </div>
@@ -252,24 +238,22 @@ export default function ContactForm() {
 
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] text-slate-450 dark:text-slate-500 block uppercase font-bold">
-                  Inquiry Segment Link
+                  Subjek
                 </label>
-                <select
+                <input
+                  type="text"
                   name="inquiryType"
                   value={formData.inquiryType}
                   onChange={handleInputChange}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none cursor-pointer transition-all focus:outline-none text-slate-800 dark:text-slate-100"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                  placeholder="Your Subject"
                   disabled={loading}
-                >
-                  <option value="Project Collaboration" className="dark:bg-slate-950 dark:text-slate-100">Project Collaboration & Consulting</option>
-                  <option value="Employment Opportunity" className="dark:bg-slate-950 dark:text-slate-100">Employment Opportunity (Sourcing)</option>
-                  <option value="Consulting Request" className="dark:bg-slate-950 dark:text-slate-100">Strategic Audit Request</option>
-                </select>
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="font-mono text-[10px] text-slate-450 dark:text-slate-500 block uppercase font-bold">
-                  Message Body
+                  massage
                 </label>
                 <textarea
                   name="message"
@@ -277,7 +261,7 @@ export default function ContactForm() {
                   onChange={handleInputChange}
                   rows={4}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                  placeholder="Give a quick brief on the optimization bottlenecks you are facing..."
+                  placeholder="Write us a massage"
                   disabled={loading}
                 ></textarea>
               </div>
@@ -287,17 +271,17 @@ export default function ContactForm() {
                 disabled={loading}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
-                className="w-full bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider shadow-sm select-none"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider shadow-sm select-none"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Streaming Message Payload...
+                    Sending Email...
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Post Analytical Request
+                    Send Email
                   </>
                 )}
               </motion.button>

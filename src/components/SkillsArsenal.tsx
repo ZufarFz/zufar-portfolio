@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SKILLS } from '../data/portfolioData';
-import { SkillItem } from '../types';
+import { SkillItem, SkillCategory } from '../types';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 // Safe component mapper for Lucide icons
 const IconMapper = ({ iconName, className }: { iconName: string, className?: string }) => {
@@ -40,12 +41,20 @@ const IconMapper = ({ iconName, className }: { iconName: string, className?: str
   }
 };
 
-export default function SkillsArsenal({ skills = [], theme = 'light' }: { skills?: SkillItem[], theme?: 'light' | 'dark' }) {
+export default function SkillsArsenal({ 
+  skills = [], 
+  theme = 'light',
+  customCategories = []
+}: { 
+  skills?: SkillItem[], 
+  theme?: 'light' | 'dark',
+  customCategories?: SkillCategory[]
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeSkill, setActiveSkill] = useState<SkillItem | null>(null);
 
-  const skillsList = (skills && skills.length > 0 ? skills : SKILLS).filter(s => s.showOnWeb !== false);
+  const skillsList = (skills && skills.length > 0 ? skills : (isSupabaseConfigured ? SKILLS : [])).filter(s => s.showOnWeb !== false);
 
   // Dynamic filter lists
   const filteredSkills = skillsList.filter(skill => {
@@ -64,10 +73,7 @@ export default function SkillsArsenal({ skills = [], theme = 'light' }: { skills
 
   const categories = [
     { id: 'all', label: 'All Fields' },
-    { id: 'dbms', label: 'DBMS & Querying' },
-    { id: 'scientific', label: 'Languages & Scripting' },
-    { id: 'visualization', label: 'Business Intelligence' },
-    { id: 'analytical', label: 'Analytics & Statistics' }
+    ...(customCategories || []).map(c => ({ id: c.id, label: c.label }))
   ];
 
   // Map skill ID to business implementations to demonstrate synergy
@@ -173,7 +179,22 @@ export default function SkillsArsenal({ skills = [], theme = 'light' }: { skills
       </div>
 
       {/* Grid of badges and side linkages display */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {skillsList.length === 0 ? (
+        <div className={`p-8 rounded-xl border text-center transition-all ${
+          isDark ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
+        }`}>
+          <Database className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-pulse shrink-0" />
+          <h3 className="font-sans font-bold text-base mb-2">
+            {!isSupabaseConfigured ? "Supabase Belum Terhubung" : "Belum ada Keahlian"}
+          </h3>
+          <p className="text-sm max-w-lg mx-auto leading-relaxed text-slate-400">
+            {!isSupabaseConfigured 
+              ? "Hubungkan database Supabase Anda di Google AI Studio secrets untuk menampilkan keahlian teknis Anda." 
+              : "Koneksi berhasil! Silakan isi keahlian Anda melalui Admin Panel di pojok kanan atas."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Dynamic Skill Badges Grid */}
         <motion.div 
@@ -359,6 +380,7 @@ export default function SkillsArsenal({ skills = [], theme = 'light' }: { skills
         </div>
 
       </div>
+    )}
     </div>
   );
 }

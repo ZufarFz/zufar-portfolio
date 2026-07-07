@@ -892,7 +892,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     );
                   } else {
                     // Look in unified socials for matching ID
-                    const found = unifiedSocials.find(s => s.id === id);
+                    const found = unifiedSocials.find(s => 
+                      s.id === id || 
+                      (id === 'linkedin' && s.name?.toLowerCase().trim() === 'linkedin') ||
+                      (id === 'github' && s.name?.toLowerCase().trim() === 'github') ||
+                      (id === 'instagram' && s.name?.toLowerCase().trim() === 'instagram') ||
+                      (id === 'whatsapp' && s.name?.toLowerCase().trim() === 'whatsapp')
+                    );
                     if (found && found.value) {
                       const cleanVal = found.value.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
                       
@@ -911,7 +917,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                       }
 
                       items.push(
-                        <a key={found.id} href={getAbsoluteUrl(found.value, found.name)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
+                        <a key={found.id} href={getAbsoluteUrl(found.usernameOrUrl || found.value, found.name)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
                           <SocialIcon platform={found.name} size={11} className="w-2.5 h-2.5 inline shrink-0" useBrandColor={true} />
                           <span>{displayLabel}</span>
                         </a>
@@ -983,7 +989,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                               height: 'auto',
                               maxWidth: 'none',
                               maxHeight: 'none',
-                              transform: `scale(${cvData.avatarScale || 1}) translate(${cvData.avatarX || 0}px, ${cvData.avatarY || 0}px)`,
+                              transform: `scale(${cvData.avatarScale || 1}) translate(${(cvData.avatarX || 0) * 0.45}px, ${(cvData.avatarY || 0) * 0.45}px)`,
                               transformOrigin: 'center center',
                             }}
                             className="shrink-0 pointer-events-none select-none"
@@ -1101,7 +1107,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                       footerItems.push(
                         <a 
                           key={social.id}
-                          href={getAbsoluteUrl(social.value, social.name)} 
+                          href={getAbsoluteUrl(social.usernameOrUrl || social.value, social.name)} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="flex items-center gap-1.5 text-slate-755 hover:text-emerald-500 transition-colors cursor-pointer group"
@@ -1531,7 +1537,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                       );
                     } else {
                       // Look in unified socials for matching ID
-                      const found = unifiedSocials.find(s => s.id === id);
+                      const found = unifiedSocials.find(s => 
+                        s.id === id || 
+                        (id === 'linkedin' && s.name?.toLowerCase().trim() === 'linkedin') ||
+                        (id === 'github' && s.name?.toLowerCase().trim() === 'github') ||
+                        (id === 'instagram' && s.name?.toLowerCase().trim() === 'instagram') ||
+                        (id === 'whatsapp' && s.name?.toLowerCase().trim() === 'whatsapp')
+                      );
                       if (found && found.value) {
                         const cleanVal = found.value.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
                         
@@ -1550,7 +1562,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                         }
 
                         items.push(
-                          <a key={found.id} href={getAbsoluteUrl(found.value, found.name)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
+                          <a key={found.id} href={getAbsoluteUrl(found.usernameOrUrl || found.value, found.name)} target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 hover:underline transition-colors flex items-center gap-1 inline-flex font-mono">
                             <SocialIcon platform={found.name} size={11} className="w-2.5 h-2.5 inline shrink-0" useBrandColor={true} />
                             <span>{displayLabel}</span>
                           </a>
@@ -1622,7 +1634,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                                 height: 'auto',
                                 maxWidth: 'none',
                                 maxHeight: 'none',
-                                transform: `scale(${cvData.avatarScale || 1}) translate(${cvData.avatarX || 0}px, ${cvData.avatarY || 0}px)`,
+                                transform: `scale(${cvData.avatarScale || 1}) translate(${(cvData.avatarX || 0) * 0.45}px, ${(cvData.avatarY || 0) * 0.45}px)`,
                                 transformOrigin: 'center center',
                               }}
                               className="shrink-0 pointer-events-none select-none"
@@ -1740,7 +1752,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                         footerItems.push(
                           <a 
                             key={social.id}
-                            href={getAbsoluteUrl(social.value, social.name)} 
+                            href={getAbsoluteUrl(social.usernameOrUrl || social.value, social.name)} 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="flex items-center gap-1.5 text-slate-755 hover:text-emerald-500 transition-colors cursor-pointer group"

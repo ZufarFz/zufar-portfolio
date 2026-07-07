@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Google AI Studio App</title>
+    <script>
+      // Silence benign cross-origin iframe browser extension script errors or Vite HMR ws connection drops
+      window.addEventListener('error', function (event) {
+        if (event.message === 'Script error.' || !event.filename) {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (event) {
+        const reason = event.reason;
+        if (reason && (reason.message === 'Script error.' || String(reason).includes('WebSocket') || String(reason).includes('vite'))) {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,6 +1,6 @@
 {
-  "name": "Analyst Portfolio V2",
-  "description": "An interactive data analyst and business intelligence strategist portfolio featuring live interactive models, segmentation tools, and dynamic case studies.",
+  "name": "Remix: Portfolio web v5",
+  "description": "A futuristic web portfolio for junior data analysts.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -19,9 +19,11 @@ interface CaseStudyPresentationPageProps {
   project: CaseStudy;
   onClose: () => void;
   theme: 'light' | 'dark';
+  authorName?: string;
+  authorTitle?: string;
 }
 
-export default function CaseStudyPresentationPage({ project, onClose, theme }: CaseStudyPresentationPageProps) {
+export default function CaseStudyPresentationPage({ project, onClose, theme, authorName, authorTitle }: CaseStudyPresentationPageProps) {
   const slides = project.slides && project.slides.length > 0 ? project.slides : [
     {
       id: "default-1",
@@ -344,12 +346,12 @@ export default function CaseStudyPresentationPage({ project, onClose, theme }: C
                       "Operational modeling must prioritize rigorous mathematical alignments. The key is turning complex metadata patterns into quick real-world dashboards that senior VPs can act on instantly."
                     </p>
                     <div className="mt-4 flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-emerald-501/20 flex items-center justify-center font-mono text-emerald-400 text-xs font-bold">
-                        JV
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center font-mono text-emerald-400 text-xs font-bold uppercase">
+                        {authorName ? authorName.substring(0, 2) : "JV"}
                       </div>
                       <div>
-                        <span className="block text-xs font-bold font-sans">Jonathan Vance</span>
-                        <span className="block text-[9px] font-mono text-slate-500 uppercase">Director of analytics</span>
+                        <span className="block text-xs font-bold font-sans">{authorName || "Jonathan Vance"}</span>
+                        <span className="block text-[9px] font-mono text-slate-500 uppercase">{authorTitle || "Director of analytics"}</span>
                       </div>
                     </div>
                   </div>
