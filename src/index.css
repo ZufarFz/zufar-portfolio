@@ -24,6 +24,10 @@ html {
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+.dark .bento-card {
+  border-color: transparent !important;
+}
+
 .bento-card:hover {
   box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08);
 }

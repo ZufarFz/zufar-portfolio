@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Database, 
   Terminal, 
@@ -53,6 +53,24 @@ export default function SkillsArsenal({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeSkill, setActiveSkill] = useState<SkillItem | null>(null);
+
+  // Smooth height transition references
+  const sidebarContentRef = useRef<HTMLDivElement>(null);
+  const [sidebarHeight, setSidebarHeight] = useState<number | 'auto'>('auto');
+
+  useEffect(() => {
+    const element = sidebarContentRef.current;
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setSidebarHeight((entry.target as HTMLElement).offsetHeight);
+      }
+    });
+
+    resizeObserver.observe(element);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const skillsList = (skills && skills.length > 0 ? skills : (isSupabaseConfigured ? SKILLS : [])).filter(s => s.showOnWeb !== false);
 
@@ -124,8 +142,8 @@ export default function SkillsArsenal({
     <div className="w-full">
       {/* Category Toggles and Search */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-8">
-        <div className={`flex items-center gap-1.5 w-full md:w-80 px-3 py-2 rounded-lg shadow-sm border transition-colors ${
-          isDark ? 'bg-slate-950 border-slate-850' : 'bg-white border-slate-200'
+        <div className={`flex items-center gap-1.5 w-full md:w-80 px-3 py-2 rounded-lg shadow-sm transition-colors ${
+          isDark ? 'bg-slate-800' : 'bg-white border border-slate-200'
         }`}>
           <Search className="w-4 h-4 text-slate-400 shrink-0" />
           <input
@@ -148,8 +166,8 @@ export default function SkillsArsenal({
         </div>
 
         {/* Categories Tab Pill Controls */}
-        <div className={`flex flex-wrap gap-1 p-1.5 rounded-lg border w-full md:w-auto transition-colors ${
-          isDark ? 'bg-slate-950 border-slate-850' : 'bg-slate-100 border-slate-200'
+        <div className={`flex flex-wrap gap-1 p-1.5 rounded-lg w-full md:w-auto transition-colors ${
+          isDark ? 'bg-slate-800' : 'bg-slate-100 border border-slate-200'
         }`}>
           {categories.map((cat) => (
             <button
@@ -167,7 +185,7 @@ export default function SkillsArsenal({
                 <motion.span
                   layoutId="activeCategoryBg"
                   className={`absolute inset-0 rounded-md shadow-sm z-[-1] ${
-                    isDark ? 'bg-slate-800' : 'bg-white'
+                    isDark ? 'bg-slate-700' : 'bg-white'
                   }`}
                   transition={{ type: "spring", stiffness: 350, damping: 25 }}
                 />
@@ -180,8 +198,8 @@ export default function SkillsArsenal({
 
       {/* Grid of badges and side linkages display */}
       {skillsList.length === 0 ? (
-        <div className={`p-8 rounded-xl border text-center transition-all ${
-          isDark ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
+        <div className={`p-8 rounded-xl text-center transition-all ${
+          isDark ? 'bg-slate-800 text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
         }`}>
           <Database className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-pulse shrink-0" />
           <h3 className="font-sans font-bold text-base mb-2">
@@ -194,7 +212,7 @@ export default function SkillsArsenal({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Dynamic Skill Badges Grid */}
         <motion.div 
@@ -218,17 +236,17 @@ export default function SkillsArsenal({
                     // Toggle active skill card for showing detailed linkage
                     setActiveSkill(isActive ? null : skill);
                   }}
-                  className={`bento-card text-left p-4 rounded-xl flex flex-col justify-between h-[155px] cursor-pointer transition-all border ${
+                  className={`bento-card text-left p-4 rounded-xl flex flex-col justify-between h-[155px] cursor-pointer transition-all ${
                     isActive 
-                      ? 'ring-2 ring-emerald-500 border-transparent shadow-md bg-emerald-500/5' 
-                      : (isDark ? 'border-slate-850 bg-slate-900/60 hover:bg-slate-900/80' : 'border-slate-200 bg-white hover:border-slate-350')
+                      ? 'ring-2 ring-emerald-500 border-none shadow-md bg-emerald-500/5' 
+                      : (isDark ? 'border-none bg-slate-800 hover:bg-slate-700/80 text-white' : 'border border-slate-200 bg-white hover:border-slate-350')
                   }`}
                 >
                   <div className="flex justify-between items-start w-full">
                     <div className={`p-2 rounded-lg transition-colors ${
                       isActive 
                         ? (isDark ? 'bg-emerald-950/80 text-emerald-400' : 'bg-emerald-100 text-emerald-800') 
-                        : (isDark ? 'bg-slate-950 text-slate-400' : 'bg-slate-50 text-slate-700')
+                        : (isDark ? 'bg-slate-900 text-slate-400' : 'bg-slate-50 text-slate-700')
                     }`}>
                       <IconMapper iconName={skill.icon} className="w-5 h-5 shrink-0" />
                     </div>
@@ -261,8 +279,8 @@ export default function SkillsArsenal({
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={`col-span-full py-12 text-center rounded-xl border border-dashed flex flex-col items-center justify-center w-full transition-colors ${
-                isDark ? 'text-slate-400 bg-slate-900 border-slate-800' : 'text-slate-400 bg-white border-slate-200'
+              className={`col-span-full py-12 text-center rounded-xl flex flex-col items-center justify-center w-full transition-colors ${
+                isDark ? 'text-slate-400 bg-slate-800 border-none' : 'text-slate-400 bg-white border border-dashed border-slate-200'
               }`}
             >
               <BookOpen className="w-8 h-8 text-slate-300 mb-2" />
@@ -278,106 +296,112 @@ export default function SkillsArsenal({
         </motion.div>
 
         {/* Skill Synergy Details Sidebar Panel */}
-        <div className={`rounded-xl border p-6 flex flex-col justify-between min-h-[360px] overflow-hidden relative lg:col-span-4 transition-colors ${
-          isDark ? 'bg-slate-900 border-slate-850' : 'bg-slate-50 border-slate-200'
-        }`}>
-          <AnimatePresence mode="wait">
-            {activeSkill ? (
-              <motion.div 
-                key={activeSkill.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-                className="h-full flex flex-col justify-between"
-              >
-                <div>
-                  <span className="text-[10px] tracking-widest font-mono text-emerald-700 font-bold uppercase bg-emerald-100 px-2 py-0.5 rounded">
-                    Active Synergy Guide
-                  </span>
-                  <h4 className={`font-display font-extrabold text-lg mt-3 flex items-center gap-2 transition-colors ${
-                    isDark ? 'text-white' : 'text-slate-900'
+        <motion.div 
+          animate={{ height: sidebarHeight }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className={`rounded-xl overflow-hidden relative lg:col-span-4 transition-colors ${
+            isDark ? 'bg-slate-800 border-none' : 'bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <div ref={sidebarContentRef} className="p-6 flex flex-col justify-between">
+            <AnimatePresence mode="wait">
+              {activeSkill ? (
+                <motion.div 
+                  key={activeSkill.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex flex-col justify-between"
+                >
+                  <div>
+                    <span className="text-[10px] tracking-widest font-mono text-emerald-700 font-bold uppercase bg-emerald-100 px-2 py-0.5 rounded">
+                      Active Synergy Guide
+                    </span>
+                    <h4 className={`font-display font-extrabold text-lg mt-3 flex items-center gap-2 transition-colors ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      <IconMapper iconName={activeSkill.icon} className="w-5 h-5 text-emerald-600" />
+                      {activeSkill.name} Stack Integration
+                    </h4>
+                    <p className={`text-xs mt-2 leading-relaxed pb-4 border-b animate-pulse-once transition-colors ${
+                      isDark ? 'text-slate-400 border-slate-750' : 'text-slate-600 border-slate-200'
+                    }`}>
+                      {activeSkill.description}
+                    </p>
+
+                    {/* Integrations checklist */}
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">
+                          Business Timeline Integration
+                        </span>
+                        <ul className="mt-2 space-y-1">
+                          {getSkillSynergies(activeSkill.id).roles.map((r, i) => (
+                            <li key={i} className={`text-xs flex items-center gap-1.5 transition-colors ${
+                              isDark ? 'text-slate-300' : 'text-slate-700'
+                            }`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              <span>{r}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">
+                          Case Study Proof Points
+                        </span>
+                        <ul className="mt-2 space-y-1">
+                          {getSkillSynergies(activeSkill.id).cases.map((c, i) => (
+                            <li key={i} className={`text-xs flex items-center gap-1.5 transition-colors ${
+                              isDark ? 'text-slate-300' : 'text-slate-700'
+                            }`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                              <span className="italic">{c}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`p-3.5 rounded-lg mt-6 shadow-sm transition-colors ${
+                    isDark ? 'bg-slate-900 border-none' : 'border border-slate-200/60 bg-white'
                   }`}>
-                    <IconMapper iconName={activeSkill.icon} className="w-5 h-5 text-emerald-600" />
-                    {activeSkill.name} Stack Integration
-                  </h4>
-                  <p className={`text-xs mt-2 leading-relaxed pb-4 border-b animate-pulse-once transition-colors ${
-                    isDark ? 'text-slate-400 border-slate-800' : 'text-slate-600 border-slate-200'
-                  }`}>
-                    {activeSkill.description}
+                    <div className="flex gap-2">
+                      <Award className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className={`text-xs font-bold block transition-colors ${
+                          isDark ? 'text-slate-200' : 'text-slate-800'
+                        }`}>Deploy Velocity Index</span>
+                        <span className="text-[10px] font-mono text-slate-500 mt-0.5 block leading-tight">
+                          Standard level: Production Lead Strategist • Classifiers built for {getSkillSynergies(activeSkill.id).projectsCount}.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="empty-state"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center text-center min-h-[312px] py-12 w-full"
+                >
+                  <Layers className="w-10 h-10 text-slate-300 animate-pulse mb-3" />
+                  <p className={`font-semibold text-sm transition-colors ${
+                    isDark ? 'text-slate-200' : 'text-slate-800'
+                  }`}>Select any Stack badge</p>
+                  <p className="text-slate-400 text-xs max-w-[200px] mt-1.5 leading-relaxed">
+                    Click on any of the technology tools in the grid to view their dynamic career linkage mapping and proof points.
                   </p>
-
-                  {/* Integrations checklist */}
-                  <div className="space-y-4 mt-4">
-                    <div>
-                      <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">
-                        Business Timeline Integration
-                      </span>
-                      <ul className="mt-2 space-y-1">
-                        {getSkillSynergies(activeSkill.id).roles.map((r, i) => (
-                          <li key={i} className={`text-xs flex items-center gap-1.5 transition-colors ${
-                            isDark ? 'text-slate-300' : 'text-slate-700'
-                          }`}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            <span>{r}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">
-                        Case Study Proof Points
-                      </span>
-                      <ul className="mt-2 space-y-1">
-                        {getSkillSynergies(activeSkill.id).cases.map((c, i) => (
-                          <li key={i} className={`text-xs flex items-center gap-1.5 transition-colors ${
-                            isDark ? 'text-slate-300' : 'text-slate-700'
-                          }`}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                            <span className="italic">{c}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={`border p-3.5 rounded-lg mt-6 shadow-sm transition-colors ${
-                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200/60'
-                }`}>
-                  <div className="flex gap-2">
-                    <Award className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <div>
-                      <span className={`text-xs font-bold block transition-colors ${
-                        isDark ? 'text-slate-200' : 'text-slate-800'
-                      }`}>Deploy Velocity Index</span>
-                      <span className="text-[10px] font-mono text-slate-500 mt-0.5 block leading-tight">
-                        Standard level: Production Lead Strategist • Classifiers built for {getSkillSynergies(activeSkill.id).projectsCount}.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="empty-state"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center text-center h-full py-12 my-auto"
-              >
-                <Layers className="w-10 h-10 text-slate-300 animate-pulse mb-3" />
-                <p className={`font-semibold text-sm transition-colors ${
-                  isDark ? 'text-slate-200' : 'text-slate-800'
-                }`}>Select any Stack badge</p>
-                <p className="text-slate-400 text-xs max-w-[200px] mt-1.5 leading-relaxed">
-                  Click on any of the technology tools in the grid to view their dynamic career linkage mapping and proof points.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
 
       </div>
     )}

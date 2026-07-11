@@ -15,6 +15,8 @@ export default function SocialIcon({ platform, className = "w-4 h-4", size = 16,
     github: '#181717',
     email: '#EA4335',
     facebook: '#1877F2',
+    fb: '#1877F2',
+    website: '#0EA5E9',
     linkedin: '#0A66C2',
     instagram: '#E4405F',
     youtube: '#FF0000',
@@ -72,10 +74,20 @@ export default function SocialIcon({ platform, className = "w-4 h-4", size = 16,
           <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
         </svg>
       );
+    case 'fb':
     case 'facebook':
       return (
         <svg viewBox="0 0 24 24" fill={color} style={finalStyle} className={className} width={size} height={size}>
           <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.8c4.56-.93 8-4.96 8-9.8z"/>
+        </svg>
+      );
+    case 'web':
+    case 'website':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} style={finalStyle} className={className} width={size} height={size} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
         </svg>
       );
     case 'linkedin':

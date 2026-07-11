@@ -95,7 +95,7 @@ export const DEFAULT_WEB_TEXTS: Record<string, string> = {
 
 // Initial default CV data matching the original portfolio CV perfectly with slides integration
 export const DEFAULT_CV_DATA = {
-  name: "Jonathan Vance",
+  name: "",
   title: "Senior Data Analyst & BI Decision Strategist",
   location: "New York City, NY",
   email: "analyst@portfolio.com",
@@ -362,7 +362,7 @@ export const DEFAULT_CV_DATA = {
   webTexts: DEFAULT_WEB_TEXTS,
   headerContacts: ["location", "email", "linkedin"],
   footerSocials: ["linkedin", "instagram", "whatsapp"],
-  nickname: "Jonathan",
+  nickname: "",
   useNicknameOnCard: false,
   cardSocials: ["linkedin", "github"],
   idCardGroup: "354",
@@ -503,6 +503,7 @@ export interface CVData {
     analyticsSpecialties: string;
   };
   education: {
+    id?: string;
     period: string;
     degree: string;
     institution: string;
@@ -569,7 +570,7 @@ export interface CVData {
   };
 }
 
-const STORAGE_KEY = 'vance-portfolio-cv-data';
+const STORAGE_KEY = 'bi-portfolio-cv-data';
 
 export async function fetchCVData(): Promise<CVData> {
   if (!isSupabaseConfigured || !supabase) {
@@ -718,6 +719,7 @@ export async function fetchCVData(): Promise<CVData> {
         },
         
         education: (eduRes.data || []).map((e: any) => ({
+          id: e.id !== undefined && e.id !== null ? String(e.id) : undefined,
           period: e.period,
           degree: e.degree,
           institution: e.institution,
@@ -745,17 +747,21 @@ export async function fetchCVData(): Promise<CVData> {
 
         skillCategories: categoriesList,
 
-        caseStudies: (projectsRes.data || []).map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          category: p.category,
-          description: p.description,
-          tags: p.tags || [],
-          image: p.image || "",
-          impactMetric: p.impact_metric || "",
-          tools: p.tools || [],
-          slides: p.slides || []
-        })),
+        caseStudies: (projectsRes.data || []).map((p: any) => {
+          const tagsArray = p.tags || [];
+          return {
+            id: p.id,
+            title: p.title,
+            category: p.category || "",
+            description: p.description,
+            tags: tagsArray,
+            image: p.image || "",
+            impactMetric: p.impact_metric || "",
+            tools: tagsArray.length > 0 ? tagsArray : (p.tools || []),
+            slides: p.slides || [],
+            projectUrl: p.project_url || ""
+          };
+        }),
 
         personality: personalityRes && !personalityRes.error && personalityRes.data
           ? personalityRes.data.map((p: any) => ({
@@ -1153,18 +1159,17 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
       const { error: delErr } = await supabase.from('portfolio_projects').delete().neq('id', 'dummy_exclusion');
       if (delErr) throw new Error(`Hapus data portfolio_projects gagal: ${delErr.message}`);
       if (newData.caseStudies && newData.caseStudies.length > 0) {
-        const projToInsert = newData.caseStudies.map((p, idx) => ({
-          id: p.id,
-          title: p.title,
-          category: p.category,
-          description: p.description,
-          tags: p.tags || [],
-          image: p.image || "",
-          impact_metric: p.impactMetric || "",
-          tools: p.tools || [],
-          slides: p.slides || [],
-          sort_order: idx
-        }));
+        const projToInsert = newData.caseStudies.map((p, idx) => {
+          return {
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            project_url: p.projectUrl || "",
+            tags: p.tags || [],
+            image: p.image || "",
+            sort_order: idx
+          };
+        });
         const { error: insErr } = await supabase.from('portfolio_projects').insert(projToInsert);
         if (insErr) throw new Error(`Simpan data portfolio_projects gagal: ${insErr.message}`);
       }
@@ -1191,33 +1196,54 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
 
     // 5. Education
     const cleanEducation = async () => {
-      // id is int4 (integer) in portfolio_education, so we use -1 as comparison to avoid type cast errors
-      const { error: delErr } = await supabase.from('portfolio_education').delete().neq('id', -1);
+      // Use period filter to safely delete all rows regardless of id column type (integer vs VARCHAR)
+      const { error: delErr } = await supabase.from('portfolio_education').delete().neq('period', 'dummy_exclusion');
       if (delErr) throw new Error(`Hapus data portfolio_education gagal: ${delErr.message}`);
       if (newData.education && newData.education.length > 0) {
-        const eduToInsert = newData.education.map((edu, idx) => ({
-          period: edu.period,
-          degree: edu.degree,
-          institution: edu.institution,
-          description: edu.description || "",
-          sort_order: idx
-        }));
+        const eduToInsert = newData.education.map((edu, idx) => {
+          const item: any = {
+            period: edu.period,
+            degree: edu.degree,
+            institution: edu.institution,
+            description: edu.description || "",
+            sort_order: idx
+          };
+          if (edu.id) {
+            const isNumeric = /^\d+$/.test(edu.id);
+            item.id = isNumeric ? parseInt(edu.id, 10) : edu.id;
+          }
+          return item;
+        });
         const { error } = await supabase.from('portfolio_education').insert(eduToInsert);
-        // Fallback: If the user didn't make the id column an auto-increment column (identity/serial),
-        // omitting id might cause an error. We handle that by trying to insert with manual integer ids.
+        // Fallback & friendly bilingual ID error detection
         if (error) {
-          if (error.message?.includes('null value') || error.message?.includes('violates')) {
-            console.warn('Omit id failed for portfolio_education, retrying with manual integer ids...', error.message);
-            const eduToInsertWithIds = newData.education.map((edu, idx) => ({
-              id: idx + 1,
-              period: edu.period,
-              degree: edu.degree,
-              institution: edu.institution,
-              description: edu.description || "",
-              sort_order: idx
-            }));
+          if (error.message?.includes('integer') || error.code === '22P02') {
+            throw new Error(`Gagal menyimpan data pendidikan. Kolom ID tabel 'portfolio_education' di Supabase Anda masih bertipe INTEGER dan perlu diubah menjadi VARCHAR untuk mendukung bilingual.\n\nSolusi: Silakan buka tab 'Setup Database' di halaman Admin, salin kode SQL kustom terbaru, lalu jalankan di SQL Editor dashboard Supabase Anda untuk memperbarui tipe kolom id.`);
+          } else if (error.message?.includes('null value') || error.message?.includes('violates')) {
+            console.warn('Omit id failed for portfolio_education, retrying with manual integer/string ids...', error.message);
+            const eduToInsertWithIds = newData.education.map((edu, idx) => {
+              const item: any = {
+                period: edu.period,
+                degree: edu.degree,
+                institution: edu.institution,
+                description: edu.description || "",
+                sort_order: idx
+              };
+              if (edu.id) {
+                const isNumeric = /^\d+$/.test(edu.id);
+                item.id = isNumeric ? parseInt(edu.id, 10) : edu.id;
+              } else {
+                item.id = String(idx + 1);
+              }
+              return item;
+            });
             const { error: retryErr } = await supabase.from('portfolio_education').insert(eduToInsertWithIds);
-            if (retryErr) throw new Error(`Simpan data portfolio_education gagal: ${retryErr.message}`);
+            if (retryErr) {
+              if (retryErr.message?.includes('integer') || retryErr.code === '22P02') {
+                throw new Error(`Gagal menyimpan data pendidikan. Kolom ID tabel 'portfolio_education' di Supabase Anda masih bertipe INTEGER dan perlu diubah menjadi VARCHAR untuk mendukung bilingual.\n\nSolusi: Silakan buka tab 'Setup Database' di halaman Admin, salin kode SQL kustom terbaru, lalu jalankan di SQL Editor dashboard Supabase Anda untuk memperbarui tipe kolom id.`);
+              }
+              throw new Error(`Simpan data portfolio_education gagal: ${retryErr.message}`);
+            }
           } else {
             throw new Error(`Simpan data portfolio_education gagal: ${error.message}`);
           }

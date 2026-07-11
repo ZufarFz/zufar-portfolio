@@ -23,6 +23,8 @@ export interface CaseStudy {
     value: string;
   }[];
   slides?: CaseStudySlide[];
+  showOnHome?: boolean;
+  projectUrl?: string;
 }
 
 export interface Experience {

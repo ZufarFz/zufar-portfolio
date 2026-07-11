@@ -347,11 +347,11 @@ export default function CaseStudyPresentationPage({ project, onClose, theme, aut
                     </p>
                     <div className="mt-4 flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center font-mono text-emerald-400 text-xs font-bold uppercase">
-                        {authorName ? authorName.substring(0, 2) : "JV"}
+                        {authorName ? authorName.substring(0, 2).toUpperCase() : ""}
                       </div>
                       <div>
-                        <span className="block text-xs font-bold font-sans">{authorName || "Jonathan Vance"}</span>
-                        <span className="block text-[9px] font-mono text-slate-500 uppercase">{authorTitle || "Director of analytics"}</span>
+                        <span className="block text-xs font-bold font-sans">{authorName || ""}</span>
+                        <span className="block text-[9px] font-mono text-slate-500 uppercase">{authorTitle || ""}</span>
                       </div>
                     </div>
                   </div>

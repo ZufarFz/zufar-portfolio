@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowRight, 
   Linkedin, 
@@ -10,6 +10,7 @@ import {
   Activity,
   Layers,
   ChevronDown,
+  ChevronsDown,
   ChevronUp,
   Briefcase,
   Play,
@@ -19,7 +20,10 @@ import {
   Sun,
   Moon,
   Instagram,
-  MessageCircle
+  MessageCircle,
+  Globe,
+  LayoutGrid,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CASE_STUDIES } from './data/portfolioData';
@@ -39,25 +43,539 @@ function formatSocialLink(link: string | undefined, platform: string, defaultVal
   return getAbsoluteSocialUrl(link, platform);
 }
 
+interface SocialFooterButtonProps {
+  key?: string | number;
+  s: any;
+  theme: 'light' | 'dark';
+}
+
+function SocialFooterButton({ s, theme }: SocialFooterButtonProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div 
+      className="relative flex items-center justify-center"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            initial={{ y: 25, scaleX: 0, scaleY: 0, opacity: 0 }}
+            animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
+            exit={{
+              scaleX: 0,
+              y: [0, 0, 25],
+              scaleY: [1, 1, 0],
+              opacity: [1, 1, 0],
+              transition: {
+                scaleX: { duration: 0.15, ease: "easeIn" },
+                y: { duration: 0.2, times: [0, 0.4, 1], delay: 0.1 },
+                scaleY: { duration: 0.2, times: [0, 0.4, 1], delay: 0.1 },
+                opacity: { duration: 0.2, times: [0, 0.4, 1], delay: 0.1 }
+              }
+            }}
+            transition={{
+              y: { duration: 0.2, ease: "easeOut" },
+              scaleY: { duration: 0.2, ease: "easeOut" },
+              opacity: { duration: 0.2, ease: "easeOut" },
+              scaleX: { duration: 0.25, delay: 0.1, ease: "easeOut" }
+            }}
+            style={{ originX: 0.5, originY: 1 }}
+            className={`absolute bottom-full mb-3 px-3 py-1.5 rounded-lg border text-[10px] font-mono font-bold whitespace-nowrap shadow-lg z-50 ${
+              theme === 'dark'
+                ? 'bg-slate-950 text-emerald-400 border-slate-800 shadow-black/50'
+                : 'bg-white text-emerald-600 border-slate-200 shadow-slate-200/50'
+            }`}
+          >
+            {s.value || s.name}
+            {/* Elegant tiny bottom anchor triangle / arrow pointing down */}
+            <div className={`absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 rotate-45 border-r border-b -mt-1 ${
+              theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+            }`} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <button
+        onClick={() => {
+          const target = s.usernameOrUrl || s.value || '';
+          const url = formatSocialLink(target, s.name || 'custom', '');
+          window.open(url, '_blank', 'noreferrer');
+        }}
+        className={`h-9 w-9 rounded-lg transition-all duration-300 border cursor-pointer flex items-center justify-center group ${
+          theme === 'dark' 
+            ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white hover:border-slate-600' 
+            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
+        }`}
+        title={`Open ${s.name}: ${s.value || s.usernameOrUrl}`}
+      >
+        <SocialIcon platform={s.name} size={16} className="w-4 h-4 transition-transform group-hover:scale-110" useBrandColor={true} />
+      </button>
+    </div>
+  );
+}
+
+export const ID_TRANSLATIONS = {
+  webTexts: {
+    education_intro: "Jelajahi pencapaian akademis saya, fondasi pelatihan ilmiah, dan peta jalan kredensial formal yang disajikan dalam lembar presentasi kustom.",
+    hero_badge: "ANALIS DATA & STRATEGIST BI",
+    hero_title: "Mengubah Data Mentah\nmenjadi Keputusan Bisnis",
+    hero_subtitle: "Spesialisasi dalam wawasan berdampak tinggi melalui mesin SQL kustom, alur kerja Python, dan Business Intelligence tingkat lanjut. Saya mengubah catatan transaksi menjadi peta jalan optimasi yang bersih, tervalidasi, dan dapat ditindaklanjuti.",
+    projects_badge: "KRONIK KASUS",
+    projects_title: "Studi Kasus Terpilih",
+    projects_subtitle: "Demonstrasi terstruktur kemahiran teknis di seluruh tumpukan penerapan data, menyoroti audit kinerja nyata.",
+    skills_badge: "KLASIFIKASI STACK",
+    skills_title: "Gudang Senjata Teknis",
+    skills_subtitle: "Keahlian dan pengetahuan arsitektural di seluruh database SQL relasional, mesin skrip matematika, dan filter telemetri kustom.",
+    experience_badge: "KETELUSURAN KARIR",
+    experience_title: "Perjalanan Profesional",
+    experience_subtitle: "Pengalaman terbukti dalam merancang database, kerangka pelaporan, dan pipeline di ruang konsumen yang cepat. Klik untuk beralih ringkasan poin-poin.",
+    contact_badge: "MATRIKS PERTANYAAN",
+    contact_title: "Mari terhubung",
+    contact_subtitle: "Tersedia untuk keterlibatan konsultasi perusahaan, peran analis senior purnawaktu, atau peluang berbicara di panel mengenai intelijen bisnis tingkat lanjut.",
+    about_story_badge: "✦ JELAJAHI KISAH SAYA",
+    about_story_title: "Tentang Saya",
+    about_story_intro: "Saya adalah seorang Analis Business Intelligence dan Developer yang berdedikasi untuk menyatukan kompleksitas mentah menjadi aplikasi interaktif berkualitas tinggi. Dengan fokus ganda pada arsitektur pipeline data dan keahlian desain pixel-perfect, saya mengubah visi ambisius menjadi kenyataan.",
+    about_story_left_1_title: "Interior / Arsitektur Data",
+    about_story_left_1_desc: "Menyusun pipeline yang bersih dan kokoh serta memodelkan skema relasional untuk membangun fondasi data berkinerja tinggi.",
+    about_story_left_2_title: "Eksterior / Analisis Visual",
+    about_story_left_2_desc: "Membuat dashboard dan laporan intuitif yang memberikan wawasan instan dan meningkatkan kecepatan pengambilan keputusan.",
+    about_story_left_3_title: "Desain / Strategi Produk",
+    about_story_left_3_desc: "Memadukan desain antarmuka pengguna yang ramping dengan interaksi cepat untuk portal web yang fungsional dan menyenangkan.",
+    about_story_right_1_title: "Dekorasi / Strategi Bisnis",
+    about_story_right_1_desc: "Menerjemahkan persyaratan perusahaan menjadi KPI yang dapat diverifikasi untuk mengoptimalkan kinerja operasional dan membuka pertumbuhan.",
+    about_story_right_2_title: "Perencanaan / Logika Cermat",
+    about_story_right_2_desc: "Melakukan iterasi secara cermat melalui persyaratan, garis waktu, desain skema, dan batasan dengan standar profesional yang tinggi.",
+    about_story_right_3_title: "Eksekusi / Pengiriman Ramping",
+    about_story_right_3_desc: "Menghidupkan proyek data melalui integrasi kode yang sempurna, validasi menyeluruh, dan penyelarasan berkelanjutan."
+  },
+  title: "Analis Data Senior & Strategist Keputusan BI",
+  aboutMe: "Analis Data Senior yang berorientasi pada detail dan terdorong oleh hasil dengan pengalaman lebih dari 6 tahun dalam merekayasa pipeline SQL berkinerja tinggi, model prediktif canggih, dan dasbor BI tingkat eksekutif yang intuitif. Mahir dalam mengubah catatan transaksi terstruktur yang kompleks menjadi keputusan operasional yang optimal dan wawasan pendapatan yang dapat ditindaklanjuti.\n\nSangat menyukai transparansi data, penyelarasan kinerja pipeline, dan pertumbuhan strategis. Berkomitmen untuk mendorong efisiensi melalui kerangka verifikasi statistik dan KPI yang transparan.",
+  
+  skills: {
+    'sql': {
+      name: 'SQL',
+      description: 'Desain kueri database, CTE, fungsi jendela, optimasi rencana kueri, pembuatan skema, PostgreSQL, dan konfigurasi Snowflake.'
+    },
+    'python': {
+      name: 'Python',
+      description: 'Pandas, NumPy, alur kerja pembersihan data, skrip analitik otomatis, agregasi statistik, dan proxy API kustom.'
+    },
+    'power-query': {
+      name: 'Power Query',
+      description: 'Operasi kode-M tingkat lanjut, koneksi data ETL, penggabungan data tingkat perusahaan, parameterisasi, dan penggabungan skema.'
+    },
+    'powerbi': {
+      name: 'PowerBI',
+      description: 'Pemodelan DAX, konfigurasi ETL power query, tata letak pelaporan tabular tingkat perusahaan, dan notifikasi email otomatis.'
+    },
+    'excel': {
+      name: 'Excel',
+      description: 'Dataset PowerPivot, rumus pencarian bertingkat, skenario sensitivitas keuangan, dan pemeriksaan analitik ad-hoc yang cepat.'
+    }
+  },
+
+  caseStudies: {
+    'customer-segmentation': {
+      title: "Analisis Segmentasi Pelanggan",
+      category: "Analitik Pemasaran & Otomatisasi",
+      description: "Mengotomatiskan analisis RFM (Recency, Frequency, Monetary) menggunakan struktur data Python untuk mengkategorikan 50.000+ pelanggan global. Menyediakan kohort langsung mandiri untuk pengguna bisnis agar sesuai dengan kampanye otomatisasi pemasaran secara langsung, meningkatkan indeks kinerja kampanye email."
+    },
+    'sales-forecasting': {
+      title: "Model Peramalan Penjualan",
+      category: "Perencanaan Bisnis & Keuangan",
+      description: "Mengembangkan dan memvalidasi model regresi prediktif terintegrasi yang menganalisis buku pesanan historis multi-tahun. Memprediksi pendapatan perusahaan yang masuk, pengubah varians musiman, dan respons saluran pemasaran dengan akurasi validasi lebih dari 95%."
+    },
+    'supply-chain': {
+      title: "Optimasi Rantai Pasok",
+      category: "Logistik Operasional",
+      description: "Mengidentifikasi hambatan pengiriman rantai pasok melalui alokasi rute spasial yang komprehensif dan analisis waktu tunggu. Membangun tata letak dasbor kustom yang responsif di PowerBI menggunakan langkah Power Query yang dibersihkan untuk menandai rute latensi tinggi, mengurangi total waktu tunggu pengiriman melalui realokasi gudang dan pola perutean cerdas."
+    }
+  },
+
+  experiences: {
+    'exp-1': {
+      role: "Analis Data Senior / Strategist Keputusan",
+      company: "Global Tech Corp",
+      bulletPoints: [
+        "Merancang dan memelihara pipeline SQL dan Python yang mengeksekusi segmentasi kohort RFM di 50rb+ pengguna harian, menghasilkan peningkatan CTR email sebesar 24%.",
+        "Memimpin audit pemodelan churn yang menganalisis tren konsumen untuk memulihkan kerugian churn berulang tahunan sebesar $2,2 juta.",
+        "Membangun papan Tableau visual KPI waktu nyata untuk melacak pipeline pendapatan berkecepatan tinggi untuk rapat VP produk senior."
+      ]
+    },
+    'exp-2': {
+      role: "Analis Data / Ilmuwan Data",
+      company: "Insight Solutions",
+      bulletPoints: [
+        "Mengotomatiskan ETL mingguan menggunakan Power Query dan skrip Python, menghemat 15 jam kerja manual per minggu untuk tim keuangan.",
+        "Merancang model regresi prediktif untuk meramalkan permintaan musiman dengan akurasi validasi historis sebesar 96%.",
+        "Berkolaborasi dalam migrasi database lokal ke Snowflake, menormalisasi skema, dan merancang indeks query untuk mempercepat waktu respons."
+      ]
+    }
+  },
+
+  educationSections: {
+    'edu-sec-1': {
+      title: "Fondasi Pendidikan Saya",
+      content: "Menggabungkan keketatan statistik dengan rekayasa komputasi. Filosofi akademis saya berkisar pada pemahaman mekanika matematika yang mendasari arsitektur analitik modern, memastikan setiap algoritma dan kueri didukung oleh bukti statistik yang kuat."
+    },
+    'edu-sec-2': {
+      title: "Statistika Teoretis & Terapan",
+      content: "Di Columbia University, saya sangat fokus pada teori probabilitas, analisis regresi, dan statistika komputasi. Pelatihan terstruktur ini mengajarkan saya untuk melihat melampaui agregasi data sederhana dan mengidentifikasi sinyal kausal yang sebenarnya di dalam dataset korporat yang besar dan bising."
+    }
+  },
+
+  education: [
+    {
+      degree: "B.S. Statistik Terapan & Ilmu Komputer",
+      institution: "Columbia University, NYC"
+    }
+  ]
+};
+
+function getLocalizedCVData(cvData: CVData, lang: 'id' | 'en'): CVData {
+  const filterList = <T extends { id: string }>(items: T[] | undefined): T[] | undefined => {
+    if (!items) return undefined;
+    const hasLangSuffix = items.some(item => item.id && (item.id.endsWith('-id') || item.id.endsWith('-en')));
+    if (!hasLangSuffix) {
+      if (lang === 'id') {
+        return items.map(item => {
+          // Translate default items to ID if applicable
+          if (item.id === 'sql' && ID_TRANSLATIONS.skills['sql']) {
+            return { ...item, ...ID_TRANSLATIONS.skills['sql'] };
+          }
+          if (item.id === 'python' && ID_TRANSLATIONS.skills['python']) {
+            return { ...item, ...ID_TRANSLATIONS.skills['python'] };
+          }
+          if (item.id === 'power-query' && ID_TRANSLATIONS.skills['power-query']) {
+            return { ...item, ...ID_TRANSLATIONS.skills['power-query'] };
+          }
+          if (item.id === 'powerbi' && ID_TRANSLATIONS.skills['powerbi']) {
+            return { ...item, ...ID_TRANSLATIONS.skills['powerbi'] };
+          }
+          if (item.id === 'excel' && ID_TRANSLATIONS.skills['excel']) {
+            return { ...item, ...ID_TRANSLATIONS.skills['excel'] };
+          }
+          if (item.id === 'customer-segmentation' && ID_TRANSLATIONS.caseStudies['customer-segmentation']) {
+            return { ...item, ...ID_TRANSLATIONS.caseStudies['customer-segmentation'] };
+          }
+          if (item.id === 'sales-forecasting' && ID_TRANSLATIONS.caseStudies['sales-forecasting']) {
+            return { ...item, ...ID_TRANSLATIONS.caseStudies['sales-forecasting'] };
+          }
+          if (item.id === 'supply-chain' && ID_TRANSLATIONS.caseStudies['supply-chain']) {
+            return { ...item, ...ID_TRANSLATIONS.caseStudies['supply-chain'] };
+          }
+          if (item.id === 'exp-1' && ID_TRANSLATIONS.experiences['exp-1']) {
+            return { ...item, ...ID_TRANSLATIONS.experiences['exp-1'] };
+          }
+          if (item.id === 'exp-2' && ID_TRANSLATIONS.experiences['exp-2']) {
+            return { ...item, ...ID_TRANSLATIONS.experiences['exp-2'] };
+          }
+          if (item.id === 'edu-sec-1' && ID_TRANSLATIONS.educationSections['edu-sec-1']) {
+            return { ...item, ...ID_TRANSLATIONS.educationSections['edu-sec-1'] };
+          }
+          if (item.id === 'edu-sec-2' && ID_TRANSLATIONS.educationSections['edu-sec-2']) {
+            return { ...item, ...ID_TRANSLATIONS.educationSections['edu-sec-2'] };
+          }
+          return item;
+        });
+      }
+      return items;
+    }
+
+    const result: T[] = [];
+    const mappedBases = new Set<string>();
+
+    items.forEach(item => {
+      if (item.id && item.id.endsWith(`-${lang}`)) {
+        const baseId = item.id.slice(0, -(lang.length + 1));
+        result.push({
+          ...item,
+          id: baseId
+        });
+        mappedBases.add(baseId);
+      }
+    });
+
+    items.forEach(item => {
+      if (item.id && !item.id.endsWith('-id') && !item.id.endsWith('-en')) {
+        if (!mappedBases.has(item.id)) {
+          result.push(item);
+        }
+      }
+    });
+
+    return result;
+  };
+
+  const filterEduList = (items: any[] | undefined) => {
+    if (!items) return [];
+    const hasLangSuffix = items.some(item => item.id && (item.id.endsWith('-id') || item.id.endsWith('-en')));
+    if (!hasLangSuffix) {
+      if (lang === 'id') {
+        return items.map(item => {
+          if (item.degree === "B.S. Applied Statistics & Computer Science") {
+            return {
+              ...item,
+              degree: ID_TRANSLATIONS.education[0].degree,
+              institution: ID_TRANSLATIONS.education[0].institution
+            };
+          }
+          return item;
+        });
+      }
+      return items;
+    }
+
+    const result: any[] = [];
+    const mappedBases = new Set<string>();
+
+    items.forEach(item => {
+      if (item.id && item.id.endsWith(`-${lang}`)) {
+        const baseId = item.id.slice(0, -(lang.length + 1));
+        result.push({
+          ...item,
+          id: baseId
+        });
+        mappedBases.add(baseId);
+      }
+    });
+
+    items.forEach(item => {
+      if (!item.id || (!item.id.endsWith('-id') && !item.id.endsWith('-en'))) {
+        if (!item.id || !mappedBases.has(item.id)) {
+          result.push(item);
+        }
+      }
+    });
+
+    return result;
+  };
+
+  const localizedWebTexts: Record<string, string> = {};
+  if (cvData.webTexts) {
+    Object.entries(cvData.webTexts).forEach(([key, val]) => {
+      if (!key.endsWith('_id') && !key.endsWith('_en') && !key.endsWith('-id') && !key.endsWith('-en')) {
+        // Fallback to default Indonesian if language is ID and value is default English or not overridden
+        if (lang === 'id' && ID_TRANSLATIONS.webTexts[key] !== undefined) {
+          localizedWebTexts[key] = ID_TRANSLATIONS.webTexts[key];
+        } else {
+          localizedWebTexts[key] = val;
+        }
+      }
+    });
+
+    Object.entries(cvData.webTexts).forEach(([key, val]) => {
+      if (key.endsWith(`_${lang}`) || key.endsWith(`-${lang}`)) {
+        const baseKey = key.slice(0, -(lang.length + 1));
+        localizedWebTexts[baseKey] = val;
+      }
+    });
+  }
+
+  const getField = (fieldName: keyof CVData, defaultValue: any) => {
+    if (localizedWebTexts[fieldName as string] !== undefined) {
+      return localizedWebTexts[fieldName as string];
+    }
+    const val = cvData[fieldName] !== undefined ? cvData[fieldName] : defaultValue;
+    if (lang === 'id' && ID_TRANSLATIONS[fieldName as string] !== undefined) {
+      // Apply default translations for standard profile fields
+      if (val === defaultValue || val === cvData[fieldName]) {
+        return ID_TRANSLATIONS[fieldName as string];
+      }
+    }
+    return val;
+  };
+
+  return {
+    ...cvData,
+    name: getField('name', cvData.name),
+    title: getField('title', cvData.title),
+    location: getField('location', cvData.location),
+    aboutMe: getField('aboutMe', cvData.aboutMe),
+    nickname: getField('nickname', cvData.nickname),
+    idCardSubText: getField('idCardSubText', cvData.idCardSubText),
+    methodologyTitle: getField('methodologyTitle', cvData.methodologyTitle),
+    methodologyText: getField('methodologyText', cvData.methodologyText),
+    
+    skills: filterList(cvData.skills),
+    skillCategories: filterList(cvData.skillCategories),
+    caseStudies: filterList(cvData.caseStudies),
+    experiences: filterList(cvData.experiences),
+    education: filterEduList(cvData.education),
+    personality: filterList(cvData.personality),
+    hobbies: filterList(cvData.hobbies),
+    careerGoals: filterList(cvData.careerGoals),
+    educationSections: filterList(cvData.educationSections),
+    webTexts: localizedWebTexts
+  };
+}
+
 export default function App() {
+  const [lang, setLang] = useState<'id' | 'en'>(() => {
+    // 1. Check current URL path prefix first
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'id' || parts[0] === 'en') {
+      try {
+        localStorage.setItem('bi-portfolio-lang', parts[0]);
+      } catch (_) {}
+      return parts[0] as 'id' | 'en';
+    }
+
+    // 2. Check localStorage
+    try {
+      const saved = localStorage.getItem('bi-portfolio-lang');
+      if (saved === 'id' || saved === 'en') return saved;
+    } catch (_) {}
+
+    // 3. Default to English (en) for first-time visitors
+    return 'en';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bi-portfolio-lang', lang);
+    } catch (_) {}
+
+    // Ensure URL has the language prefix
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] !== 'id' && parts[0] !== 'en') {
+      const newPathname = '/' + lang + (parts.length > 0 ? '/' + parts.join('/') : '');
+      window.history.replaceState(null, '', newPathname + window.location.search + window.location.hash);
+    }
+  }, [lang]);
+
+  const [showLangConfirm, setShowLangConfirm] = useState(false);
+  const langContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (langContainerRef.current && !langContainerRef.current.contains(event.target as Node)) {
+        setShowLangConfirm(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleConfirmLanguageChange = () => {
+    const targetLang = lang === 'id' ? 'en' : 'id';
+    try {
+      localStorage.setItem('bi-portfolio-lang', targetLang);
+    } catch (_) {}
+
+    // Ensure URL has the target language prefix
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'id' || parts[0] === 'en') {
+      parts[0] = targetLang;
+    } else {
+      parts.unshift(targetLang);
+    }
+    const newPathname = '/' + parts.join('/');
+    window.location.href = newPathname + window.location.search + window.location.hash;
+  };
+
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [cvData, setCvData] = useState<CVData>(() => {
     try {
-      const cached = localStorage.getItem('vance-portfolio-cv-data');
+      const cached = localStorage.getItem('bi-portfolio-cv-data');
       if (cached) {
         return JSON.parse(cached);
       }
     } catch (_) {}
     return isSupabaseConfigured ? DEFAULT_CV_DATA : EMPTY_CV_DATA;
   });
+
+  const activeCVData = getLocalizedCVData(cvData, lang);
   const [expandedExperienceId, setExpandedExperienceId] = useState<string | null>('exp-1');
   const [activeSection, setActiveSection] = useState('home');
   const [isStoryView, setIsStoryView] = useState(false);
   const [aboutSubPage, setAboutSubPage] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isAssetsLoaded, setIsAssetsLoaded] = useState(false);
+  const [elapsedMinTime, setElapsedMinTime] = useState(false);
+  const [canFinishLoading, setCanFinishLoading] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const navbarRef = useRef<HTMLDivElement>(null);
+  const [navbarWidth, setNavbarWidth] = useState(0);
+  const [navbarRight, setNavbarRight] = useState(0);
+
+  // Monitor the navbar size and position when it is rendered
+  useEffect(() => {
+    if (isStoryView) return;
+    
+    const updateNavbarPosition = () => {
+      if (!navbarRef.current) return;
+      const rect = navbarRef.current.getBoundingClientRect();
+      // Only update if it has valid dimensions
+      if (rect.width > 0) {
+        setNavbarWidth(rect.width);
+        setNavbarRight(window.innerWidth - rect.right);
+      }
+    };
+
+    // Run multiple times on mount/loading finish to ensure layout is perfect
+    updateNavbarPosition();
+    const t1 = setTimeout(updateNavbarPosition, 100);
+    const t2 = setTimeout(updateNavbarPosition, 500);
+    const t3 = setTimeout(updateNavbarPosition, 1000);
+    const t4 = setTimeout(updateNavbarPosition, 2000);
+
+    window.addEventListener('resize', updateNavbarPosition);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      window.removeEventListener('resize', updateNavbarPosition);
+    };
+  }, [isStoryView, isLoading]);
+
+  // Auto-hide header navigation on scroll down, show on scroll up/top or button click
+  useEffect(() => {
+    if (isStoryView) return;
+
+    const handleScrollVisibility = () => {
+      const currentScrollY = window.scrollY;
+      
+      // If at the very top, always show the nav bar
+      if (currentScrollY < 50) {
+        setIsNavVisible(true);
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+        // Scrolling down past threshold -> hide
+        setIsNavVisible(false);
+      } else if (currentScrollY < lastScrollY.current - 50) {
+        // Scrolling up significantly -> show
+        setIsNavVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScrollVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', handleScrollVisibility);
+  }, [isStoryView]);
+
+  // Set timeout for 0.8 seconds to show "LOADING/MEMUAT" first
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setElapsedMinTime(true);
+    }, 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Set timeout for 2.0 seconds total (giving 1.2 seconds of name visibility) before finishing loading
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCanFinishLoading(true);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   // Smooth loading progress animation
   useEffect(() => {
@@ -69,33 +587,40 @@ export default function App() {
           return 100;
         }
         
-        // If assets are loaded, we speed up to 100%
-        if (isAssetsLoaded) {
-          const step = Math.ceil((100 - prev) / 4);
+        // If assets are loaded and we can finish loading, we speed up to 100%
+        if (isAssetsLoaded && canFinishLoading) {
+          const step = Math.ceil((100 - prev) / 3);
           const next = prev + (step > 1 ? step : 1);
           return next >= 100 ? 100 : next;
         }
         
-        // If not loaded yet, slow down as we approach 88%
-        if (prev < 88) {
-          const remaining = 88 - prev;
-          const randomIncrement = Math.floor(Math.random() * 3) + 1; // 1-3%
-          const step = Math.min(randomIncrement, remaining);
-          return prev + (step > 0 ? step : 0.2); // creep up
+        // Otherwise, animate smoothly up to 99% and wait there
+        if (prev < 99) {
+          // Calculate step to reach 99% gradually
+          // E.g. make it climb relatively fast at first, then slow down as it approaches 99%
+          const remaining = 99 - prev;
+          let step = 0;
+          if (prev < 50) {
+            step = Math.floor(Math.random() * 4) + 2; // 2-5% per step
+          } else if (prev < 80) {
+            step = Math.floor(Math.random() * 3) + 1; // 1-3% per step
+          } else if (prev < 95) {
+            step = Math.floor(Math.random() * 2) + 0.5; // 0.5-1.5% per step
+          } else {
+            step = 0.2; // very slow creep close to 99
+          }
+          const next = prev + step;
+          return next >= 99 ? 99 : next;
         }
         
-        // Creep extremely slowly near 88-95% to keep loading active but not hit 100%
-        if (prev < 95) {
-          return prev + 0.1;
-        }
-        
-        return prev;
+        // Hold at 99%
+        return 99;
       });
     };
 
-    timer = setInterval(updateProgress, 35);
+    timer = setInterval(updateProgress, 30);
     return () => clearInterval(timer);
-  }, [isAssetsLoaded]);
+  }, [isAssetsLoaded, canFinishLoading]);
 
   // Handle setting isLoading to false when progress hits 100
   useEffect(() => {
@@ -108,7 +633,7 @@ export default function App() {
   }, [loadingProgress]);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('vance-portfolio-theme');
+    const saved = localStorage.getItem('bi-portfolio-theme');
     if (saved === 'dark' || saved === 'light') return saved;
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
@@ -178,7 +703,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    localStorage.setItem('vance-portfolio-theme', theme);
+    localStorage.setItem('bi-portfolio-theme', theme);
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -190,7 +715,7 @@ export default function App() {
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-      const saved = localStorage.getItem('vance-portfolio-theme');
+      const saved = localStorage.getItem('bi-portfolio-theme');
       if (!saved) {
         setTheme(e.matches ? 'dark' : 'light');
       }
@@ -321,89 +846,134 @@ export default function App() {
 
   const [activeProjectPresentationId, setActiveProjectPresentationId] = useState<string | null>(null);
 
-  // Support hash based routing: admin, about-me & presentation slides paths
-  useEffect(() => {
-    // Clear any residual subpage hash on first app mount unless it's one of the valid routes
-    const initialHash = window.location.hash;
-    const allowedHashes = [
-      'admin', 'project', 'about-me', 'education', 'educational', 
-      'personality', 'hobbies', 'career-journey', 'skills', 'career-goals'
-    ];
-    const isAllowed = allowedHashes.some(allowed => initialHash.includes(allowed));
-    if (initialHash && !isAllowed) {
-      window.location.hash = '';
+  const parseRoute = () => {
+    const pathname = window.location.pathname;
+    const parts = pathname.split('/').filter(Boolean);
+    
+    // Skip language prefix
+    if (parts[0] === 'id' || parts[0] === 'en') {
+      parts.shift();
+    }
+    
+    let isSubpageAdmin = false;
+    let projId: string | null = null;
+    let isStory = false;
+    let subPage: string | null = null;
+    let currentSec = 'home';
+
+    if (parts.length > 0) {
+      const action = parts[0];
+      if (action === 'admin') {
+        isSubpageAdmin = true;
+      } else if (action === 'project' && parts[1]) {
+        projId = parts[1];
+      } else if (action === 'about-me') {
+        isStory = true;
+        if (parts[1]) {
+          subPage = parts[1];
+        }
+      } else {
+        const allowedSubs = [
+          'education', 'educational', 'personality', 'hobbies', 
+          'career-journey', 'skills', 'projects', 'career-goals'
+        ];
+        if (allowedSubs.includes(action)) {
+          isStory = true;
+          let mapped = action;
+          if (mapped === 'educational') {
+            mapped = 'education';
+          } else if (mapped === 'career-goals') {
+            mapped = 'projects';
+          }
+          subPage = mapped;
+        } else {
+          currentSec = action;
+        }
+      }
     }
 
-    const checkHash = () => {
-      const hash = window.location.hash;
-      if (hash === '#/admin' || hash === '#admin') {
-        setIsAdminView(true);
-        setActiveProjectPresentationId(null);
-        setIsStoryView(false);
-      } else if (hash.startsWith('#/project/') || hash.startsWith('#project/')) {
-        const id = hash.replace(/^#\/?project\//, '');
-        setActiveProjectPresentationId(id);
-        setIsAdminView(false);
-        setIsStoryView(false);
-      } else if (hash === '#/about-me' || hash === '#about-me') {
-        setIsStoryView(true);
-        setAboutSubPage(null);
-        setIsAdminView(false);
-        setActiveProjectPresentationId(null);
-        setActiveSection('profil');
-      } else if (
-        hash.startsWith('#/about-me/') || 
-        hash.startsWith('#about-me/') ||
-        hash === '#/education' || hash === '#education' ||
-        hash === '#/educational' || hash === '#educational' ||
-        hash === '#/personality' || hash === '#personality' ||
-        hash === '#/hobbies' || hash === '#hobbies' ||
-        hash === '#/career-journey' || hash === '#career-journey' ||
-        hash === '#/skills' || hash === '#skills' ||
-        hash === '#/career-goals' || hash === '#career-goals'
-      ) {
-        let sub = '';
-        if (hash.startsWith('#/about-me/')) {
-          sub = hash.replace(/^#\/?about-me\//, '');
-        } else if (hash.startsWith('#about-me/')) {
-          sub = hash.replace(/^#about-me\//, '');
-        } else {
-          sub = hash.replace(/^#\/?/, '');
-        }
-        
-        // Map 'educational' to 'education' internally so AboutMeSubPages renders it correctly
-        if (sub === 'educational') {
-          sub = 'education';
-        }
-        
-        setIsStoryView(true);
-        setAboutSubPage(sub);
-        setIsAdminView(false);
-        setActiveProjectPresentationId(null);
+    return {
+      isAdmin: isSubpageAdmin,
+      projectId: projId,
+      isStoryView: isStory,
+      aboutSubPage: subPage,
+      activeSection: currentSec
+    };
+  };
+
+  const navigateToPath = (sub: string | null) => {
+    const prefix = `/${lang}`;
+    let suffix = '';
+    if (sub) {
+      if (sub === 'about-me') {
+        suffix = '/about-me';
+      } else if (sub.startsWith('about-me/')) {
+        const subSub = sub.replace(/^about-me\//, '');
+        suffix = '/' + subSub;
+      } else if (sub === 'admin') {
+        suffix = '/admin';
+      } else if (sub.startsWith('project/')) {
+        suffix = '/' + sub;
+      } else {
+        // Direct subpage like 'education'
+        suffix = '/' + sub;
+      }
+    }
+    const newPath = prefix + suffix;
+    if (window.location.pathname !== newPath) {
+      window.history.pushState(null, '', newPath);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  };
+
+  // Support pathname-based routing: admin, about-me & presentation slides paths
+  useEffect(() => {
+    // Legacy support: convert hashes to clean pathnames on load
+    const hash = window.location.hash;
+    if (hash) {
+      let clean = hash.replace(/^#\/?/, '');
+      window.location.hash = ''; // Clear hash
+      
+      const parts = clean.split('/').filter(Boolean);
+      const newPathname = '/' + lang + (parts.length > 0 ? '/' + parts.join('/') : '');
+      window.history.replaceState(null, '', newPathname + window.location.search);
+    }
+
+    const checkRoute = () => {
+      const parsed = parseRoute();
+      setIsAdminView(parsed.isAdmin);
+      setActiveProjectPresentationId(parsed.projectId);
+      setIsStoryView(parsed.isStoryView);
+      setAboutSubPage(parsed.aboutSubPage);
+      
+      if (parsed.isStoryView) {
         setActiveSection('profil');
       } else {
-        setIsAdminView(false);
-        setActiveProjectPresentationId(null);
-        setIsStoryView(false);
-        setAboutSubPage(null);
+        setActiveSection(parsed.activeSection || 'home');
+        if (parsed.activeSection && parsed.activeSection !== 'home') {
+          setTimeout(() => {
+            const el = document.getElementById(parsed.activeSection);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth' });
+            }
+          }, 100);
+        }
       }
     };
-    
-    // Always check on mount to enable direct loading of slideshow pages in new tabs
-    checkHash();
 
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, []);
+    // Always check on mount
+    checkRoute();
+
+    window.addEventListener('popstate', checkRoute);
+    return () => window.removeEventListener('popstate', checkRoute);
+  }, [lang]);
 
   const openAdminView = () => {
-    window.location.hash = '#/admin';
-    setIsAdminView(true);
+    navigateToPath('admin');
   };
 
   const closeAdminView = () => {
-    window.location.hash = '';
-    setIsAdminView(false);
+    navigateToPath(null);
   };
 
   // Track active scroll sections on scroll to highlight header nav link status
@@ -439,10 +1009,10 @@ export default function App() {
   }, [isStoryView]);
 
   const scrollToSection = (id: string) => {
-    if (id === 'profil') {
-      window.location.hash = '#/about-me';
+    if (id === 'profil' || id === 'about-me') {
+      navigateToPath('about-me');
     } else {
-      window.location.hash = '';
+      navigateToPath(null);
       setIsStoryView(false);
       setActiveSection(id);
       setTimeout(() => {
@@ -454,9 +1024,9 @@ export default function App() {
     }
   };
 
-  const currentProfileImageUrl = theme === 'dark' && cvData.homeImageUrlDark 
-    ? cvData.homeImageUrlDark 
-    : (cvData.homeImageUrl || "");
+  const currentProfileImageUrl = theme === 'dark' && activeCVData.homeImageUrlDark 
+    ? activeCVData.homeImageUrlDark 
+    : (activeCVData.homeImageUrl || "");
 
   const isPng = currentProfileImageUrl ? (
     currentProfileImageUrl.toLowerCase().includes('.png') || 
@@ -465,12 +1035,12 @@ export default function App() {
   ) : false;
 
   const matchedProject = activeProjectPresentationId 
-    ? (cvData.caseStudies || []).find(p => p.id === activeProjectPresentationId) 
+    ? (activeCVData.caseStudies || []).find(p => p.id === activeProjectPresentationId) 
     : null;
 
   const hasCachedData = (() => {
     try {
-      const cached = localStorage.getItem('vance-portfolio-cv-data');
+      const cached = localStorage.getItem('bi-portfolio-cv-data');
       return !!cached;
     } catch (_) {
       return false;
@@ -488,7 +1058,7 @@ export default function App() {
             transition={{ duration: 0.5, ease: "easeInOut" }}
             className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#060913] text-white select-none"
           >
-            <div className="flex flex-col items-center gap-6 max-w-md px-6 text-center">
+            <div className="flex flex-col items-center gap-3 max-w-md px-6 text-center">
               {/* Modern pulsing ring/halo or tech indicator */}
               <div className="relative w-20 h-20 flex items-center justify-center">
                 <motion.div 
@@ -506,22 +1076,41 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <p className="font-mono text-[10px] tracking-[0.35em] text-slate-400 uppercase">
-                  PORTFOLIO
+                  {lang === 'id' ? "PORTOFOLIO" : "PORTFOLIO"}
                 </p>
-                <motion.h1 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.5 }}
-                  className="font-display font-extrabold text-2xl sm:text-3xl tracking-wider text-white uppercase"
-                >
-                  {cvData.nickname || cvData.name || "PORTFOLIO"}
-                </motion.h1>
+                <div className="h-9 sm:h-10 flex items-center justify-center overflow-hidden">
+                  <AnimatePresence mode="popLayout">
+                    {!elapsedMinTime ? (
+                      <motion.h1 
+                        key="loading-state"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                        className="font-display font-extrabold text-2xl sm:text-3xl tracking-wider text-white uppercase"
+                      >
+                        {lang === 'id' ? "MEMUAT" : "LOADING"}
+                      </motion.h1>
+                    ) : (
+                      <motion.h1 
+                        key="name-state"
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -15 }}
+                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                        className="font-display font-extrabold text-2xl sm:text-3xl tracking-wider text-white uppercase"
+                      >
+                        {activeCVData.nickname || activeCVData.name || (lang === 'id' ? "MEMUAT" : "LOADING")}
+                      </motion.h1>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
               {/* Progress track */}
-              <div className="w-48 space-y-2.5 mt-2">
+              <div className="w-48 space-y-2 mt-0.5">
                 <div className="h-1 w-full bg-slate-800/60 rounded-full overflow-hidden border border-slate-800/20">
                   <motion.div 
                     className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.5)]"
@@ -532,7 +1121,7 @@ export default function App() {
                 
                 <div className="flex justify-between items-center font-mono text-[10px] text-slate-400">
                   <span className="text-emerald-400 tracking-wider">
-                    {loadingProgress < 100 ? "MEMUAT DATA..." : "SINKRONISASI SELESAI"}
+                    {loadingProgress < 100 ? (lang === 'id' ? "MEMUAT DATA" : "LOADING DATA") : (lang === 'id' ? "SINKRONISASI SELESAI" : "SYNC COMPLETE")}
                   </span>
                   <span className="font-bold text-white tracking-widest">
                     {Math.round(loadingProgress)}%
@@ -549,12 +1138,12 @@ export default function App() {
           <CaseStudyPresentationPage 
             project={matchedProject}
             onClose={() => {
-              window.location.hash = '';
+              navigateToPath(null);
               setActiveProjectPresentationId(null);
             }}
             theme={theme}
-            authorName={cvData.name}
-            authorTitle={cvData.title}
+            authorName={activeCVData.name}
+            authorTitle={activeCVData.title}
           />
         ) : isAdminView ? (
           <AdminPage 
@@ -576,79 +1165,167 @@ export default function App() {
       
       {/* 1. TOP TRANSPARENT NAVIGATION BAR - FIXED ON HOME, HIDDEN ELSEWHERE */}
       {!isStoryView && (
-        <motion.header 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="fixed top-0 w-full z-50 bg-transparent border-none shadow-none transition-colors duration-250"
-        >
-          <nav className="flex justify-between items-center max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-16">
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-slate-900 text-white'
+        <>
+          <motion.header 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ 
+              opacity: isNavVisible ? 1 : 0, 
+              y: isNavVisible ? 0 : -70,
+              pointerEvents: isNavVisible ? 'auto' : 'none'
+            }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed top-0 left-0 right-0 w-full z-50 bg-transparent border-none shadow-none"
+          >
+            <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
+              <nav ref={navbarRef} className={`w-fit ml-auto flex items-center gap-4 h-11 mt-3 px-4 rounded-2xl backdrop-blur-md transition-all duration-250 ${
+                theme === 'dark' 
+                  ? 'bg-slate-800/85 border-none shadow-lg shadow-black/30 text-white' 
+                  : 'bg-white/85 border border-slate-200/85 shadow-md shadow-slate-100 text-slate-800'
               }`}>
-                <Database className="w-4 h-4 text-emerald-400" />
-              </div>
-            </div>
+                {/* Right-aligned Navigation links & Action Controls group */}
+                <div className="flex items-center gap-4">
+                  {/* Nav links (Desktop only) */}
+                  <div className="hidden md:flex gap-1 items-center">
+                    {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
+                      const active = activeSection === section;
+                      return (
+                        <button
+                          key={section}
+                          onClick={() => scrollToSection(section)}
+                          className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3 py-1.5 rounded-full border relative ${
+                            active 
+                              ? (theme === 'dark' 
+                                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-xs' 
+                                  : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10 shadow-xs') 
+                              : (theme === 'dark' 
+                                  ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]' 
+                                  : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                          }`}
+                        >
+                          {section}
+                        </button>
+                      );
+                    })}
+                  </div>
 
-            {/* Right-aligned Navigation links & Action Controls group */}
-            <div className="flex items-center gap-6">
-              {/* Nav links (Desktop only) */}
-              <div className="hidden md:flex gap-1.5 items-center">
-                {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
-                  const active = activeSection === section;
-                  return (
+                  <div className="flex items-center gap-2">
+                    {/* Language Switcher Toggle with Confirmation Overlay */}
+                    <div className="relative" ref={langContainerRef}>
+                      <button
+                        onClick={() => setShowLangConfirm(!showLangConfirm)}
+                        title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 ${
+                          theme === 'dark' 
+                            ? 'border-slate-800 text-slate-350 hover:bg-slate-800 hover:text-white' 
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-xs'
+                        } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
+                      >
+                        <Globe className="w-3 h-3 text-emerald-500" />
+                        <span className="tracking-wide uppercase">{lang}</span>
+                      </button>
+
+                      <AnimatePresence>
+                        {showLangConfirm && (
+                          <motion.div
+                            initial={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                            animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
+                            exit={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: "easeOut" }}
+                            className={`absolute top-full right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 min-w-[260px] max-w-[300px] ${
+                              theme === 'dark'
+                                ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
+                                : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
+                            }`}
+                          >
+                            {/* Upward tiny triangle anchor */}
+                            <div className={`absolute right-6 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
+                              theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+                            }`} />
+
+                            <div className="flex flex-col gap-3">
+                              <p className="text-xs font-medium leading-relaxed">
+                                {lang === 'id' 
+                                  ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
+                                  : "Are you sure you want to change the language to Indonesian?"
+                                }
+                              </p>
+                              <div className="flex justify-end gap-2 mt-1">
+                                <button
+                                  onClick={() => setShowLangConfirm(false)}
+                                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                    theme === 'dark'
+                                      ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
+                                      : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                  }`}
+                                >
+                                  {lang === 'id' ? "Batal" : "Cancel"}
+                                </button>
+                                <button
+                                  onClick={handleConfirmLanguageChange}
+                                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
+                                >
+                                  {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Dynamic Theme Toggle Icon */}
                     <button
-                      key={section}
-                      onClick={() => scrollToSection(section)}
-                      className={`font-sans text-xs uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3.5 py-2 rounded-full border relative ${
-                        active 
-                          ? (theme === 'dark' 
-                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-xs' 
-                              : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10 shadow-xs') 
-                          : (theme === 'dark' 
-                              ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]' 
-                              : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                      onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
+                      title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
+                      className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
+                        theme === 'dark' 
+                          ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800 hover:border-slate-700' 
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
                       }`}
                     >
-                      {section}
+                      {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                     </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                {/* Dynamic Theme Toggle Icon */}
-                <button
-                  onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
-                  title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
-                  className={`p-2 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
-                    theme === 'dark' 
-                      ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800 hover:border-slate-700' 
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
-                  }`}
-                >
-                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </button>
-
-                {/* Download CV (Icon only, as requested) */}
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setCvModalOpen(true)}
-                  title="Download CV"
-                  className={`p-2 rounded-lg transition-all cursor-pointer select-none border flex items-center justify-center ${
-                    theme === 'dark' 
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-transparent shadow-xs' 
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border-transparent shadow-xs'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                </motion.button>
-              </div>
+                  </div>
+                </div>
+              </nav>
             </div>
-          </nav>
-        </motion.header>
+          </motion.header>
+
+          {/* Floating Down-Arrow button to show Nav when hidden */}
+          <div
+            className="fixed top-0 z-50 pointer-events-none"
+            style={{
+              right: `${navbarRight + navbarWidth / 2}px`,
+              transform: 'translateX(50%)'
+            }}
+          >
+            <AnimatePresence>
+              {!isNavVisible && (
+                <motion.button
+                  key="reveal-nav-arrow"
+                  initial={{ opacity: 0, y: -40 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -40 }}
+                  transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setIsNavVisible(true);
+                    lastScrollY.current = window.scrollY + 150; // Delay next scroll hide
+                  }}
+                  className={`pointer-events-auto w-16 h-8 flex items-center justify-center rounded-b-full rounded-t-none border-t-0 border-x border-b shadow-md backdrop-blur-md cursor-pointer transition-colors ${
+                    theme === 'dark'
+                      ? 'bg-[#0f172a]/95 border-slate-800 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800/80 shadow-black/40'
+                      : 'bg-white/95 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-slate-50/80 shadow-slate-100/60'
+                  }`}
+                  title="Tampilkan Navigasi"
+                >
+                  <ChevronsDown className="w-4 h-4 translate-y-[-2px]" />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+        </>
       )}
 
       {/* 2. MAIN GRID LAYOUT CONTENT */}
@@ -659,17 +1336,22 @@ export default function App() {
               <AboutMeSubPages 
                 key={`subpage-${aboutSubPage}`}
                 subPage={aboutSubPage}
-                cvData={cvData}
+                cvData={activeCVData}
                 theme={theme}
-                onBackToStory={() => setAboutSubPage(null)}
+                onBackToStory={() => {
+                  navigateToPath('about-me');
+                }}
               />
             ) : (
               <AboutMeStoryPage 
                 key="story-main"
-                cvData={cvData}
+                cvData={activeCVData}
                 theme={theme}
                 onBackToMain={() => scrollToSection('home')}
                 onGoToProjects={() => scrollToSection('projects')}
+                onNavigateSubpage={(sub) => {
+                  navigateToPath(sub);
+                }}
               />
             )}
           </AnimatePresence>
@@ -681,9 +1363,9 @@ export default function App() {
         }`}>
           {/* BACKGROUND CUSTOMIZER OVERLAYS */}
           {(() => {
-            const bgStyle = cvData.webTexts?.home_bg_style || 'dots';
-            const customBgUrl = cvData.webTexts?.home_bg_custom_url || '';
-            const customBgOpacity = parseFloat(cvData.webTexts?.home_bg_custom_opacity || '0.15');
+            const bgStyle = activeCVData.webTexts?.home_bg_style || 'dots';
+            const customBgUrl = activeCVData.webTexts?.home_bg_custom_url || '';
+            const customBgOpacity = parseFloat(activeCVData.webTexts?.home_bg_custom_opacity || '0.15');
 
             if (bgStyle === 'dots') {
               return (
@@ -751,7 +1433,11 @@ export default function App() {
               return (
                 <div 
                   className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-500 select-none"
-                  style={{ opacity: customBgOpacity }}
+                  style={{ 
+                    opacity: customBgOpacity,
+                    maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
+                    WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)'
+                  }}
                 >
                   <img 
                     src={customBgUrl} 
@@ -765,18 +1451,7 @@ export default function App() {
           })()}
           
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-12 gap-12 xl:gap-16 2xl:gap-24 relative z-10 w-full">
-            <div className="md:col-span-7 flex flex-col justify-center">
-              <motion.span 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className={`font-mono text-[10px] tracking-widest px-3 py-1 rounded-full w-fit mb-4 border font-bold uppercase transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-50 border-emerald-500/10'
-                }`}
-              >
-                {cvData.webTexts?.hero_badge || (isSupabaseConfigured ? "PORTFOLIO BI STRATEGIST" : "DATABASE CONNECTION PENDING")}
-              </motion.span>
-              
+            <div className="md:col-span-6 flex flex-col justify-center">
               <motion.h1 
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -785,7 +1460,7 @@ export default function App() {
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}
               >
-                {(cvData.webTexts?.hero_title || (isSupabaseConfigured ? "Masukkan Judul Portofolio Anda\ndi Panel Admin" : "Instalasi Database Supabase\npada Google AI Studio")).split('\n').map((line, i) => {
+                {(activeCVData.webTexts?.hero_title || (isSupabaseConfigured ? "Masukkan Judul Portofolio Anda\ndi Panel Admin" : "Instalasi Database Supabase\npada Google AI Studio")).split('\n').map((line, i) => {
                   if (line.includes("Supabase")) {
                     return (
                       <span key={i} className="block">
@@ -806,7 +1481,7 @@ export default function App() {
                   theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                {cvData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
+                {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
               </motion.p>
 
               <motion.div 
@@ -829,14 +1504,14 @@ export default function App() {
                   <ArrowRight className="w-4 h-4 text-white" />
                 </motion.button>
                 
-                <motion.button
+                 <motion.button
                   whileHover={{ scale: 1.04, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setCvModalOpen(true)}
-                  className={`border px-6 py-3 rounded-lg font-bold transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-sm select-none ${
+                  className={`px-6 py-3 rounded-lg font-bold transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-sm select-none ${
                     theme === 'dark' 
-                      ? 'border-slate-750 hover:border-slate-600 text-slate-350 bg-slate-800 hover:bg-slate-755' 
-                      : 'border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50'
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' 
+                      : 'border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50'
                   }`}
                 >
                   Download Formal Resume
@@ -848,61 +1523,83 @@ export default function App() {
               initial={{ opacity: 0, x: 40, scale: 0.96 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
-              className="md:col-span-5 hidden md:flex items-center justify-center"
+              className="md:col-span-6 hidden md:flex items-center justify-center"
             >
-              <div 
-                className={`relative w-full aspect-square max-w-[420px] xl:max-w-[500px] 2xl:max-w-[560px] group transition-all duration-300 ease-out hover:scale-105 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
-                onClick={() => scrollToSection('profil')}
-                title="Buka Halaman Tentang Saya (Story)"
-              >
-                {/* Image Wrapper */}
-                <div className={`w-full h-full rounded-2xl transition-all overflow-hidden relative flex items-center justify-center ${
-                  isPng 
-                    ? 'bg-transparent border-transparent' 
-                    : (theme === 'dark' ? 'border border-slate-800 bg-slate-900/60 shadow-xl' : 'border border-slate-200 bg-slate-100 shadow-xl')
-                }`}>
-                  {currentProfileImageUrl ? (
-                    <img 
-                      className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
-                        isPng ? 'object-contain' : 'object-cover grayscale-[15%] group-hover:scale-102'
+              {(() => {
+                const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '40';
+                const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '95';
+                const radialX = activeCVData.webTexts?.home_image_radial_x || '80';
+                const radialY = activeCVData.webTexts?.home_image_radial_y || '80';
+
+                let imageWrapperStyle: React.CSSProperties = {};
+                let auraGlowElement: React.ReactNode = null;
+
+                const radialShape = `ellipse ${radialX}% ${radialY}% at center`;
+
+                if (maskStyle === 'fade_bottom') {
+                  imageWrapperStyle = {
+                    maskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                    WebkitMaskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                  };
+                } else if (maskStyle === 'fade_circle') {
+                  imageWrapperStyle = {
+                    maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                    WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                  };
+                } else if (maskStyle === 'fade_edge') {
+                  imageWrapperStyle = {
+                    maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                    WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                  };
+                } else if (maskStyle === 'fade_glow_aura') {
+                  auraGlowElement = (
+                    <div className={`absolute inset-0 rounded-full blur-3xl opacity-35 animate-pulse -z-10 ${
+                      theme === 'dark' ? 'bg-emerald-500/35' : 'bg-emerald-600/25'
+                    }`} style={{ transform: 'scale(0.85)' }} />
+                  );
+                }
+
+                return (
+                  <div 
+                    className={`relative w-full aspect-square max-w-[580px] xl:max-w-[660px] 2xl:max-w-[760px] group transition-all duration-300 ease-out hover:scale-102 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
+                    onClick={() => scrollToSection('profil')}
+                    title="Buka Halaman Tentang Saya (Story)"
+                  >
+                    {/* Aura Glow Background */}
+                    {auraGlowElement}
+
+                    {/* Image Wrapper */}
+                    <div 
+                      className={`w-full h-full rounded-2xl transition-all overflow-hidden relative flex items-center justify-center ${
+                        isPng 
+                          ? 'bg-transparent border-transparent' 
+                          : (theme === 'dark' ? 'border border-slate-800 bg-slate-900/60 shadow-xl' : 'border border-slate-200 bg-slate-100 shadow-xl')
                       }`}
-                      referrerPolicy="no-referrer"
-                      alt="Professional Portfolio Visual" 
-                      src={currentProfileImageUrl}
-                      style={{
-                        transform: `scale(${cvData.homeImageScale || 1}) translate(${(cvData.homeImageX || 0) * 3.75}px, ${(cvData.homeImageY || 0) * 3.75}px)`,
-                        transformOrigin: 'center center'
-                      }}
-                    />
-                  ) : (
-                    <div className={`text-center p-6 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                      <p className="text-xs font-mono">Belum ada gambar</p>
+                      style={imageWrapperStyle}
+                    >
+                      {currentProfileImageUrl ? (
+                        <img 
+                          className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
+                            isPng ? 'object-contain' : 'object-cover grayscale-[15%] group-hover:scale-102'
+                          }`}
+                          referrerPolicy="no-referrer"
+                          alt="Professional Portfolio Visual" 
+                          src={currentProfileImageUrl}
+                          style={{
+                            transform: `scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
+                            transformOrigin: 'center center'
+                          }}
+                        />
+                      ) : (
+                        <div className={`text-center p-6 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                          <p className="text-xs font-mono">Belum ada gambar</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                
-                {/* Ribbon-style Banner displaying the Professional Title */}
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[108%] z-20 flex flex-col items-center">
-                  {/* Ribbons corners / fold joints behind main body for authentic aesthetic depth */}
-                  <div className="absolute -bottom-1 -left-1 w-3.5 h-3.5 bg-slate-950 rounded-bl-sm -z-10" />
-                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-slate-950 rounded-br-sm -z-10" />
-                  
-                  {/* Main Ribbon Body */}
-                   <div className={`w-full py-3 px-4 sm:px-6 rounded-lg shadow-2xl flex items-center justify-center gap-2.5 select-none relative transition-all duration-250 border ${
-                     theme === 'dark' 
-                       ? 'bg-slate-900/95 backdrop-blur-md border-slate-700 text-slate-100 shadow-[0_20px_40px_-5px_rgba(0,0,0,0.65)]' 
-                       : 'bg-white border-slate-250 text-slate-900 shadow-[0_20px_40px_-5px_rgba(15,23,42,0.18)]'
-                   }`}>
-                     <span className="w-2 h-2 bg-emerald-500 rounded-full shrink-0 animate-pulse" />
-                     <span className={`font-mono text-[10px] sm:text-[11px] md:text-[12px] font-black tracking-widest text-center uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-[85%] drop-shadow-sm ${
-                       theme === 'dark' ? 'text-slate-100' : 'text-slate-900'
-                     }`}>
-                       {cvData.title || (isSupabaseConfigured ? "ANALYST PROFESSIONAL" : "MENUNGGU KONEKSI DATABASE")}
-                     </span>
-                     <span className="w-2 h-2 bg-emerald-500 rounded-full shrink-0 animate-pulse" />
-                   </div>
-                </div>
-              </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         </section>
@@ -913,35 +1610,54 @@ export default function App() {
           theme === 'dark' ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-3xl mb-12"
-            >
-              <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5 rounded border transition-colors duration-200 ${
-                theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-100/60 border-emerald-200/50'
-              }`}>
-                {cvData.webTexts?.projects_badge || "CASE CHRONICLES"}
-              </span>
-              <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-white' : 'text-slate-900'
-              }`}>
-                {cvData.webTexts?.projects_title || "Selected Case Studies"}
-              </h2>
-              <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
-                {cvData.webTexts?.projects_subtitle || "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits."}
-              </p>
-            </motion.div>
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.1 }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="max-w-3xl"
+              >
+                <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {activeCVData.webTexts?.projects_title || "Selected Case Studies"}
+                </h2>
+                <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  {activeCVData.webTexts?.projects_subtitle || "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits."}
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6 }}
+                className="shrink-0"
+              >
+                <button
+                  onClick={() => {
+                    navigateToPath('projects');
+                  }}
+                  className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-305 border shadow-md cursor-pointer select-none active:scale-98 ${
+                    theme === 'dark' 
+                      ? 'bg-emerald-655 hover:bg-emerald-500 text-white border-emerald-600 shadow-emerald-900/10' 
+                      : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-950 shadow-slate-900/10'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4 text-emerald-450" />
+                  <span>{lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}</span>
+                </button>
+              </motion.div>
+            </div>
 
             {/* Case Studies Cards Grid */}
-            <div className={`grid ${(!isSupabaseConfigured || !cvData.caseStudies || cvData.caseStudies.length === 0) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-8`}>
+            <div className={`grid ${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-8`}>
               {!isSupabaseConfigured ? (
-                <div className={`p-8 rounded-xl border text-center transition-all ${
-                  theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
+                <div className={`p-8 rounded-xl text-center transition-all ${
+                  theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
                 }`}>
                   <Database className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-pulse shrink-0" />
                   <h3 className="font-sans font-bold text-lg mb-2">Supabase Belum Terhubung</h3>
@@ -955,9 +1671,9 @@ export default function App() {
                   </div>
                   <p className="text-xs text-slate-400 block">Setelah secrets dipasang, data asli, deskripsi, dan gambar proyek Anda akan otomatis dirender di sini.</p>
                 </div>
-              ) : !cvData.caseStudies || cvData.caseStudies.length === 0 ? (
-                <div className={`p-8 rounded-xl border text-center transition-all ${
-                  theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
+              ) : !activeCVData.caseStudies || activeCVData.caseStudies.length === 0 ? (
+                <div className={`p-8 rounded-xl text-center transition-all ${
+                  theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
                 }`}>
                   <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
                   <h3 className="font-sans font-bold text-lg mb-2">Belum ada Proyek</h3>
@@ -966,7 +1682,22 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                cvData.caseStudies.map((study, idx) => (
+                (() => {
+                  const allProjs = activeCVData.caseStudies || [];
+                  const homeFeaturedProjects = (() => {
+                    try {
+                      const val = activeCVData.webTexts?.featured_project_ids;
+                      if (val) {
+                        const ids = JSON.parse(val);
+                        if (Array.isArray(ids) && ids.length > 0) {
+                          return ids.map(id => allProjs.find(p => p.id === id)).filter(Boolean) as typeof allProjs;
+                        }
+                      }
+                    } catch (e) {}
+                    return allProjs.slice(0, 3);
+                  })();
+
+                  return homeFeaturedProjects.map((study, idx) => (
                   <motion.div 
                     key={study.id} 
                     initial={{ opacity: 0, y: 20 }}
@@ -974,14 +1705,18 @@ export default function App() {
                     viewport={{ once: true, amount: 0.05 }}
                     transition={{ duration: 0.7, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
                     whileHover={{ y: -8, transition: { duration: 0.25, ease: "easeOut" } }}
-                    onClick={() => window.open('#/project/' + study.id, '_blank')}
-                    className={`bento-card rounded-xl overflow-hidden p-5 flex flex-col justify-between group border transition-all cursor-pointer relative ${
-                      theme === 'dark' ? 'bg-slate-900 border-slate-700/60 hover:border-emerald-500/40' : 'bg-white border-slate-200/80 hover:border-emerald-500/30 hover:shadow-lg'
+                    onClick={() => {
+                      const url = study.projectUrl || 'https://github.com';
+                      window.open(url, '_blank');
+                    }}
+                    className={`bento-card rounded-xl overflow-hidden p-5 flex flex-col justify-between group transition-all cursor-pointer relative ${
+                      theme === 'dark' ? 'bg-slate-800 border-none hover:border-emerald-500/40' : 'bg-white border border-slate-200/80 hover:border-emerald-500/30 hover:shadow-lg'
                     }`}
-                    title="Click to view full slide deck presentation"
+                    title="Click to open project link"
                   >
-                    <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600/90 text-white font-mono text-[8px] font-bold tracking-widest px-1.5 py-0.5 rounded leading-none">
-                      PPT SLIDES
+                    <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600/95 text-white font-mono text-[9px] font-bold tracking-wider px-2 py-1 rounded-lg leading-none flex items-center gap-1 shadow-sm">
+                      <ExternalLink className="w-3 h-3" />
+                      <span>OPEN</span>
                     </div>
 
                     <div>
@@ -1022,10 +1757,11 @@ export default function App() {
                     <div className={`pt-4 border-t flex justify-between items-center transition-colors duration-200 ${
                       theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'
                     }`}>
-                      <span className={`font-mono text-xs font-extrabold px-2 py-0.5 rounded border transition-colors duration-200 ${
-                        theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-50 border-emerald-500/10'
+                      <span className={`font-mono text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors select-none ${
+                        theme === 'dark' ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'
                       }`}>
-                        {study.impactMetric}
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Visit Project</span>
                       </span>
                       
                       <button
@@ -1042,7 +1778,8 @@ export default function App() {
                       </button>
                     </div>
                   </motion.div>
-                ))
+                  ));
+                })()
               )}
             </div>
 
@@ -1062,24 +1799,19 @@ export default function App() {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="text-center max-w-2xl mx-auto mb-12"
             >
-              <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5 rounded border transition-colors duration-200 ${
-                theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-100/60 border-emerald-200/50'
-              }`}>
-                {cvData.webTexts?.skills_badge || "STACK CLASSIFICATION"}
-              </span>
               <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                {cvData.webTexts?.skills_title || "Technical Arsenal"}
+                {activeCVData.webTexts?.skills_title || "Technical Arsenal"}
               </h2>
               <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                {cvData.webTexts?.skills_subtitle || "Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters."}
+                {activeCVData.webTexts?.skills_subtitle || "Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters."}
               </p>
             </motion.div>
 
-            <SkillsArsenal skills={cvData.skills} theme={theme} customCategories={cvData.skillCategories} />
+            <SkillsArsenal skills={activeCVData.skills} theme={theme} customCategories={activeCVData.skillCategories} />
           </div>
         </section>
 
@@ -1095,20 +1827,15 @@ export default function App() {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-3xl mb-12"
             >
-              <span className={`text-[10px] uppercase font-mono tracking-widest px-2.5 py-0.5 rounded border transition-colors duration-200 ${
-                theme === 'dark' ? 'text-emerald-300 bg-emerald-950/40 border-emerald-500/25' : 'text-emerald-700 bg-emerald-100/60 border-emerald-200/50'
-              }`}>
-                {cvData.webTexts?.experience_badge || "CAREER TRACEABILITY"}
-              </span>
               <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
-                {cvData.webTexts?.experience_title || "Professional Journey"}
+                {activeCVData.webTexts?.experience_title || "Professional Journey"}
               </h2>
               <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
-                {cvData.webTexts?.experience_subtitle || "Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries."}
+                {activeCVData.webTexts?.experience_subtitle || "Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries."}
               </p>
             </motion.div>
 
@@ -1124,7 +1851,7 @@ export default function App() {
                     Konfigurasikan database Supabase Anda untuk menampilkan riwayat pengalaman kerja professional Anda secara dinamis dari tabel database.
                   </p>
                 </div>
-              ) : !cvData.experiences || cvData.experiences.length === 0 ? (
+              ) : !activeCVData.experiences || activeCVData.experiences.length === 0 ? (
                 <div className={`p-8 rounded-xl border text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
                 }`}>
@@ -1135,7 +1862,7 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                cvData.experiences.map((exp, expIdx) => {
+                activeCVData.experiences.map((exp, expIdx) => {
                 const isExpanded = expandedExperienceId === exp.id;
                 return (
                   <motion.div 
@@ -1252,9 +1979,11 @@ export default function App() {
         }`}>
           <div className="w-full max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
             <ContactForm 
-              email={cvData.email} 
-              location={cvData.location} 
-              webTexts={cvData.webTexts} 
+              email={activeCVData.email} 
+              location={activeCVData.location} 
+              webTexts={activeCVData.webTexts} 
+              lang={lang}
+              theme={theme}
             />
           </div>
         </section>
@@ -1276,32 +2005,12 @@ export default function App() {
           <div className="flex items-center gap-3">
             {/* Unified Social Media Icon Controls */}
             {(() => {
-              const list = [...(cvData.customSocials || [])];
+               const list = [...(activeCVData.customSocials || [])];
 
               return list
                 .filter(s => (s.value || s.usernameOrUrl) && s.showOnWeb !== false)
                 .map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      const target = s.usernameOrUrl || s.value || '';
-                      const url = formatSocialLink(target, s.name || 'custom', '');
-                      window.open(url, '_blank', 'noreferrer');
-                    }}
-                    className={`h-9 w-9 hover:w-auto max-w-[36px] hover:max-w-[240px] pl-[9px] hover:pl-3 pr-[9px] hover:pr-3 rounded-lg transition-all duration-300 border cursor-pointer flex items-center justify-start overflow-hidden group ${
-                      theme === 'dark' 
-                        ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white' 
-                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
-                    }`}
-                    title={`Open ${s.name}: ${s.value || s.usernameOrUrl}`}
-                  >
-                    <div className="shrink-0 flex items-center justify-center">
-                      <SocialIcon platform={s.name} size={16} className="w-4 h-4 transition-transform group-hover:scale-110" useBrandColor={true} />
-                    </div>
-                    <span className="text-[10px] font-mono text-emerald-500 font-bold whitespace-nowrap opacity-0 max-w-0 transition-all duration-300 group-hover:opacity-100 group-hover:max-w-[180px] group-hover:ml-2">
-                      {s.value || s.name}
-                    </span>
-                  </button>
+                  <SocialFooterButton key={s.id} s={s} theme={theme} />
                 ));
             })()}
           </div>
@@ -1313,7 +2022,7 @@ export default function App() {
         {cvModalOpen && (
           <ResumeModal 
             onClose={() => setCvModalOpen(false)} 
-            cvData={cvData} 
+            cvData={activeCVData} 
             onUpdate={(updated) => setCvData(updated)} 
             theme={theme}
           />

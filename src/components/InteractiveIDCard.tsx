@@ -118,10 +118,15 @@ export default function InteractiveIDCard({
   const [containerWidth, setContainerWidth] = useState(280);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // States for coordinates rendered in the component
-  const [pos, setPos] = useState(() => isStatic ? { x: 0, y: 115 } : { x: -35, y: -800 });
-  const [rot, setRot] = useState({ x: 0, y: 0, z: 0 });
-  const [hover, setHover] = useState({ x: 0, y: 0 });
+  // Refs for zero-re-render high performance animation loop
+  const ribbonStrapRef = useRef<SVGPathElement>(null);
+  const ribbonStrapShadowRef = useRef<SVGPathElement>(null);
+  const ribbonTextPathRef = useRef<SVGPathElement>(null);
+  const gSwivelRef = useRef<SVGGElement>(null);
+  const cardShadowRef = useRef<HTMLDivElement>(null);
+  const cardSleeveRef = useRef<HTMLDivElement>(null);
+  const glareRef = useRef<HTMLDivElement>(null);
+
   const [isCurrentlyDragging, setIsCurrentlyDragging] = useState(false);
 
   // Drag-and-move coordinate offsets in Admin static mode
@@ -257,14 +262,65 @@ export default function InteractiveIDCard({
     const springK = 0.198; // High tension elastic spring snap back
     const stretchDamp = 0.28; // Increased dampener for spring oscillations
 
+    const anchorX = containerWidth / 2;
+
+    const updateVisuals = (
+      pX: number,
+      pY: number,
+      rX: number,
+      rY: number,
+      rZ: number,
+      hX: number,
+      hY: number
+    ) => {
+      // 1. Calculate path
+      const curveControlX = anchorX + pX * 0.35;
+      const curveControlY = lanyardAnchorY + (pY - lanyardAnchorY) * 0.55;
+      const ribbonPath = `M ${anchorX} ${lanyardAnchorY} Q ${curveControlX} ${curveControlY} ${anchorX + pX} ${pY - 12}`;
+
+      if (ribbonStrapRef.current) {
+        ribbonStrapRef.current.setAttribute('d', ribbonPath);
+      }
+      if (ribbonStrapShadowRef.current) {
+        ribbonStrapShadowRef.current.setAttribute('d', ribbonPath);
+      }
+      if (ribbonTextPathRef.current) {
+        ribbonTextPathRef.current.setAttribute('d', ribbonPath);
+      }
+
+      // 2. Swivel Group
+      if (gSwivelRef.current) {
+        gSwivelRef.current.setAttribute('transform', `translate(${pX}, ${pY})`);
+      }
+
+      // 3. Card Shadow (keep blur static at 8px to avoid costly browser layout repaints)
+      if (cardShadowRef.current) {
+        cardShadowRef.current.style.transform = `translate3d(${pX}px, ${pY}px, 0) rotateX(${rX * 0.85}deg) rotateY(${rY * 0.85}deg) rotateZ(${rZ}deg) scale(0.96)`;
+      }
+
+      // 4. Card Sleeve
+      if (cardSleeveRef.current) {
+        cardSleeveRef.current.style.transform = `translate3d(${pX}px, ${pY}px, 0) rotateX(${rX}deg) rotateY(${rY}deg) rotateZ(${rZ}deg)`;
+      }
+
+      // 5. Glare Refracting Overlay
+      if (glareRef.current) {
+        const glossPercentX = 50 + (hX * 40);
+        const glossPercentY = 50 + (hY * 40);
+        glareRef.current.style.background = `
+          radial-gradient(circle at ${glossPercentX}% ${glossPercentY}%, rgba(255, 255, 255, ${isDark ? 0.15 : 0.25}) 0%, rgba(255, 255, 255, 0) 55%),
+          radial-gradient(circle at ${100 - glossPercentX}% ${100 - glossPercentY}%, rgba(251, 191, 36, 0.08) 0%, rgba(139, 92, 246, 0.05) 45%, rgba(0, 0, 0, 0) 90%)
+        `;
+      }
+    };
+
     const tick = () => {
       const p = physicsRef.current;
 
       // Restrain the physics engine until the initial delay of 0.15 seconds completes
       const elapsed = Date.now() - startTime;
       if (!isStatic && elapsed < delayMs && !p.isDragging) {
-        setPos({ x: p.x, y: p.y });
-        setRot({ x: 0, y: 0, z: 0 });
+        updateVisuals(p.x, p.y, 0, 0, 0, 0, 0);
         animationFrameId = requestAnimationFrame(tick);
         return;
       }
@@ -367,9 +423,10 @@ export default function InteractiveIDCard({
       let finalRotateY = 0;
       let finalRotateZ = 0;
 
+      const hRaw = rawHoverRef.current;
+      const hSmooth = smoothHoverRef.current;
+
       if (!isStatic) {
-        const hRaw = rawHoverRef.current;
-        const hSmooth = smoothHoverRef.current;
         hSmooth.x += (hRaw.x - hSmooth.x) * 0.12;
         hSmooth.y += (hRaw.y - hSmooth.y) * 0.12;
 
@@ -381,22 +438,20 @@ export default function InteractiveIDCard({
         finalRotateX = speedTiltX + (hSmooth.y * -20);
         finalRotateY = speedTwistY + (hSmooth.x * 20);
         finalRotateZ = p.cardAngle;
-
-        setHover({ ...hSmooth });
       } else {
-        setHover({ x: 0, y: 0 });
+        hSmooth.x = 0;
+        hSmooth.y = 0;
       }
 
-      // Commit to local React rendering state
-      setPos({ x: p.x, y: p.y });
-      setRot({ x: finalRotateX, y: finalRotateY, z: finalRotateZ });
+      // Commit styling changes directly to DOM nodes (hardware-accelerated, zero-re-render animation)
+      updateVisuals(p.x, p.y, finalRotateX, finalRotateY, finalRotateZ, hSmooth.x, hSmooth.y);
 
       animationFrameId = requestAnimationFrame(tick);
     };
 
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isStatic]);
+  }, [isStatic, containerWidth, isDark]);
 
   // Pointer event managers (multi-touch & pointer unification)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -514,16 +569,15 @@ export default function InteractiveIDCard({
   const shadowOffsetX = 10;
   const shadowOffsetY = 15;
 
+  const initialX = isStatic ? 0 : -35;
+  const initialY = isStatic ? 115 : -800;
+
   // Lanyard double ribbon path curve: joins anchor and card attachment slot
-  const curveControlX = anchorX + pos.x * 0.35;
-  const curveControlY = lanyardAnchorY + (pos.y - lanyardAnchorY) * 0.55;
+  const initialCurveControlX = anchorX + initialX * 0.35;
+  const initialCurveControlY = lanyardAnchorY + (initialY - lanyardAnchorY) * 0.55;
   
   // Ribbon Path definition
-  const ribbonPath = `M ${anchorX} ${lanyardAnchorY} Q ${curveControlX} ${curveControlY} ${anchorX + pos.x} ${pos.y - 12}`;
-
-  // Specular light reflective shines (gloss overlay) shifting based on 3D tilt:
-  const glossPercentX = 50 + (hover.x * 40);
-  const glossPercentY = 50 + (hover.y * 40);
+  const initialRibbonPath = `M ${anchorX} ${lanyardAnchorY} Q ${initialCurveControlX} ${initialCurveControlY} ${anchorX + initialX} ${initialY - 12}`;
 
   return (
     <div
@@ -551,12 +605,13 @@ export default function InteractiveIDCard({
           </linearGradient>
 
           {/* Path for text to wrap on the lanyard curve */}
-          <path id="lanyardTextPath" d={ribbonPath} fill="none" />
+          <path ref={ribbonTextPathRef} id="lanyardTextPath" d={initialRibbonPath} fill="none" />
         </defs>
 
         {/* Shadow of the Ribbon Strap */}
         <path
-          d={ribbonPath}
+          ref={ribbonStrapShadowRef}
+          d={initialRibbonPath}
           stroke="rgba(0, 0, 0, 0.22)"
           strokeWidth="10"
           fill="none"
@@ -569,7 +624,8 @@ export default function InteractiveIDCard({
 
         {/* Solid Woven Fabric Strap Base */}
         <path
-          d={ribbonPath}
+          ref={ribbonStrapRef}
+          d={initialRibbonPath}
           stroke="#022c22"
           strokeWidth="7"
           fill="none"
@@ -578,7 +634,7 @@ export default function InteractiveIDCard({
 
         {/* Fabric side borders for added stitch/texture depth */}
         <path
-          d={ribbonPath}
+          d={initialRibbonPath}
           stroke="#059669"
           strokeWidth="7"
           strokeDasharray="1.5 2.5"
@@ -601,48 +657,52 @@ export default function InteractiveIDCard({
           </textPath>
         </text>
 
-        {/* Swivel metal loop hanger ring */}
-        <circle
-          cx={anchorX + pos.x}
-          cy={pos.y - 18}
-          r="7"
-          fill="none"
-          stroke="url(#metalSilver)"
-          strokeWidth="3.2"
-        />
+        {/* Swivel metal components group translated by pos.x and pos.y */}
+        <g ref={gSwivelRef} transform={`translate(${initialX}, ${initialY})`}>
+          {/* Swivel metal loop hanger ring */}
+          <circle
+            cx={anchorX}
+            cy={-18}
+            r="7"
+            fill="none"
+            stroke="url(#metalSilver)"
+            strokeWidth="3.2"
+          />
 
-        {/* Carabiner swivel clip hook joining the ring and card holder slot */}
-        <path
-          d={`M ${anchorX + pos.x - 3} ${pos.y - 14} 
-              L ${anchorX + pos.x + 3} ${pos.y - 14} 
-              L ${anchorX + pos.x + 2} ${pos.y - 4} 
-              L ${anchorX + pos.x - 2} ${pos.y - 4} Z`}
-          fill="url(#metalSilver)"
-        />
-        
-        {/* Swivel clasp hook clip pin */}
-        <path
-          d={`M ${anchorX + pos.x} ${pos.y - 12} L ${anchorX + pos.x} ${pos.y}`}
-          stroke="url(#metalSilver)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
+          {/* Carabiner swivel clip hook joining the ring and card holder slot */}
+          <path
+            d={`M ${anchorX - 3} ${-14} 
+                L ${anchorX + 3} ${-14} 
+                L ${anchorX + 2} ${-4} 
+                L ${anchorX - 2} ${-4} Z`}
+            fill="url(#metalSilver)"
+          />
+          
+          {/* Swivel clasp hook clip pin */}
+          <path
+            d={`M ${anchorX} ${-12} L ${anchorX} 0`}
+            stroke="url(#metalSilver)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        </g>
       </svg>
 
       {/* 2. DYNAMIC REALISTIC DEPTH-OFFSET SHADOW */}
       <div
+        ref={cardShadowRef}
         className="absolute pointer-events-none rounded-[18px] select-none"
         style={{
-          left: `calc(50% + ${pos.x}px - 120px + ${shadowOffsetX}px)`, // Exact alignment with card structure and offset
-          top: `${pos.y + shadowOffsetY}px`, // Natural vertical depth offset
+          left: `calc(50% - 120px + ${shadowOffsetX}px)`, // applied via translate3d transform
+          top: `${shadowOffsetY}px`, // applied via translate3d transform
           width: '240px',
           height: '350px',
           background: isDark
             ? 'radial-gradient(circle, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 65%, rgba(0,0,0,0) 105%)'
             : 'radial-gradient(circle, rgba(15,23,42,0.45) 0%, rgba(15,23,42,0.18) 65%, rgba(0,0,0,0) 105%)',
-          filter: `blur(${8 + Math.abs(pos.x) * 0.03}px)`,
+          filter: 'blur(8px)',
           opacity: isDark ? 0.75 : 0.65,
-          transform: `rotateX(${rot.x * 0.85}deg) rotateY(${rot.y * 0.85}deg) rotateZ(${rot.z}deg) scale(0.96)`,
+          transform: `translate3d(${initialX}px, ${initialY}px, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(0.96)`,
           transformOrigin: 'top center',
           zIndex: 5,
         }}
@@ -650,6 +710,7 @@ export default function InteractiveIDCard({
 
       {/* 3. CORE PHYSICAL 3D TRANSFORMS CARD HOLDER SLEEVE */}
       <div
+        ref={cardSleeveRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -670,11 +731,11 @@ export default function InteractiveIDCard({
                 : 'bg-transparent border border-dashed border-slate-300/60')
         }`}
         style={{
-          left: `calc(50% + ${pos.x}px - 120px)`,
-          top: `${pos.y}px`,
+          left: 'calc(50% - 120px)',
+          top: '0px',
           width: `${cardWidth}px`,
           height: '350px',
-          transform: `rotateX(${rot.x}deg) rotateY(${rot.y}deg) rotateZ(${rot.z}deg)`,
+          transform: `translate3d(${initialX}px, ${initialY}px, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg)`,
           transformStyle: 'preserve-3d',
           transformOrigin: 'top center',
           touchAction: 'none',
@@ -801,11 +862,12 @@ export default function InteractiveIDCard({
 
           {/* Holographic Refracting Overlay Glare layer */}
           <div
+            ref={glareRef}
             className="absolute inset-0 pointer-events-none transition-opacity duration-300 z-30"
             style={{
               background: `
-                radial-gradient(circle at ${glossPercentX}% ${glossPercentY}%, rgba(255, 255, 255, ${isDark ? 0.15 : 0.25}) 0%, rgba(255, 255, 255, 0) 55%),
-                radial-gradient(circle at ${100 - glossPercentX}% ${100 - glossPercentY}%, rgba(251, 191, 36, 0.08) 0%, rgba(139, 92, 246, 0.05) 45%, rgba(0, 0, 0, 0) 90%)
+                radial-gradient(circle at 50% 50%, rgba(255, 255, 255, ${isDark ? 0.15 : 0.25}) 0%, rgba(255, 255, 255, 0) 55%),
+                radial-gradient(circle at 50% 50%, rgba(251, 191, 36, 0.08) 0%, rgba(139, 92, 246, 0.05) 45%, rgba(0, 0, 0, 0) 90%)
               `,
               mixBlendMode: 'color-dodge',
             }}

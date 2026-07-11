@@ -46,6 +46,7 @@ import {
   Target
 } from 'lucide-react';
 import { CVData, saveCVData, isSupabaseConfigured, supabase, uploadFileToStorage } from '../lib/supabaseClient';
+import { ID_TRANSLATIONS } from '../App';
 import PPTSlideEditor from './PPTSlideEditor';
 import ResumeModal from './ResumeModal';
 import { CaseStudy, SkillItem, SkillCategory } from '../types';
@@ -53,11 +54,7 @@ import SocialIcon from './SocialIcon';
 import InteractiveIDCard from './InteractiveIDCard';
 
 const AVAILABLE_PLATFORMS = [
-  "BeReal", "Bluesky", "Clubhouse", "Discord", "Email", "Facebook", "GitHub", "IMO", 
-  "Instagram", "KakaoTalk", "Kuaishou", "Lemon8", "Likee", "LINE", "LinkedIn", "Mastodon", 
-  "Nextdoor", "Pinterest", "QQ", "Quora", "Reddit", "Signal", "Sina Weibo", "Skype", "Slack", 
-  "Snapchat", "Teams", "Threads", "TikTok", "Triller", "Tumblr", "Twitch", "Viber", "WeChat", 
-  "WhatsApp", "X", "YouTube", "YouNow", "Zoom"
+  "Email", "Facebook", "GitHub", "Instagram", "LinkedIn", "Threads", "TikTok", "Website", "WeChat", "WhatsApp", "X"
 ].sort();
 
 function migrateLegacySocials(base: CVData): CVData {
@@ -138,7 +135,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
   // Local state for full database editing
   const [localCV, setLocalCV] = useState<CVData>(() => migrateLegacySocials(cvData));
   const [activeTab, setActiveTab] = useState<'profile' | 'about_story' | 'about_pages' | 'personality' | 'hobbies' | 'career_goals' | 'web_texts' | 'skills' | 'projects' | 'experience' | 'education' | 'technical' | 'methodology' | 'layout' | 'socials' | 'db_setup' | 'preview'>('profile');
-  const [selectedAboutPage, setSelectedAboutPage] = useState<'education' | 'personality' | 'hobbies' | 'career-journey' | 'skills' | 'career-goals'>('education');
+  const [selectedAboutPage, setSelectedAboutPage] = useState<'education' | 'personality' | 'hobbies' | 'career-journey' | 'skills' | 'projects' | 'career-goals'>('education');
   const [previewThemeMode, setPreviewThemeMode] = useState<'light' | 'dark'>('light');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
@@ -382,6 +379,14 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
     setLocalCV(prev => ({ ...prev, [field]: val }));
   };
 
+  const updateWebTextField = (key: string, value: string) => {
+    const currentTexts = localCV.webTexts || {};
+    setLocalCV(prev => ({
+      ...prev,
+      webTexts: { ...currentTexts, [key]: value }
+    }));
+  };
+
   const handleUpdateIDCardCoordinates = (updates: {
     imageX?: number;
     imageY?: number;
@@ -554,7 +559,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
     updateGeneralField('education', list.filter((_, i) => i !== index));
   };
 
-  const handleUpdateEdu = (index: number, field: 'period' | 'degree' | 'institution' | 'description', val: string) => {
+  const handleUpdateEdu = (index: number, field: 'period' | 'degree' | 'institution' | 'description' | 'id', val: string) => {
     const list = [...(localCV.education || [])];
     list[index] = { ...list[index], [field]: val };
     updateGeneralField('education', list);
@@ -603,74 +608,271 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
     updateGeneralField('educationSections', updatedList);
   };
 
-  // 4b. PERSONALITY MUTATORS
-  const handleAddPersonality = () => {
-    const list = localCV.personality || [];
-    const newItem = {
-      id: `pers-${Date.now()}`,
-      title: 'New Value',
-      description: 'Description of your personality trait or core value.',
-      icon: 'Cpu'
+
+
+  // 4b. BILINGUAL EXPERIENCE HELPERS
+  const getBilingualExperiences = () => {
+    const flatList = localCV.experiences || [];
+    const baseIds = Array.from(new Set(flatList.map(item => {
+      if (item.id.endsWith('-en')) return item.id.slice(0, -3);
+      if (item.id.endsWith('-id')) return item.id.slice(0, -3);
+      return item.id;
+    }))) as string[];
+
+    return baseIds.map(baseId => {
+      let enItem = flatList.find(e => e.id === `${baseId}-en`) || flatList.find(e => e.id === baseId);
+      let idItem = flatList.find(e => e.id === `${baseId}-id`);
+
+      if (enItem && !idItem) {
+        const defaultIdTrans = (ID_TRANSLATIONS as any).experiences?.[baseId];
+        idItem = {
+          id: `${baseId}-id`,
+          period: defaultIdTrans?.period || enItem.period || '',
+          role: defaultIdTrans?.role || enItem.role || '',
+          company: defaultIdTrans?.company || enItem.company || '',
+          bulletPoints: defaultIdTrans?.bulletPoints || [...enItem.bulletPoints],
+          tools: enItem.tools || []
+        };
+      }
+
+      if (enItem && enItem.id === baseId) {
+        enItem = { ...enItem, id: `${baseId}-en` };
+      }
+
+      if (!enItem) {
+        enItem = {
+          id: `${baseId}-en`,
+          period: '',
+          role: '',
+          company: '',
+          bulletPoints: [''],
+          tools: []
+        };
+      }
+      if (!idItem) {
+        idItem = {
+          id: `${baseId}-id`,
+          period: '',
+          role: '',
+          company: '',
+          bulletPoints: [''],
+          tools: []
+        };
+      }
+
+      return {
+        baseId,
+        en: enItem,
+        id: idItem
+      };
+    });
+  };
+
+  const handleUpdateBilingualExp = (baseId: string, lang: 'en' | 'id', field: string, val: any) => {
+    const bilingualList = getBilingualExperiences();
+    const updated = bilingualList.map(item => {
+      if (item.baseId === baseId) {
+        return {
+          ...item,
+          [lang]: {
+            ...item[lang],
+            [field]: val
+          }
+        };
+      }
+      return item;
+    });
+    
+    const flatList: any[] = [];
+    updated.forEach(item => {
+      flatList.push({ ...item.en, id: `${item.baseId}-en` });
+      flatList.push({ ...item.id, id: `${item.baseId}-id` });
+    });
+    updateGeneralField('experiences', flatList);
+  };
+
+  const handleUpdateBilingualExpBaseId = (oldBaseId: string, newBaseId: string) => {
+    const bilingualList = getBilingualExperiences();
+    const updated = bilingualList.map(item => {
+      if (item.baseId === oldBaseId) {
+        return {
+          ...item,
+          baseId: newBaseId,
+          en: { ...item.en, id: `${newBaseId}-en` },
+          id: { ...item.id, id: `${newBaseId}-id` }
+        };
+      }
+      return item;
+    });
+    const flatList: any[] = [];
+    updated.forEach(item => {
+      flatList.push({ ...item.en });
+      flatList.push({ ...item.id });
+    });
+    updateGeneralField('experiences', flatList);
+  };
+
+  const handleAddBilingualExp = () => {
+    const baseId = `exp-${Date.now()}`;
+    const enItem = {
+      id: `${baseId}-en`,
+      period: '2024 — Present',
+      role: 'Lead Business Analyst',
+      company: 'Global Enterprises Inc.',
+      bulletPoints: ['Formulated high-performance SQL queries to optimize cost.'],
+      tools: ['SQL', 'Snowflake', 'Python']
     };
-    updateGeneralField('personality', [...list, newItem]);
-  };
-
-  const handleRemovePersonality = (index: number) => {
-    const list = localCV.personality || [];
-    updateGeneralField('personality', list.filter((_, i) => i !== index));
-  };
-
-  const handleUpdatePersonality = (index: number, field: 'title' | 'description' | 'icon', val: string) => {
-    const list = [...(localCV.personality || [])];
-    list[index] = { ...list[index], [field]: val };
-    updateGeneralField('personality', list);
-  };
-
-  // 4c. HOBBIES MUTATORS
-  const handleAddHobby = () => {
-    const list = localCV.hobbies || [];
-    const newItem = {
-      id: `hobby-${Date.now()}`,
-      title: 'New Hobby',
-      description: 'What you enjoy doing in your spare time.',
-      icon: 'Heart'
+    const idItem = {
+      id: `${baseId}-id`,
+      period: '2024 — Sekarang',
+      role: 'Analis Bisnis Utama',
+      company: 'Global Enterprises Inc.',
+      bulletPoints: ['Memformulasikan query SQL berkinerja tinggi untuk menghemat biaya.'],
+      tools: ['SQL', 'Snowflake', 'Python']
     };
-    updateGeneralField('hobbies', [...list, newItem]);
+
+    const flatList = [...(localCV.experiences || []), enItem, idItem];
+    updateGeneralField('experiences', flatList);
   };
 
-  const handleRemoveHobby = (index: number) => {
-    const list = localCV.hobbies || [];
-    updateGeneralField('hobbies', list.filter((_, i) => i !== index));
+  const handleRemoveBilingualExp = (baseId: string) => {
+    const flatList = localCV.experiences || [];
+    const filtered = flatList.filter(e => e.id !== `${baseId}-en` && e.id !== `${baseId}-id` && e.id !== baseId);
+    updateGeneralField('experiences', filtered);
   };
 
-  const handleUpdateHobby = (index: number, field: 'title' | 'description' | 'icon', val: string) => {
-    const list = [...(localCV.hobbies || [])];
-    list[index] = { ...list[index], [field]: val };
-    updateGeneralField('hobbies', list);
+  // 4c. BILINGUAL EDUCATION HELPERS
+  const getBilingualEducation = () => {
+    const flatList = localCV.education || [];
+    const cleanedFlatList = flatList.map((item, idx) => {
+      if (!item.id) {
+        return { ...item, id: `edu-${idx + 1}` };
+      }
+      return item;
+    });
+
+    const baseIds = Array.from(new Set(cleanedFlatList.map(item => {
+      const idStr = String(item.id);
+      if (idStr.endsWith('-en')) return idStr.slice(0, -3);
+      if (idStr.endsWith('-id')) return idStr.slice(0, -3);
+      return idStr;
+    }))) as string[];
+
+    return baseIds.map(baseId => {
+      let enItem = cleanedFlatList.find(e => String(e.id) === `${baseId}-en`) || cleanedFlatList.find(e => String(e.id) === baseId);
+      let idItem = cleanedFlatList.find(e => String(e.id) === `${baseId}-id`);
+
+      if (enItem && !idItem) {
+        const defaultIdTrans = (ID_TRANSLATIONS as any).education?.find((e: any) => e.degree === enItem?.degree) || (ID_TRANSLATIONS as any).education?.[0];
+        idItem = {
+          id: `${baseId}-id`,
+          period: enItem.period || '',
+          degree: defaultIdTrans?.degree || enItem.degree || '',
+          institution: defaultIdTrans?.institution || enItem.institution || '',
+          description: enItem.description || ''
+        };
+      }
+
+      if (enItem && String(enItem.id) === baseId) {
+        enItem = { ...enItem, id: `${baseId}-en` };
+      }
+
+      if (!enItem) {
+        enItem = {
+          id: `${baseId}-en`,
+          period: '',
+          degree: '',
+          institution: '',
+          description: ''
+        };
+      }
+      if (!idItem) {
+        idItem = {
+          id: `${baseId}-id`,
+          period: '',
+          degree: '',
+          institution: '',
+          description: ''
+        };
+      }
+
+      return {
+        baseId,
+        en: enItem,
+        id: idItem
+      };
+    });
   };
 
-  // 4d. CAREER GOALS MUTATORS
-  const handleAddCareerGoal = () => {
-    const list = localCV.careerGoals || [];
-    const newItem = {
-      id: `goal-${Date.now()}`,
-      title: 'New Milestone',
-      description: 'Detail what you want to achieve.',
-      target_year: '2027',
-      icon: 'Award'
+  const handleUpdateBilingualEdu = (baseId: string, lang: 'en' | 'id', field: string, val: any) => {
+    const bilingualList = getBilingualEducation();
+    const updated = bilingualList.map(item => {
+      if (item.baseId === baseId) {
+        return {
+          ...item,
+          [lang]: {
+            ...item[lang],
+            [field]: val
+          }
+        };
+      }
+      return item;
+    });
+    
+    const flatList: any[] = [];
+    updated.forEach(item => {
+      flatList.push({ ...item.en, id: `${item.baseId}-en` });
+      flatList.push({ ...item.id, id: `${item.baseId}-id` });
+    });
+    updateGeneralField('education', flatList);
+  };
+
+  const handleUpdateBilingualEduBaseId = (oldBaseId: string, newBaseId: string) => {
+    const bilingualList = getBilingualEducation();
+    const updated = bilingualList.map(item => {
+      if (item.baseId === oldBaseId) {
+        return {
+          ...item,
+          baseId: newBaseId,
+          en: { ...item.en, id: `${newBaseId}-en` },
+          id: { ...item.id, id: `${newBaseId}-id` }
+        };
+      }
+      return item;
+    });
+    const flatList: any[] = [];
+    updated.forEach(item => {
+      flatList.push({ ...item.en });
+      flatList.push({ ...item.id });
+    });
+    updateGeneralField('education', flatList);
+  };
+
+  const handleAddBilingualEdu = () => {
+    const baseId = `edu-${Date.now()}`;
+    const enItem = {
+      id: `${baseId}-en`,
+      period: '2024 — Present',
+      degree: 'M.S. Decision Analytics',
+      institution: 'University of Indonesia',
+      description: 'Focused on high-performance database design and Business Intelligence.'
     };
-    updateGeneralField('careerGoals', [...list, newItem]);
+    const idItem = {
+      id: `${baseId}-id`,
+      period: '2024 — Sekarang',
+      degree: 'M.S. Decision Analytics',
+      institution: 'Universitas Indonesia',
+      description: 'Berfokus pada desain database berkinerja tinggi dan Intelijen Bisnis.'
+    };
+
+    const flatList = [...(localCV.education || []), enItem, idItem];
+    updateGeneralField('education', flatList);
   };
 
-  const handleRemoveCareerGoal = (index: number) => {
-    const list = localCV.careerGoals || [];
-    updateGeneralField('careerGoals', list.filter((_, i) => i !== index));
-  };
-
-  const handleUpdateCareerGoal = (index: number, field: 'title' | 'description' | 'target_year' | 'icon', val: string) => {
-    const list = [...(localCV.careerGoals || [])];
-    list[index] = { ...list[index], [field]: val };
-    updateGeneralField('careerGoals', list);
+  const handleRemoveBilingualEdu = (baseId: string) => {
+    const flatList = localCV.education || [];
+    const filtered = flatList.filter(e => String(e.id) !== `${baseId}-en` && String(e.id) !== `${baseId}-id` && String(e.id) !== baseId);
+    updateGeneralField('education', filtered);
   };
 
   // 4. EXPERIENCES MUTATORS
@@ -693,7 +895,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
     updateGeneralField('experiences', list.filter(e => e.id !== id));
   };
 
-  const handleUpdateExpField = (id: string, field: 'period' | 'role' | 'company', val: string) => {
+  const handleUpdateExpField = (id: string, field: 'period' | 'role' | 'company' | 'id', val: string) => {
     const list = localCV.experiences || [];
     updateGeneralField('experiences', list.map(e => e.id === id ? { ...e, [field]: val } : e));
   };
@@ -943,12 +1145,8 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                   { id: 'profile', label: 'Profil & Deskripsi', icon: User },
                   { id: 'about_story', label: 'Tentang Saya (Story)', icon: Sparkle },
                   { id: 'about_pages', label: 'Tentang Saya (Pages)', icon: Sliders },
-                  { id: 'personality', label: 'Personality & Values', icon: Heart },
-                  { id: 'hobbies', label: 'Hobbies & Interests', icon: Compass },
-                  { id: 'career_goals', label: 'Career Goals Roadmap', icon: Target },
                   { id: 'web_texts', label: 'Tulisan Web', icon: FileText },
                   { id: 'skills', label: 'Skills & Technical Arsenal', icon: Code },
-                  { id: 'projects', label: 'Projek & Study Kasus', icon: LayoutGrid },
                   { id: 'experience', label: 'Pengalaman Karir', icon: Briefcase },
                   { id: 'education', label: 'Riwayat Pendidikan', icon: GraduationCap },
                   { id: 'methodology', label: 'Filosofi Kerja', icon: Sparkles },
@@ -1122,53 +1320,95 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
                         <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Hero Atas (Landing Hero)</h5>
                         
-                        <div className="space-y-3">
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Badge (Plaintext Label atas)</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.hero_badge || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, hero_badge: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                        <div className="space-y-4">
+                          {/* Hero Badge */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Badge (Plaintext Label atas)</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. DATA ANALYST & BI STRATEGIST"
+                                  value={localCV.webTexts?.hero_badge_en !== undefined ? localCV.webTexts.hero_badge_en : (localCV.webTexts?.hero_badge || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('hero_badge_en', e.target.value);
+                                    updateWebTextField('hero_badge', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: ANALIS DATA & STRATEGIST BI"
+                                  value={localCV.webTexts?.hero_badge_id !== undefined ? localCV.webTexts.hero_badge_id : (ID_TRANSLATIONS.webTexts?.hero_badge || '')} 
+                                  onChange={e => updateWebTextField('hero_badge_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Title (Judul Utama)</label>
-                            <textarea 
-                              rows={2}
-                              value={localCV.webTexts?.hero_title || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, hero_title: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                          {/* Hero Title */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Title (Judul Utama)</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Write the main heading in English..."
+                                  value={localCV.webTexts?.hero_title_en !== undefined ? localCV.webTexts.hero_title_en : (localCV.webTexts?.hero_title || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('hero_title_en', e.target.value);
+                                    updateWebTextField('hero_title', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Tuliskan judul utama dalam Bahasa Indonesia..."
+                                  value={localCV.webTexts?.hero_title_id !== undefined ? localCV.webTexts.hero_title_id : (ID_TRANSLATIONS.webTexts?.hero_title || '')} 
+                                  onChange={e => updateWebTextField('hero_title_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
+                          {/* Hero Subtitle */}
                           <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Subtitle (Deskripsi Paragraf di Samping Foto)</label>
-                            <textarea 
-                              rows={4}
-                              value={localCV.webTexts?.hero_subtitle || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, hero_subtitle: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Hero Subtitle (Deskripsi Paragraf di Samping Foto)</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <textarea 
+                                  rows={4}
+                                  placeholder="Write the introduction paragraph in English..."
+                                  value={localCV.webTexts?.hero_subtitle_en !== undefined ? localCV.webTexts.hero_subtitle_en : (localCV.webTexts?.hero_subtitle || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('hero_subtitle_en', e.target.value);
+                                    updateWebTextField('hero_subtitle', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <textarea 
+                                  rows={4}
+                                  placeholder="Tuliskan paragraf pengantar dalam Bahasa Indonesia..."
+                                  value={localCV.webTexts?.hero_subtitle_id !== undefined ? localCV.webTexts.hero_subtitle_id : (ID_TRANSLATIONS.webTexts?.hero_subtitle || '')} 
+                                  onChange={e => updateWebTextField('hero_subtitle_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1177,53 +1417,95 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
                         <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Projek &amp; Study Kasus (Selected Case Studies)</h5>
                         
-                        <div className="space-y-3">
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Badge Text</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.projects_badge || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, projects_badge: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                        <div className="space-y-4">
+                          {/* Projects Badge */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Badge Text</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. CASE CHRONICLES"
+                                  value={localCV.webTexts?.projects_badge_en !== undefined ? localCV.webTexts.projects_badge_en : (localCV.webTexts?.projects_badge || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('projects_badge_en', e.target.value);
+                                    updateWebTextField('projects_badge', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: KRONIK KASUS"
+                                  value={localCV.webTexts?.projects_badge_id !== undefined ? localCV.webTexts.projects_badge_id : (ID_TRANSLATIONS.webTexts?.projects_badge || '')} 
+                                  onChange={e => updateWebTextField('projects_badge_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Judul Utama</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.projects_title || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, projects_title: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                          {/* Projects Title */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Judul Utama</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Selected Case Studies"
+                                  value={localCV.webTexts?.projects_title_en !== undefined ? localCV.webTexts.projects_title_en : (localCV.webTexts?.projects_title || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('projects_title_en', e.target.value);
+                                    updateWebTextField('projects_title', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: Studi Kasus Terpilih"
+                                  value={localCV.webTexts?.projects_title_id !== undefined ? localCV.webTexts.projects_title_id : (ID_TRANSLATIONS.webTexts?.projects_title || '')} 
+                                  onChange={e => updateWebTextField('projects_title_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
+                          {/* Projects Subtitle */}
                           <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Subtitle / Paragraf Deskripsi</label>
-                            <textarea 
-                              rows={2}
-                              value={localCV.webTexts?.projects_subtitle || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, projects_subtitle: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Projek Subtitle / Paragraf Deskripsi</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Write description in English..."
+                                  value={localCV.webTexts?.projects_subtitle_en !== undefined ? localCV.webTexts.projects_subtitle_en : (localCV.webTexts?.projects_subtitle || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('projects_subtitle_en', e.target.value);
+                                    updateWebTextField('projects_subtitle', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Tuliskan deskripsi dalam Bahasa Indonesia..."
+                                  value={localCV.webTexts?.projects_subtitle_id !== undefined ? localCV.webTexts.projects_subtitle_id : (ID_TRANSLATIONS.webTexts?.projects_subtitle || '')} 
+                                  onChange={e => updateWebTextField('projects_subtitle_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1232,53 +1514,95 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
                         <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Skills (Technical Arsenal)</h5>
                         
-                        <div className="space-y-3">
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Badge Text</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.skills_badge || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, skills_badge: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                        <div className="space-y-4">
+                          {/* Skills Badge */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Badge Text</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. STACK CLASSIFICATION"
+                                  value={localCV.webTexts?.skills_badge_en !== undefined ? localCV.webTexts.skills_badge_en : (localCV.webTexts?.skills_badge || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('skills_badge_en', e.target.value);
+                                    updateWebTextField('skills_badge', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: KLASIFIKASI STACK"
+                                  value={localCV.webTexts?.skills_badge_id !== undefined ? localCV.webTexts.skills_badge_id : (ID_TRANSLATIONS.webTexts?.skills_badge || '')} 
+                                  onChange={e => updateWebTextField('skills_badge_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Judul Utama</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.skills_title || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, skills_title: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                          {/* Skills Title */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Judul Utama</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Technical Arsenal"
+                                  value={localCV.webTexts?.skills_title_en !== undefined ? localCV.webTexts.skills_title_en : (localCV.webTexts?.skills_title || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('skills_title_en', e.target.value);
+                                    updateWebTextField('skills_title', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: Gudang Senjata Teknis"
+                                  value={localCV.webTexts?.skills_title_id !== undefined ? localCV.webTexts.skills_title_id : (ID_TRANSLATIONS.webTexts?.skills_title || '')} 
+                                  onChange={e => updateWebTextField('skills_title_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
+                          {/* Skills Subtitle */}
                           <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Subtitle / Paragraf Deskripsi</label>
-                            <textarea 
-                              rows={2}
-                              value={localCV.webTexts?.skills_subtitle || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, skills_subtitle: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Skills Subtitle / Paragraf Deskripsi</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Write description in English..."
+                                  value={localCV.webTexts?.skills_subtitle_en !== undefined ? localCV.webTexts.skills_subtitle_en : (localCV.webTexts?.skills_subtitle || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('skills_subtitle_en', e.target.value);
+                                    updateWebTextField('skills_subtitle', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Tuliskan deskripsi dalam Bahasa Indonesia..."
+                                  value={localCV.webTexts?.skills_subtitle_id !== undefined ? localCV.webTexts.skills_subtitle_id : (ID_TRANSLATIONS.webTexts?.skills_subtitle || '')} 
+                                  onChange={e => updateWebTextField('skills_subtitle_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1287,53 +1611,95 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
                         <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Pengalaman Karir (Professional Journey)</h5>
                         
-                        <div className="space-y-3">
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Badge Text</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.experience_badge || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, experience_badge: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                        <div className="space-y-4">
+                          {/* Experience Badge */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Badge Text</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. CAREER TRACEABILITY"
+                                  value={localCV.webTexts?.experience_badge_en !== undefined ? localCV.webTexts.experience_badge_en : (localCV.webTexts?.experience_badge || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('experience_badge_en', e.target.value);
+                                    updateWebTextField('experience_badge', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: KETELUSURAN KARIR"
+                                  value={localCV.webTexts?.experience_badge_id !== undefined ? localCV.webTexts.experience_badge_id : (ID_TRANSLATIONS.webTexts?.experience_badge || '')} 
+                                  onChange={e => updateWebTextField('experience_badge_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Judul Utama</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.experience_title || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, experience_title: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                          {/* Experience Title */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Judul Utama</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Professional Journey"
+                                  value={localCV.webTexts?.experience_title_en !== undefined ? localCV.webTexts.experience_title_en : (localCV.webTexts?.experience_title || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('experience_title_en', e.target.value);
+                                    updateWebTextField('experience_title', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: Perjalanan Profesional"
+                                  value={localCV.webTexts?.experience_title_id !== undefined ? localCV.webTexts.experience_title_id : (ID_TRANSLATIONS.webTexts?.experience_title || '')} 
+                                  onChange={e => updateWebTextField('experience_title_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
+                          {/* Experience Subtitle */}
                           <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Subtitle / Paragraf Deskripsi</label>
-                            <textarea 
-                              rows={2}
-                              value={localCV.webTexts?.experience_subtitle || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, experience_subtitle: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Pengalaman Subtitle / Paragraf Deskripsi</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Write description in English..."
+                                  value={localCV.webTexts?.experience_subtitle_en !== undefined ? localCV.webTexts.experience_subtitle_en : (localCV.webTexts?.experience_subtitle || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('experience_subtitle_en', e.target.value);
+                                    updateWebTextField('experience_subtitle', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <textarea 
+                                  rows={2}
+                                  placeholder="Tuliskan deskripsi dalam Bahasa Indonesia..."
+                                  value={localCV.webTexts?.experience_subtitle_id !== undefined ? localCV.webTexts.experience_subtitle_id : (ID_TRANSLATIONS.webTexts?.experience_subtitle || '')} 
+                                  onChange={e => updateWebTextField('experience_subtitle_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1342,53 +1708,95 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       <div className={`border p-5 rounded-xl space-y-4 ${theme === 'dark' ? 'border-slate-800 bg-slate-950/20' : 'border-slate-200 bg-white/60 shadow-sm'}`}>
                         <h5 className={`text-xs font-mono font-bold border-b pb-2 ${theme === 'dark' ? 'text-emerald-400 border-slate-850' : 'text-emerald-600 border-slate-200'}`}>Bagian Hubungi Kami (Contact Us Form)</h5>
                         
-                        <div className="space-y-3">
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori / Badge Kontak (Inquiry Badge)</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.contact_badge || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, contact_badge: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                        <div className="space-y-4">
+                          {/* Contact Badge */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori / Badge Kontak (Inquiry Badge)</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. INQUIRY MATRIX"
+                                  value={localCV.webTexts?.contact_badge_en !== undefined ? localCV.webTexts.contact_badge_en : (localCV.webTexts?.contact_badge || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('contact_badge_en', e.target.value);
+                                    updateWebTextField('contact_badge', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: MATRIKS PERTANYAAN"
+                                  value={localCV.webTexts?.contact_badge_id !== undefined ? localCV.webTexts.contact_badge_id : (ID_TRANSLATIONS.webTexts?.contact_badge || '')} 
+                                  onChange={e => updateWebTextField('contact_badge_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Form Ingestion (Contact Title)</label>
-                            <input 
-                              type="text" 
-                              value={localCV.webTexts?.contact_title || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, contact_title: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                          {/* Contact Title */}
+                          <div className="border-b border-dashed border-slate-705/30 pb-3">
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Form Ingestion (Contact Title)</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="e.g. Let's Connect"
+                                  value={localCV.webTexts?.contact_title_en !== undefined ? localCV.webTexts.contact_title_en : (localCV.webTexts?.contact_title || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('contact_title_en', e.target.value);
+                                    updateWebTextField('contact_title', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <input 
+                                  type="text" 
+                                  placeholder="Contoh: Mari terhubung"
+                                  value={localCV.webTexts?.contact_title_id !== undefined ? localCV.webTexts.contact_title_id : (ID_TRANSLATIONS.webTexts?.contact_title || '')} 
+                                  onChange={e => updateWebTextField('contact_title_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
 
+                          {/* Contact Subtitle */}
                           <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Subtitle Kontak (Contact Subtitle)</label>
-                            <textarea 
-                              rows={3}
-                              value={localCV.webTexts?.contact_subtitle || ''} 
-                              onChange={e => {
-                                const currentTexts = localCV.webTexts || {};
-                                setLocalCV(prev => ({
-                                  ...prev,
-                                  webTexts: { ...currentTexts, contact_subtitle: e.target.value }
-                                }));
-                              }}
-                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
+                            <span className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Subtitle Kontak (Contact Subtitle)</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                                <textarea 
+                                  rows={3}
+                                  placeholder="Write description in English..."
+                                  value={localCV.webTexts?.contact_subtitle_en !== undefined ? localCV.webTexts.contact_subtitle_en : (localCV.webTexts?.contact_subtitle || '')} 
+                                  onChange={e => {
+                                    updateWebTextField('contact_subtitle_en', e.target.value);
+                                    updateWebTextField('contact_subtitle', e.target.value);
+                                  }}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                                <textarea 
+                                  rows={3}
+                                  placeholder="Tuliskan deskripsi dalam Bahasa Indonesia..."
+                                  value={localCV.webTexts?.contact_subtitle_id !== undefined ? localCV.webTexts.contact_subtitle_id : (ID_TRANSLATIONS.webTexts?.contact_subtitle || '')} 
+                                  onChange={e => updateWebTextField('contact_subtitle_id', e.target.value)}
+                                  className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1456,14 +1864,18 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Identitas Diri &amp; Kontak</h4>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Lengkap</label>
                         <input 
                           type="text" 
                           id="admin-fullname-input"
                           value={localCV.name} 
-                          onChange={e => updateGeneralField('name', e.target.value)}
+                          onChange={e => {
+                            updateGeneralField('name', e.target.value);
+                            updateWebTextField('name_en', e.target.value);
+                            updateWebTextField('name_id', e.target.value);
+                          }}
                           className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
@@ -1474,20 +1886,42 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           type="text" 
                           placeholder="Contoh: Jonathan"
                           value={localCV.nickname || ''} 
-                          onChange={e => updateGeneralField('nickname', e.target.value)}
+                          onChange={e => {
+                            updateGeneralField('nickname', e.target.value);
+                            updateWebTextField('nickname_en', e.target.value);
+                            updateWebTextField('nickname_id', e.target.value);
+                          }}
                           className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
                         />
                       </div>
+                    </div>
 
-                      <div>
-                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Gelar Profesional / Title</label>
-                        <input 
-                          type="text" 
-                          id="admin-title-input"
-                          value={localCV.title} 
-                          onChange={e => updateGeneralField('title', e.target.value)}
-                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                        />
+                    <div className="border-t border-dashed border-slate-705/30 pt-3">
+                      <span className={`text-[10px] font-mono font-bold block uppercase mb-2 ${textLabelColor}`}>Gelar Profesional / Title</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. Senior Data Analyst & BI Decision Strategist"
+                            value={localCV.webTexts?.title_en !== undefined ? localCV.webTexts.title_en : (localCV.title || '')} 
+                            onChange={e => {
+                              updateWebTextField('title_en', e.target.value);
+                              updateGeneralField('title', e.target.value);
+                            }}
+                            className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                          <input 
+                            type="text" 
+                            placeholder="Contoh: Analis Data Senior & Strategist Keputusan BI"
+                            value={localCV.webTexts?.title_id !== undefined ? localCV.webTexts.title_id : (ID_TRANSLATIONS.title || '')} 
+                            onChange={e => updateWebTextField('title_id', e.target.value)}
+                            className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -1519,24 +1953,43 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Lokasi Domisili</label>
-                        <input 
-                          type="text" 
-                          value={localCV.location || ''} 
-                          onChange={e => updateGeneralField('location', e.target.value)}
-                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-dashed border-slate-705/30 pt-3">
+                      <div className="md:col-span-2 space-y-1">
+                        <span className={`text-[10px] font-mono font-bold block uppercase ${textLabelColor}`}>Lokasi Domisili</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. New York City, NY"
+                              value={localCV.webTexts?.location_en !== undefined ? localCV.webTexts.location_en : (localCV.location || '')} 
+                              onChange={e => {
+                                updateWebTextField('location_en', e.target.value);
+                                updateGeneralField('location', e.target.value);
+                              }}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                            <input 
+                              type="text" 
+                              placeholder="Contoh: Kota New York, NY"
+                              value={localCV.webTexts?.location_id !== undefined ? localCV.webTexts.location_id : (localCV.location || '')} 
+                              onChange={e => updateWebTextField('location_id', e.target.value)}
+                              className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       <div>
-                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Email Informasi</label>
+                        <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 md:mt-1 ${textLabelColor}`}>Email Informasi</label>
                         <input 
                           type="email" 
                           value={localCV.email || ''} 
                           onChange={e => updateGeneralField('email', e.target.value)}
-                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                          className={`w-full px-4 py-2.5 rounded-lg text-xs font-sans outline-none transition-colors border focus:border-emerald-500 md:mt-5 ${inputBgBorder}`}
                         />
                       </div>
                     </div>
@@ -2034,40 +2487,68 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 onPointerMove={handleImgPointerMove}
                                 onPointerUp={handleImgPointerUp}
                                 onPointerCancel={handleImgPointerUp}
-                                className={`relative w-28 h-28 rounded-2xl overflow-hidden border-2 bg-slate-950 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none transition-colors ${theme === 'dark' ? 'border-emerald-500 bg-slate-950 hover:border-emerald-400' : 'border-emerald-600 bg-slate-100 shadow-sm hover:border-emerald-500'}`}
+                                className={`relative w-28 h-28 rounded-2xl overflow-hidden border-2 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none transition-colors ${theme === 'dark' ? 'border-emerald-500 bg-slate-950 hover:border-emerald-400' : 'border-emerald-600 bg-slate-100 shadow-sm hover:border-emerald-500'}`}
                                 title="Klik & tarik/geser langsung dengan mouse Anda"
                               >
-                                {previewThemeMode === 'light' ? (
-                                  localCV.homeImageUrl ? (
-                                    <img
-                                      src={localCV.homeImageUrl}
-                                      alt="Posisi Hero Preview Light"
-                                      className={`w-full h-full select-none pointer-events-none ${
-                                        (localCV.homeImageUrl || "").toLowerCase().includes('.png') || (localCV.homeImageUrl || "").toLowerCase().includes('data:image/png') || (localCV.homeImageUrl || "").toLowerCase().includes('blob:') ? 'object-contain' : 'object-cover grayscale-[15%]'
-                                      }`}
-                                      style={{
-                                        transform: `scale(${localCV.homeImageScale || 1}) translate(${localCV.homeImageX || 0}px, ${localCV.homeImageY || 0}px)`,
-                                        transformOrigin: 'center center',
-                                        transition: imgDrag && imgDrag.type === 'homeImage' ? 'none' : 'transform 0.05s ease-out'
-                                      }}
-                                    />
-                                  ) : null
-                                ) : (
-                                  (localCV.homeImageUrlDark || localCV.homeImageUrl) ? (
-                                    <img
-                                      src={localCV.homeImageUrlDark || localCV.homeImageUrl}
-                                      alt="Posisi Hero Preview Dark"
-                                      className={`w-full h-full select-none pointer-events-none ${
-                                        ((localCV.homeImageUrlDark || localCV.homeImageUrl) || "").toLowerCase().includes('.png') || ((localCV.homeImageUrlDark || localCV.homeImageUrl) || "").toLowerCase().includes('data:image/png') || ((localCV.homeImageUrlDark || localCV.homeImageUrl) || "").toLowerCase().includes('blob:') ? 'object-contain' : 'object-cover grayscale-[15%]'
-                                      }`}
-                                      style={{
-                                        transform: `scale(${localCV.homeImageScale || 1}) translate(${localCV.homeImageX || 0}px, ${localCV.homeImageY || 0}px)`,
-                                        transformOrigin: 'center center',
-                                        transition: imgDrag && imgDrag.type === 'homeImage' ? 'none' : 'transform 0.05s ease-out'
-                                      }}
-                                    />
-                                  ) : null
-                                )}
+                                {(() => {
+                                  const previewMaskStyle = localCV.webTexts?.home_image_mask_style || 'normal';
+                                  const previewFadeDepth = localCV.webTexts?.home_image_fade_depth || '40';
+                                  const previewFadeWidth = localCV.webTexts?.home_image_fade_width || '95';
+                                  const previewRadialX = localCV.webTexts?.home_image_radial_x || '80';
+                                  const previewRadialY = localCV.webTexts?.home_image_radial_y || '80';
+
+                                  let previewImageStyle: React.CSSProperties = {
+                                    transform: `scale(${localCV.homeImageScale || 1}) translate(${localCV.homeImageX || 0}px, ${localCV.homeImageY || 0}px)`,
+                                    transformOrigin: 'center center',
+                                    transition: imgDrag && imgDrag.type === 'homeImage' ? 'none' : 'transform 0.05s ease-out',
+                                  };
+
+                                  const radialShape = `ellipse ${previewRadialX}% ${previewRadialY}% at center`;
+
+                                  if (previewMaskStyle === 'fade_bottom') {
+                                    previewImageStyle.maskImage = `linear-gradient(to bottom, black ${previewFadeDepth}%, transparent ${previewFadeWidth}%)`;
+                                    previewImageStyle.WebkitMaskImage = `linear-gradient(to bottom, black ${previewFadeDepth}%, transparent ${previewFadeWidth}%)`;
+                                  } else if (previewMaskStyle === 'fade_circle') {
+                                    previewImageStyle.maskImage = `radial-gradient(${radialShape}, black ${previewFadeDepth}%, transparent ${previewFadeWidth}%)`;
+                                    previewImageStyle.WebkitMaskImage = `radial-gradient(${radialShape}, black ${previewFadeDepth}%, transparent ${previewFadeWidth}%)`;
+                                  } else if (previewMaskStyle === 'fade_edge') {
+                                    previewImageStyle.maskImage = `radial-gradient(${radialShape}, black ${previewFadeDepth}%, transparent ${previewFadeWidth}%)`;
+                                    previewImageStyle.WebkitMaskImage = `radial-gradient(${radialShape}, black ${previewFadeDepth}%, transparent ${previewFadeWidth}%)`;
+                                  }
+
+                                  return (
+                                    <>
+                                      {previewMaskStyle === 'fade_glow_aura' && (
+                                        <div className={`absolute inset-0 rounded-full blur-xl opacity-40 animate-pulse -z-10 ${
+                                          theme === 'dark' ? 'bg-emerald-500/30' : 'bg-emerald-600/20'
+                                        }`} style={{ transform: 'scale(0.8)' }} />
+                                      )}
+                                      {previewThemeMode === 'light' ? (
+                                        localCV.homeImageUrl ? (
+                                          <img
+                                            src={localCV.homeImageUrl}
+                                            alt="Posisi Hero Preview Light"
+                                            className={`w-full h-full select-none pointer-events-none ${
+                                              (localCV.homeImageUrl || "").toLowerCase().includes('.png') || (localCV.homeImageUrl || "").toLowerCase().includes('data:image/png') || (localCV.homeImageUrl || "").toLowerCase().includes('blob:') ? 'object-contain' : 'object-cover grayscale-[15%]'
+                                            }`}
+                                            style={previewImageStyle}
+                                          />
+                                        ) : null
+                                      ) : (
+                                        (localCV.homeImageUrlDark || localCV.homeImageUrl) ? (
+                                          <img
+                                            src={localCV.homeImageUrlDark || localCV.homeImageUrl}
+                                            alt="Posisi Hero Preview Dark"
+                                            className={`w-full h-full select-none pointer-events-none ${
+                                              ((localCV.homeImageUrlDark || localCV.homeImageUrl) || "").toLowerCase().includes('.png') || ((localCV.homeImageUrlDark || localCV.homeImageUrl) || "").toLowerCase().includes('data:image/png') || ((localCV.homeImageUrlDark || localCV.homeImageUrl) || "").toLowerCase().includes('blob:') ? 'object-contain' : 'object-cover grayscale-[15%]'
+                                            }`}
+                                            style={previewImageStyle}
+                                          />
+                                        ) : null
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 <div className="absolute inset-0 border border-emerald-500/20 rounded-2xl pointer-events-none" />
                               </div>
                             </div>
@@ -2199,20 +2680,188 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 </div>
 
                                 {/* Reset */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setLocalCV(prev => ({
-                                      ...prev,
-                                      homeImageScale: 1,
-                                      homeImageX: 0,
-                                      homeImageY: 0
-                                    }));
-                                  }}
-                                  className={`text-[9px] font-mono px-2 py-1 transition-all uppercase cursor-pointer rounded border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-700 border-slate-750 text-slate-300 hover:text-white' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-705 hover:text-slate-900'}`}
-                                >
-                                  ✓ Reset Posisi Default
-                                </button>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setLocalCV(prev => ({
+                                        ...prev,
+                                        homeImageScale: 1,
+                                        homeImageX: 0,
+                                        homeImageY: 0
+                                      }));
+                                    }}
+                                    className={`text-[9px] font-mono px-2 py-1 transition-all uppercase cursor-pointer rounded border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-700 border-slate-750 text-slate-300 hover:text-white' : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-705 hover:text-slate-900'}`}
+                                  >
+                                    ✓ Reset Posisi Default
+                                  </button>
+                                </div>
+
+                                {/* Home Image Mask Style / Fade Setting */}
+                                <div className="space-y-1.5 pt-3 border-t border-dashed border-slate-700/30">
+                                  <label className={`text-[10px] font-mono font-bold block uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-650'}`}>
+                                    Efek & Masking Fade Foto Profil:
+                                  </label>
+                                  <select
+                                    value={localCV.webTexts?.home_image_mask_style || 'normal'}
+                                    onChange={(e) => {
+                                      const currentTexts = localCV.webTexts || {};
+                                      setLocalCV({
+                                        ...localCV,
+                                        webTexts: { ...currentTexts, home_image_mask_style: e.target.value }
+                                      });
+                                    }}
+                                    className={`w-full text-xs rounded border px-2.5 py-2 font-medium transition-all ${
+                                      theme === 'dark' 
+                                        ? 'bg-slate-900 border-slate-700 text-slate-200 focus:border-emerald-500' 
+                                        : 'bg-white border-slate-250 text-slate-800 focus:border-emerald-600 shadow-sm'
+                                    }`}
+                                  >
+                                    <option value="normal">Tanpa Efek Fade (Normal)</option>
+                                    <option value="fade_bottom">Fade Bagian Bawah</option>
+                                    <option value="fade_circle">Fade Lingkaran (Radial)</option>
+                                    <option value="fade_edge">Fade Lembut Semua Sisi</option>
+                                    <option value="fade_glow_aura">Efek Glow Aura (Glow Belakang)</option>
+                                  </select>
+                                  <p className={`text-[8.5px] leading-normal ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                    *Mengatur gaya tampilan transisi atau lingkaran pudar untuk foto profil utama Anda di halaman beranda. Efek ini paling menawan saat menggunakan file berformat PNG transparan.
+                                  </p>
+                                </div>
+
+                                {/* Conditional Fade Settings (Only if any fade is selected, except normal or glow_aura) */}
+                                {localCV.webTexts?.home_image_mask_style && 
+                                 localCV.webTexts?.home_image_mask_style !== 'normal' && 
+                                 localCV.webTexts?.home_image_mask_style !== 'fade_glow_aura' && (
+                                  <div className="space-y-4 pt-3 border-t border-dashed border-slate-700/20">
+                                    {/* 1. Depth Slider */}
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between items-center">
+                                        <label className={`text-[9.5px] font-mono font-bold block uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                                          Kedalaman Fade (Mulai Pudar):
+                                        </label>
+                                        <span className={`text-[10px] font-mono font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`}>
+                                          {localCV.webTexts?.home_image_fade_depth || '40'}%
+                                        </span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value={localCV.webTexts?.home_image_fade_depth || '40'}
+                                        onChange={(e) => {
+                                          const currentTexts = localCV.webTexts || {};
+                                          setLocalCV({
+                                            ...localCV,
+                                            webTexts: { ...currentTexts, home_image_fade_depth: e.target.value }
+                                          });
+                                        }}
+                                        className="w-full accent-emerald-500 cursor-pointer h-1 bg-slate-700 rounded-lg appearance-none"
+                                      />
+                                      <p className={`text-[8px] leading-tight ${theme === 'dark' ? 'text-slate-550' : 'text-slate-450'}`}>
+                                        Menentukan batas awal dimulainya gradasi transparan (area gambar yang tetap utuh / solid).
+                                      </p>
+                                    </div>
+
+                                    {/* 2. Width / Span Slider */}
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between items-center">
+                                        <label className={`text-[9.5px] font-mono font-bold block uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                                          Lebar Fade (Akhir Pudar):
+                                        </label>
+                                        <span className={`text-[10px] font-mono font-bold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`}>
+                                          {localCV.webTexts?.home_image_fade_width || '95'}%
+                                        </span>
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        value={localCV.webTexts?.home_image_fade_width || '95'}
+                                        onChange={(e) => {
+                                          const currentTexts = localCV.webTexts || {};
+                                          setLocalCV({
+                                            ...localCV,
+                                            webTexts: { ...currentTexts, home_image_fade_width: e.target.value }
+                                          });
+                                        }}
+                                        className="w-full accent-emerald-500 cursor-pointer h-1 bg-slate-700 rounded-lg appearance-none"
+                                      />
+                                      <p className={`text-[8px] leading-tight ${theme === 'dark' ? 'text-slate-550' : 'text-slate-450'}`}>
+                                        Menentukan batas akhir pudar (area di mana gambar menjadi sepenuhnya transparan).
+                                      </p>
+                                    </div>
+
+                                    {/* 3. Shape Controls (Only for Radial/Circle or All-sides edge fade) */}
+                                    {(localCV.webTexts?.home_image_mask_style === 'fade_circle' || 
+                                      localCV.webTexts?.home_image_mask_style === 'fade_edge') && (
+                                      <div className="space-y-3.5 pt-2 border-t border-dashed border-slate-700/10">
+                                        <label className={`text-[9.5px] font-mono font-bold block uppercase ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                                          Kustom Bentuk Elips / Lingkaran:
+                                        </label>
+                                        
+                                        {/* Radial X */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center">
+                                            <span className={`text-[8.5px] font-mono block ${theme === 'dark' ? 'text-slate-450' : 'text-slate-500'}`}>
+                                              Lebar Radial / Horizontal (X):
+                                            </span>
+                                            <span className={`text-[9.5px] font-mono font-semibold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`}>
+                                              {localCV.webTexts?.home_image_radial_x || '80'}%
+                                            </span>
+                                          </div>
+                                          <input
+                                            type="range"
+                                            min="10"
+                                            max="150"
+                                            step="1"
+                                            value={localCV.webTexts?.home_image_radial_x || '80'}
+                                            onChange={(e) => {
+                                              const currentTexts = localCV.webTexts || {};
+                                              setLocalCV({
+                                                ...localCV,
+                                                webTexts: { ...currentTexts, home_image_radial_x: e.target.value }
+                                              });
+                                            }}
+                                            className="w-full accent-emerald-500 cursor-pointer h-1 bg-slate-700 rounded-lg appearance-none"
+                                          />
+                                        </div>
+
+                                        {/* Radial Y */}
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between items-center">
+                                            <span className={`text-[8.5px] font-mono block ${theme === 'dark' ? 'text-slate-450' : 'text-slate-500'}`}>
+                                              Tinggi Radial / Vertikal (Y):
+                                            </span>
+                                            <span className={`text-[9.5px] font-mono font-semibold ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-650'}`}>
+                                              {localCV.webTexts?.home_image_radial_y || '80'}%
+                                            </span>
+                                          </div>
+                                          <input
+                                            type="range"
+                                            min="10"
+                                            max="150"
+                                            step="1"
+                                            value={localCV.webTexts?.home_image_radial_y || '80'}
+                                            onChange={(e) => {
+                                              const currentTexts = localCV.webTexts || {};
+                                              setLocalCV({
+                                                ...localCV,
+                                                webTexts: { ...currentTexts, home_image_radial_y: e.target.value }
+                                              });
+                                            }}
+                                            className="w-full accent-emerald-500 cursor-pointer h-1 bg-slate-700 rounded-lg appearance-none"
+                                          />
+                                        </div>
+
+                                        <p className={`text-[8px] leading-tight ${theme === 'dark' ? 'text-slate-550' : 'text-slate-450'}`}>
+                                          Geser slider ke kanan/kiri untuk mengubah ukuran lebar dan tinggi pudar sehingga dapat berbentuk lonjong sesuai siluet foto Anda.
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2388,7 +3037,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                     {/* BIO DESCRIPTION (ABOUT ME) */}
                     <div className={`pt-4 border-t ${dividerColor}`}>
-                      <div className="flex justify-between items-baseline mb-1.5">
+                      <div className="flex justify-between items-baseline mb-2">
                         <label className={`text-[10px] font-mono font-bold block uppercase ${textLabelColor}`}>
                           Deskripsi Singkat Tentang Saya (Tentang Saya di CV)
                         </label>
@@ -2396,15 +3045,33 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           1 - 2 PARAGRAF
                         </span>
                       </div>
-                      <textarea 
-                        value={localCV.aboutMe || ''} 
-                        onChange={e => updateGeneralField('aboutMe', e.target.value)}
-                        rows={6}
-                        placeholder="Tuliskan 1 atau 2 paragraf singkat mengenai spesialisasi Anda, pencapaian karir, dan dedikasi profesional. Ini akan ditampilkan di bagian atas CV Anda."
-                        className={`w-full px-4 py-3 rounded-lg text-xs leading-relaxed font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
-                      />
-                      <p className="text-[10px] text-slate-505 mt-1 leading-normal font-mono">
-                        Informasi deskripsi ini akan disinkronisasikan langsung ke lembaran CV standar A4 universal di bagian atas.
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[9px] font-mono text-slate-400 block mb-1">ENGLISH (EN)</label>
+                          <textarea 
+                            value={localCV.webTexts?.aboutMe_en !== undefined ? localCV.webTexts.aboutMe_en : (localCV.aboutMe || '')} 
+                            onChange={e => {
+                              updateWebTextField('aboutMe_en', e.target.value);
+                              updateGeneralField('aboutMe', e.target.value);
+                            }}
+                            rows={6}
+                            placeholder="Write a brief description of your professional summary in English..."
+                            className={`w-full px-4 py-3 rounded-lg text-xs leading-relaxed font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-mono text-slate-400 block mb-1">INDONESIAN (ID)</label>
+                          <textarea 
+                            value={localCV.webTexts?.aboutMe_id !== undefined ? localCV.webTexts.aboutMe_id : (ID_TRANSLATIONS.aboutMe || '')} 
+                            onChange={e => updateWebTextField('aboutMe_id', e.target.value)}
+                            rows={6}
+                            placeholder="Tuliskan deskripsi singkat profil profesional Anda dalam Bahasa Indonesia..."
+                            className={`w-full px-4 py-3 rounded-lg text-xs leading-relaxed font-sans outline-none transition-colors border focus:border-emerald-500 ${inputBgBorder}`}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-505 mt-2 leading-normal font-mono">
+                        Informasi deskripsi ini akan disinkronisasikan langsung ke lembaran CV standar A4 universal di bagian atas berdasarkan bahasa yang dipilih.
                       </p>
                     </div>
                   </div>
@@ -3859,7 +4526,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                     <div className="space-y-4">
                       {(localCV.skills || []).map((skill, index) => (
-                        <div key={skill.id} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                        <div key={index} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
                           <button
                             type="button"
                             onClick={() => handleRemoveSkillIdx(skill.id)}
@@ -3873,7 +4540,18 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             Lencana Skill #{index + 1}
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                            <div>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Bahasa-Spesifik)</label>
+                              <input 
+                                type="text" 
+                                value={skill.id} 
+                                onChange={e => handleUpdateSkillIdx(skill.id, 'id', e.target.value)}
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                placeholder="e.g. skill-1-id atau skill-1-en"
+                              />
+                            </div>
+
                             <div>
                               <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Skill</label>
                               <input 
@@ -3885,7 +4563,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             </div>
 
                             <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori Filter &amp; CV Group</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori Filter</label>
                               <select 
                                 value={skill.category} 
                                 onChange={e => handleUpdateSkillIdx(skill.id, 'category', e.target.value)}
@@ -3986,7 +4664,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                     <div className="space-y-6">
                       {(localCV.caseStudies || []).map((proj, idx) => (
-                        <div key={proj.id} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
+                        <div key={idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
                           <button
                             type="button"
                             onClick={() => handleRemoveProject(proj.id)}
@@ -4000,7 +4678,18 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                             Portfolio Projek #{idx + 1}
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Bahasa-Spesifik)</label>
+                              <input 
+                                type="text" 
+                                value={proj.id} 
+                                onChange={e => handleUpdateProjectField(proj.id, 'id', e.target.value)}
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                placeholder="e.g. proj-1-id atau proj-1-en"
+                              />
+                            </div>
+
                             <div>
                               <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Projek</label>
                               <input 
@@ -4141,113 +4830,233 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                     <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
                       <div className="flex items-center gap-2">
                         <Briefcase className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
-                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Riwayat Karir Professional</h4>
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Riwayat Karir Professional (Bilingual)</h4>
                       </div>
                       <button
                         type="button"
-                        onClick={handleAddExp}
-                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none"
+                        onClick={handleAddBilingualExp}
+                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none animate-fade-in"
                       >
-                        <Plus className="w-3.5 h-3.5" /> TAMBAH KERJAAN
+                        <Plus className="w-3.5 h-3.5" /> TAMBAH KERJAAN BILINGUAL
                       </button>
                     </div>
 
-                    <div className="space-y-6">
-                      {localCV.experiences.map((exp, idx) => (
-                        <div key={exp.id} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
+                    <div className="space-y-8">
+                      {getBilingualExperiences().map((bExp, idx) => (
+                        <div key={bExp.baseId} className={`relative p-6 border rounded-2xl space-y-6 shadow-sm ${theme === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          {/* Trash / Delete record */}
                           <button
                             type="button"
-                            onClick={() => handleRemoveExp(exp.id)}
-                            className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                            title="Hapus Karer"
+                            onClick={() => handleRemoveBilingualExp(bExp.baseId)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-red-500 transition-colors p-1.5 hover:bg-slate-500/10 rounded-lg cursor-pointer"
+                            title="Hapus Karir ini (Bilingual)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
-                            Record Karir #{idx + 1}
+                          {/* Record header and badge */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/50'}`}>
+                              Record Karir #{idx + 1}
+                            </span>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* Shared Row (ID and Tools) */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                             <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Peran / Jabatan</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Shared across languages)</label>
                               <input 
                                 type="text" 
-                                value={exp.role} 
-                                onChange={e => handleUpdateExpField(exp.id, 'role', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                value={bExp.baseId} 
+                                onChange={e => handleUpdateBilingualExpBaseId(bExp.baseId, e.target.value)}
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                placeholder="e.g. exp-1 atau exp-custom"
                               />
                             </div>
-
                             <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Perusahaan / Company</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Teknologi Terpakai (Shared, pisah koma)</label>
                               <input 
                                 type="text" 
-                                value={exp.company} 
-                                onChange={e => handleUpdateExpField(exp.id, 'company', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Periode Pekerjaan</label>
-                              <input 
-                                type="text" 
-                                value={exp.period} 
-                                onChange={e => handleUpdateExpField(exp.id, 'period', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Teknologi Terpakai (Pisahkan dengan koma)</label>
-                              <input 
-                                type="text" 
-                                value={exp.tools ? exp.tools.join(', ') : ''} 
-                                onChange={e => handleUpdateExpTools(exp.id, e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                value={bExp.en.tools ? bExp.en.tools.join(', ') : ''} 
+                                onChange={e => {
+                                  const arr = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                                  handleUpdateBilingualExp(bExp.baseId, 'en', 'tools', arr);
+                                  handleUpdateBilingualExp(bExp.baseId, 'id', 'tools', arr);
+                                }}
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
                                 placeholder="SQL, Python, Tableau"
                               />
                             </div>
                           </div>
 
-                          {/* Bullets List and edit controls */}
-                          <div className={`space-y-3 pt-4 border-t ${dividerColor}`}>
-                            <div className="flex justify-between items-center">
-                              <label className={`text-[10px] font-mono font-bold block uppercase ${textLabelColor}`}>Poin Pencapaian &amp; Tugas Analis</label>
-                              <button
-                                type="button"
-                                onClick={() => handleAddExpBullet(exp.id)}
-                                className={`text-[9.5px] font-black font-sans flex items-center gap-0.5 cursor-pointer px-2 py-0.5 rounded border transition-colors ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/10 hover:text-emerald-300' : 'text-emerald-705 bg-emerald-50 border-emerald-200 hover:text-emerald-800 shadow-sm'}`}
-                              >
-                                <Plus className="w-3.5 h-3.5" /> Tambah Poin Penceritaan
-                              </button>
+                          {/* Bilingual side-by-side columns */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-dashed border-slate-200/50 dark:border-slate-800">
+                            {/* Column Left: English (EN) */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50/50 border-slate-200/80'} space-y-4`}>
+                              <div className="flex items-center justify-between border-b pb-2 border-slate-200/60 dark:border-slate-800/60">
+                                <span className="text-[10px] font-bold font-sans uppercase tracking-wider text-sky-400">English (EN) Version</span>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Role / Job Title (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bExp.en.role} 
+                                    onChange={e => handleUpdateBilingualExp(bExp.baseId, 'en', 'role', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Senior Data Analyst"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Company Name (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bExp.en.company} 
+                                    onChange={e => handleUpdateBilingualExp(bExp.baseId, 'en', 'company', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Global Tech Corp"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Period (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bExp.en.period} 
+                                    onChange={e => handleUpdateBilingualExp(bExp.baseId, 'en', 'period', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                    placeholder="e.g. 2024 — Present"
+                                  />
+                                </div>
+
+                                <div className="space-y-2 pt-2">
+                                  <div className="flex justify-between items-center">
+                                    <label className={`text-[9.5px] font-mono font-bold block uppercase ${textLabelColor}`}>Bullet Points (EN)</label>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newBullets = [...bExp.en.bulletPoints, 'New achievement point in English.'];
+                                        handleUpdateBilingualExp(bExp.baseId, 'en', 'bulletPoints', newBullets);
+                                      }}
+                                      className="text-[8.5px] bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600/20 rounded px-2 py-0.5 font-bold cursor-pointer transition-colors"
+                                    >
+                                      + Add Bullet
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    {bExp.en.bulletPoints.map((bullet, bIdx) => (
+                                      <div key={bIdx} className="flex gap-1.5 items-center">
+                                        <input
+                                          type="text"
+                                          value={bullet}
+                                          onChange={e => {
+                                            const newBullets = [...bExp.en.bulletPoints];
+                                            newBullets[bIdx] = e.target.value;
+                                            handleUpdateBilingualExp(bExp.baseId, 'en', 'bulletPoints', newBullets);
+                                          }}
+                                          className={`flex-grow px-2 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newBullets = bExp.en.bulletPoints.filter((_, i) => i !== bIdx);
+                                            handleUpdateBilingualExp(bExp.baseId, 'en', 'bulletPoints', newBullets);
+                                          }}
+                                          className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-500/10 cursor-pointer"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="space-y-2">
-                              {exp.bulletPoints.map((bullet, bulletIdx) => (
-                                <div key={bulletIdx} className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={bullet}
-                                    onChange={e => handleUpdateExpBullet(exp.id, bulletIdx, e.target.value)}
-                                    className={`flex-grow px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                            {/* Column Right: Indonesian (ID) */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50/50 border-slate-200/80'} space-y-4`}>
+                              <div className="flex items-center justify-between border-b pb-2 border-slate-200/60 dark:border-slate-800/60">
+                                <span className="text-[10px] font-bold font-sans uppercase tracking-wider text-amber-500">Indonesian (ID) Version</span>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Nama Peran / Jabatan (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bExp.id.role} 
+                                    onChange={e => handleUpdateBilingualExp(bExp.baseId, 'id', 'role', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Analis Data Senior"
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveExpBullet(exp.id, bulletIdx)}
-                                    className={`p-2 rounded transition-colors cursor-pointer ${theme === 'dark' ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800' : 'text-slate-455 hover:text-red-600 hover:bg-slate-100'}`}
-                                    title="Hapus"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
                                 </div>
-                              ))}
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Nama Perusahaan (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bExp.id.company} 
+                                    onChange={e => handleUpdateBilingualExp(bExp.baseId, 'id', 'company', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Global Tech Corp"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Periode Pekerjaan (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bExp.id.period} 
+                                    onChange={e => handleUpdateBilingualExp(bExp.baseId, 'id', 'period', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                    placeholder="e.g. 2024 — Sekarang"
+                                  />
+                                </div>
+
+                                <div className="space-y-2 pt-2">
+                                  <div className="flex justify-between items-center">
+                                    <label className={`text-[9.5px] font-mono font-bold block uppercase ${textLabelColor}`}>Poin Pencapaian (ID)</label>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newBullets = [...bExp.id.bulletPoints, 'Poin pencapaian baru dalam Bahasa Indonesia.'];
+                                        handleUpdateBilingualExp(bExp.baseId, 'id', 'bulletPoints', newBullets);
+                                      }}
+                                      className="text-[8.5px] bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600/20 rounded px-2 py-0.5 font-bold cursor-pointer transition-colors"
+                                    >
+                                      + Tambah Poin
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                    {bExp.id.bulletPoints.map((bullet, bIdx) => (
+                                      <div key={bIdx} className="flex gap-1.5 items-center">
+                                        <input
+                                          type="text"
+                                          value={bullet}
+                                          onChange={e => {
+                                            const newBullets = [...bExp.id.bulletPoints];
+                                            newBullets[bIdx] = e.target.value;
+                                            handleUpdateBilingualExp(bExp.baseId, 'id', 'bulletPoints', newBullets);
+                                          }}
+                                          className={`flex-grow px-2 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newBullets = bExp.id.bulletPoints.filter((_, i) => i !== bIdx);
+                                            handleUpdateBilingualExp(bExp.baseId, 'id', 'bulletPoints', newBullets);
+                                          }}
+                                          className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-red-500/10 cursor-pointer"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
-
                         </div>
                       ))}
                     </div>
@@ -4255,155 +5064,386 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                 )}
 
                 {activeTab === 'education' && (
-                  <div className="space-y-12">
-                    {/* SECTION 1: DATA AKADEMIS UNIK */}
-                    <div className="space-y-6">
-                      <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
-                        <div className="flex items-center gap-2">
-                          <GraduationCap className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
-                          <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>1. Kredensial Akademik Utama (Unique Records)</h4>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleAddEdu}
-                          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> TAMBAH RECORD PENDIDIKAN
-                        </button>
+                  <div className="space-y-6">
+                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Kredensial Akademik Utama (Bilingual)</h4>
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleAddBilingualEdu}
+                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none animate-fade-in"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> TAMBAH RECORD PENDIDIKAN BILINGUAL
+                      </button>
+                    </div>
 
-                      <div className="space-y-4">
-                        {localCV.education.map((edu, idx) => (
-                          <div key={idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveEdu(idx)}
-                              className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                              title="Hapus"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                    <div className="space-y-8">
+                      {getBilingualEducation().map((bEdu, idx) => (
+                        <div key={bEdu.baseId} className={`relative p-6 border rounded-2xl space-y-6 shadow-sm ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-white border-slate-205'}`}>
+                          {/* Trash / Delete record */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveBilingualEdu(bEdu.baseId)}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-red-500 transition-colors p-1.5 hover:bg-slate-500/10 rounded-lg cursor-pointer"
+                            title="Hapus Record Pendidikan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
 
-                            <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
+                          {/* Record header and badge */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/50'}`}>
                               Record Pendidikan #{idx + 1}
-                            </div>
+                            </span>
+                          </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div>
-                                <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Periode Akademis</label>
-                                <input 
-                                  type="text" 
-                                  value={edu.period} 
-                                  onChange={e => handleUpdateEdu(idx, 'period', e.target.value)}
-                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
-                                />
-                              </div>
-
-                              <div className="sm:col-span-2">
-                                <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Jurusan / Gelar Pendidikan</label>
-                                <input 
-                                  type="text" 
-                                  value={edu.degree} 
-                                  onChange={e => handleUpdateEdu(idx, 'degree', e.target.value)}
-                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                                />
-                              </div>
-                            </div>
-
+                          {/* Shared Row (ID Unik) */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                             <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Institusi &amp; Lokasi</label>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Shared across languages)</label>
                               <input 
                                 type="text" 
-                                value={edu.institution} 
-                                onChange={e => handleUpdateEdu(idx, 'institution', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Keterangan / Pencapaian Akademis (Opsional)</label>
-                              <textarea 
-                                rows={2}
-                                value={edu.description || ""} 
-                                onChange={e => handleUpdateEdu(idx, 'description', e.target.value)}
-                                placeholder="Contoh: Lulus dengan IPK 3.8/4.0. Berfokus pada Database System..."
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                value={bEdu.baseId} 
+                                onChange={e => handleUpdateBilingualEduBaseId(bEdu.baseId, e.target.value)}
+                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                placeholder="e.g. edu-1 atau edu-custom"
                               />
                             </div>
                           </div>
-                        ))}
-                      </div>
+
+                          {/* Bilingual side-by-side columns */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-dashed border-slate-200/50 dark:border-slate-800">
+                            {/* Column Left: English (EN) */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50/50 border-slate-200/80'} space-y-4`}>
+                              <div className="flex items-center justify-between border-b pb-2 border-slate-200/60 dark:border-slate-800/60">
+                                <span className="text-[10px] font-bold font-sans uppercase tracking-wider text-sky-400">English (EN) Version</span>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Degree / Major (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bEdu.en.degree} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'en', 'degree', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. B.S. Applied Statistics"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Institution Name (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bEdu.en.institution} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'en', 'institution', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. University of Indonesia"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Period (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bEdu.en.period} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'en', 'period', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                    placeholder="e.g. 2024 — Present"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Description / Achievement (EN)</label>
+                                  <textarea 
+                                    rows={3}
+                                    value={bEdu.en.description || ''} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'en', 'description', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Graduated with honors, focusing on Business Intelligence."
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Column Right: Indonesian (ID) */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50/50 border-slate-200/80'} space-y-4`}>
+                              <div className="flex items-center justify-between border-b pb-2 border-slate-200/60 dark:border-slate-800/60">
+                                <span className="text-[10px] font-bold font-sans uppercase tracking-wider text-amber-500">Indonesian (ID) Version</span>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Jurusan / Gelar (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bEdu.id.degree} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'id', 'degree', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Sarjana Statistika Terapan"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Nama Institusi &amp; Lokasi (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bEdu.id.institution} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'id', 'institution', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Universitas Indonesia"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Periode Akademis (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bEdu.id.period} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'id', 'period', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
+                                    placeholder="e.g. 2024 — Sekarang"
+                                  />
+                                </div>
+                                <div>
+                                  <label className={`text-[9.5px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Keterangan / Pencapaian (ID)</label>
+                                  <textarea 
+                                    rows={3}
+                                    value={bEdu.id.description || ''} 
+                                    onChange={e => handleUpdateBilingualEdu(bEdu.baseId, 'id', 'description', e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Lulus dengan predikat pujian, berfokus pada Intelijen Bisnis."
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'about_pages' && (() => {
                   const prefix = selectedAboutPage.replace('-', '_');
-                  const currentTitle = localCV.webTexts?.[`${prefix}_title`] || '';
-                  const currentIntro = localCV.webTexts?.[`${prefix}_intro`] || '';
+                  const titleEn = localCV.webTexts?.[`${prefix}_title_en`] || localCV.webTexts?.[`${prefix}_title`] || '';
+                  const titleId = localCV.webTexts?.[`${prefix}_title_id`] || localCV.webTexts?.[`${prefix}_title`] || '';
+                  const introEn = localCV.webTexts?.[`${prefix}_intro_en`] || localCV.webTexts?.[`${prefix}_intro`] || '';
+                  const introId = localCV.webTexts?.[`${prefix}_intro_id`] || localCV.webTexts?.[`${prefix}_intro`] || '';
                   const currentHeaderBg = localCV.webTexts?.[`${prefix}_header_bg`] || '';
 
-                  // Filtered sections for the selected subpage
-                  const pageSections = (localCV.educationSections || []).filter(es => {
-                    if (selectedAboutPage === 'education') {
-                      return !es.linkedEducationDegree?.startsWith("page:") && !es.linkedEducationDegree?.startsWith("item:");
-                    } else {
-                      return es.linkedEducationDegree === `page:${selectedAboutPage}` || es.linkedEducationDegree?.startsWith(`item:${selectedAboutPage}:`);
-                    }
-                  }).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                  const bilingEduList = getBilingualEducation();
+                  const getActiveLinkedEduValue = (val: string) => {
+                    if (!val) return "";
+                    const match = bilingEduList.find(b => b.baseId === val);
+                    if (match) return val;
+                    const matchLegacy = bilingEduList.find(b => {
+                      const compositeEn = `${b.en?.degree}|||${b.en?.institution}`;
+                      const compositeId = `${b.id?.degree}|||${b.id?.institution}`;
+                      return val === compositeEn || val === compositeId || val === b.en?.degree || val === b.id?.degree;
+                    });
+                    if (matchLegacy) return matchLegacy.baseId;
+                    return "";
+                  };
 
-                  const handleAddSubPageSection = () => {
+                  // Group educationSections into Bilingual Pairs for the selected subpage
+                  const getBilingualPageSections = (pageKey: string) => {
+                    const flatList = localCV.educationSections || [];
+                    const rawPageSections = flatList.filter(es => {
+                      if (pageKey === 'education') {
+                        return !es.linkedEducationDegree?.startsWith("page:") && !es.linkedEducationDegree?.startsWith("item:");
+                      } else {
+                        return es.linkedEducationDegree === `page:${pageKey}` || es.linkedEducationDegree?.startsWith(`item:${pageKey}:`);
+                      }
+                    });
+
+                    const baseIds = Array.from(new Set(rawPageSections.map(es => {
+                      const idStr = String(es.id);
+                      if (idStr.endsWith('-en')) return idStr.slice(0, -3);
+                      if (idStr.endsWith('-id')) return idStr.slice(0, -3);
+                      return idStr;
+                    }))) as string[];
+
+                    return baseIds.map(baseId => {
+                      let enItem = rawPageSections.find(e => String(e.id) === `${baseId}-en`) || rawPageSections.find(e => String(e.id) === baseId);
+                      let idItem = rawPageSections.find(e => String(e.id) === `${baseId}-id`);
+
+                      if (enItem && !idItem) {
+                        idItem = {
+                          ...enItem,
+                          id: `${baseId}-id`,
+                        };
+                      }
+
+                      if (enItem && String(enItem.id) === baseId) {
+                        enItem = { ...enItem, id: `${baseId}-en` };
+                      }
+
+                      if (!enItem) {
+                        enItem = {
+                          id: `${baseId}-en`,
+                          title: '',
+                          content: '',
+                          imageUrl: '',
+                          layoutType: 'image_left',
+                          bgColor: 'slate',
+                          linkedEducationDegree: pageKey === 'education' ? '' : `page:${pageKey}`,
+                          sortOrder: 0,
+                          textAlign: 'left'
+                        } as any;
+                      }
+                      if (!idItem) {
+                        idItem = {
+                          id: `${baseId}-id`,
+                          title: '',
+                          content: '',
+                          imageUrl: '',
+                          layoutType: 'image_left',
+                          bgColor: 'slate',
+                          linkedEducationDegree: pageKey === 'education' ? '' : `page:${pageKey}`,
+                          sortOrder: 0,
+                          textAlign: 'left'
+                        } as any;
+                      }
+
+                      return {
+                        baseId,
+                        en: enItem,
+                        id: idItem
+                      };
+                    }).sort((a, b) => (a.en.sortOrder || 0) - (b.en.sortOrder || 0));
+                  };
+
+                  const pageBilingualSections = getBilingualPageSections(selectedAboutPage);
+
+                  const handleAddBilingualPageSection = () => {
                     const currentSections = localCV.educationSections || [];
-                    const newSection = {
-                      id: `sec-${selectedAboutPage}-${Date.now()}`,
-                      title: 'Lembar Cerita Baru',
-                      content: 'Tulis narasi detail untuk lembar ini. Mendukung format Markdown jika diperlukan.',
+                    const baseId = `sec-${selectedAboutPage}-${Date.now()}`;
+                    
+                    const commonFields = {
                       imageUrl: '',
                       layoutType: 'image_left' as const,
                       bgColor: 'slate' as const,
                       linkedEducationDegree: selectedAboutPage === 'education' ? '' : `page:${selectedAboutPage}`,
-                      sortOrder: pageSections.length,
+                      sortOrder: pageBilingualSections.length,
                       textAlign: 'left' as const
                     };
-                    updateGeneralField('educationSections', [...currentSections, newSection]);
+
+                    const enItem = {
+                      ...commonFields,
+                      id: `${baseId}-en`,
+                      title: 'New Story Slide',
+                      content: 'Write deep narrative description here in English.',
+                    };
+
+                    const idItem = {
+                      ...commonFields,
+                      id: `${baseId}-id`,
+                      title: 'Lembar Cerita Baru',
+                      content: 'Tulis deskripsi narasi yang mendalam di sini dalam Bahasa Indonesia.',
+                    };
+
+                    updateGeneralField('educationSections', [...currentSections, enItem, idItem]);
                   };
 
-                  const handleRemoveSubPageSection = (id: string) => {
+                  const handleRemoveBilingualPageSection = (baseId: string) => {
                     const currentSections = localCV.educationSections || [];
-                    updateGeneralField('educationSections', currentSections.filter(es => es.id !== id));
+                    const filtered = currentSections.filter(es => {
+                      const idStr = String(es.id);
+                      const base = idStr.endsWith('-en') ? idStr.slice(0, -3) : idStr.endsWith('-id') ? idStr.slice(0, -3) : idStr;
+                      return base !== baseId;
+                    });
+                    updateGeneralField('educationSections', filtered);
                   };
 
-                  const handleUpdateSubPageSection = (id: string, field: string, val: any) => {
-                    const currentSections = localCV.educationSections || [];
-                    updateGeneralField('educationSections', currentSections.map(es => es.id === id ? { ...es, [field]: val } : es));
-                  };
-
-                  const handleMoveSubPageSection = (id: string, direction: 'up' | 'down') => {
+                  const handleUpdateBilingualPageSection = (baseId: string, langKey: 'en' | 'id', field: string, val: any) => {
                     const currentSections = [...(localCV.educationSections || [])];
-                    const filteredIndex = pageSections.findIndex(es => es.id === id);
+                    const isSharedField = ['imageUrl', 'layoutType', 'bgColor', 'linkedEducationDegree', 'textAlign', 'imageOrientation', 'imageModel', 'maskWidth', 'imageOpacity', 'paragraphLayout', 'imageFadeDirection', 'ovalWidth', 'ovalHeight', 'ovalPointiness', 'imageScale', 'imageX', 'imageY'].includes(field);
+
+                    let enIndex = currentSections.findIndex(es => String(es.id) === `${baseId}-en` || String(es.id) === baseId);
+                    let idIndex = currentSections.findIndex(es => String(es.id) === `${baseId}-id`);
+
+                    if (enIndex === -1 && idIndex === -1) return;
+
+                    if (enIndex !== -1 && idIndex === -1) {
+                      const enItem = currentSections[enIndex];
+                      if (String(enItem.id) === baseId) {
+                        currentSections[enIndex] = { ...enItem, id: `${baseId}-en` };
+                      }
+                      const newIdItem = {
+                        ...currentSections[enIndex],
+                        id: `${baseId}-id`,
+                        title: enItem.title || '',
+                        content: enItem.content || '',
+                      };
+                      currentSections.push(newIdItem);
+                      idIndex = currentSections.length - 1;
+                    }
+
+                    if (idIndex !== -1 && enIndex === -1) {
+                      const idItem = currentSections[idIndex];
+                      const newEnItem = {
+                        ...idItem,
+                        id: `${baseId}-en`,
+                        title: idItem.title || '',
+                        content: idItem.content || '',
+                      };
+                      currentSections.push(newEnItem);
+                      enIndex = currentSections.length - 1;
+                    }
+
+                    if (isSharedField) {
+                      currentSections[enIndex] = { ...currentSections[enIndex], [field]: val };
+                      currentSections[idIndex] = { ...currentSections[idIndex], [field]: val };
+                    } else {
+                      if (langKey === 'en') {
+                        currentSections[enIndex] = { ...currentSections[enIndex], [field]: val };
+                      } else {
+                        currentSections[idIndex] = { ...currentSections[idIndex], [field]: val };
+                      }
+                    }
+
+                    updateGeneralField('educationSections', currentSections);
+                  };
+
+                  const handleMoveBilingualPageSection = (baseId: string, direction: 'up' | 'down') => {
+                    const pageBilinguals = getBilingualPageSections(selectedAboutPage);
+                    const filteredIndex = pageBilinguals.findIndex(b => b.baseId === baseId);
                     if (filteredIndex === -1) return;
                     
                     let targetFilteredIndex = filteredIndex;
                     if (direction === 'up' && filteredIndex > 0) {
                       targetFilteredIndex = filteredIndex - 1;
-                    } else if (direction === 'down' && filteredIndex < pageSections.length - 1) {
+                    } else if (direction === 'down' && filteredIndex < pageBilinguals.length - 1) {
                       targetFilteredIndex = filteredIndex + 1;
                     } else {
                       return;
                     }
                     
-                    const temp = pageSections[filteredIndex];
-                    pageSections[filteredIndex] = pageSections[targetFilteredIndex];
-                    pageSections[targetFilteredIndex] = temp;
+                    const temp = pageBilinguals[filteredIndex];
+                    pageBilinguals[filteredIndex] = pageBilinguals[targetFilteredIndex];
+                    pageBilinguals[targetFilteredIndex] = temp;
                     
-                    const updatedPageSections = pageSections.map((es, idx) => ({
-                      ...es,
-                      sortOrder: idx
-                    }));
+                    // Update sortOrder on the items
+                    const updatedPageBilinguals = pageBilinguals.map((b, idx) => {
+                      return {
+                        ...b,
+                        en: { ...b.en, sortOrder: idx },
+                        id: { ...b.id, sortOrder: idx }
+                      };
+                    });
                     
+                    // Map back to full list
+                    const currentSections = [...(localCV.educationSections || [])];
                     const updatedFullList = currentSections.map(es => {
-                      const updatedMatch = updatedPageSections.find(ups => ups.id === es.id);
-                      return updatedMatch ? updatedMatch : es;
+                      const idStr = String(es.id);
+                      const base = idStr.endsWith('-en') ? idStr.slice(0, -3) : idStr.endsWith('-id') ? idStr.slice(0, -3) : idStr;
+                      const match = updatedPageBilinguals.find(b => b.baseId === base);
+                      if (match) {
+                        if (idStr.endsWith('-id')) {
+                          return { ...match.id, id: idStr };
+                        } else {
+                          return { ...match.en, id: idStr };
+                        }
+                      }
+                      return es;
                     });
                     
                     updateGeneralField('educationSections', updatedFullList);
@@ -4416,7 +5456,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                     { id: 'hobbies', label: 'Hobbies & Interests', sub: 'Hobi & Ketertarikan', icon: Compass },
                     { id: 'career-journey', label: 'Experience', sub: 'Pengalaman & Karir', icon: Briefcase },
                     { id: 'skills', label: 'Skills & Expertise', sub: 'Keahlian & Technical', icon: Code },
-                    { id: 'career-goals', label: 'Career Goals', sub: 'Rencana & Tujuan', icon: Target },
+                    { id: 'projects', label: 'Projek & Studi Kasus', sub: 'Project & Portfolio', icon: LayoutGrid },
                   ];
 
                   return (
@@ -4480,39 +5520,100 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                          {/* Bilingual Cover Headers */}
                           <div className="space-y-4">
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Utama Halaman</label>
-                              <input 
-                                type="text" 
-                                value={currentTitle} 
-                                onChange={e => {
-                                  const currentTexts = localCV.webTexts || {};
-                                  setLocalCV({
-                                    ...localCV,
-                                    webTexts: { ...currentTexts, [`${prefix}_title`]: e.target.value }
-                                  });
-                                }}
-                                placeholder="Contoh: My Academic & Scientific Foundations..."
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
-                              />
+                            {/* English Cover Header */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-950/40 border-slate-800/80' : 'bg-white border-slate-200'} space-y-3`}>
+                              <div className="flex items-center gap-1 border-b pb-1">
+                                <span className="text-[10px] font-bold font-sans text-teal-500">English Version (EN)</span>
+                              </div>
+                              <div>
+                                <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Page Title (EN)</label>
+                                <input 
+                                  type="text" 
+                                  value={titleEn} 
+                                  onChange={e => {
+                                    const currentTexts = localCV.webTexts || {};
+                                    setLocalCV({
+                                      ...localCV,
+                                      webTexts: { 
+                                        ...currentTexts, 
+                                        [`${prefix}_title_en`]: e.target.value,
+                                        // Legacy fallback
+                                        [`${prefix}_title`]: e.target.value 
+                                      }
+                                    });
+                                  }}
+                                  placeholder="e.g. My Academic & Scientific Foundations..."
+                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Intro / Caption (EN)</label>
+                                <textarea
+                                  rows={3}
+                                  value={introEn}
+                                  onChange={e => {
+                                    const currentTexts = localCV.webTexts || {};
+                                    setLocalCV({
+                                      ...localCV,
+                                      webTexts: { 
+                                        ...currentTexts, 
+                                        [`${prefix}_intro_en`]: e.target.value,
+                                        // Legacy fallback
+                                        [`${prefix}_intro`]: e.target.value 
+                                      }
+                                    });
+                                  }}
+                                  placeholder="Enter general introduction in English..."
+                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 font-sans leading-relaxed ${inputBgBorder}`}
+                                />
+                              </div>
                             </div>
 
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Teks Pengantar / Intro</label>
-                              <textarea
-                                rows={4}
-                                value={currentIntro}
-                                onChange={e => {
-                                  const currentTexts = localCV.webTexts || {};
-                                  setLocalCV({
-                                    ...localCV,
-                                    webTexts: { ...currentTexts, [`${prefix}_intro`]: e.target.value }
-                                  });
-                                }}
-                                placeholder="Masukkan pengantar deskriptif yang menceritakan fokus Anda di sub-halaman ini secara umum..."
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 font-sans leading-relaxed ${inputBgBorder}`}
-                              />
+                            {/* Indonesian Cover Header */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-950/40 border-slate-800/80' : 'bg-white border-slate-200'} space-y-3`}>
+                              <div className="flex items-center gap-1 border-b pb-1">
+                                <span className="text-[10px] font-bold font-sans text-teal-500">Versi Indonesia (ID)</span>
+                              </div>
+                              <div>
+                                <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Judul Halaman (ID)</label>
+                                <input 
+                                  type="text" 
+                                  value={titleId} 
+                                  onChange={e => {
+                                    const currentTexts = localCV.webTexts || {};
+                                    setLocalCV({
+                                      ...localCV,
+                                      webTexts: { 
+                                        ...currentTexts, 
+                                        [`${prefix}_title_id`]: e.target.value 
+                                      }
+                                    });
+                                  }}
+                                  placeholder="Contoh: Fondasi Akademik & Ilmiah Saya..."
+                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                />
+                              </div>
+                              <div>
+                                <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Teks Pengantar (ID)</label>
+                                <textarea
+                                  rows={3}
+                                  value={introId}
+                                  onChange={e => {
+                                    const currentTexts = localCV.webTexts || {};
+                                    setLocalCV({
+                                      ...localCV,
+                                      webTexts: { 
+                                        ...currentTexts, 
+                                        [`${prefix}_intro_id`]: e.target.value 
+                                      }
+                                    });
+                                  }}
+                                  placeholder="Masukkan pengantar deskriptif dalam Bahasa Indonesia..."
+                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 font-sans leading-relaxed ${inputBgBorder}`}
+                                />
+                              </div>
                             </div>
                           </div>
 
@@ -4719,8 +5820,267 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                         </div>
                       </div>
 
-                      {/* 3. CUSTOM SLIDES & STORY SHEETS LIST */}
-                      <div className="space-y-4">
+                      {/* 3. CUSTOM SLIDES & STORY SHEETS LIST OR PROJECTS LIST */}
+                      {selectedAboutPage === 'projects' ? (
+                        <div className="space-y-6 animate-fade-in">
+                          {/* Featured Projects Selector (Max 3) */}
+                          <div className={`p-5 rounded-2xl border ${theme === 'dark' ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-250 shadow-sm'} space-y-4`}>
+                            <div className="flex items-center gap-2">
+                              <Sparkles className={`w-5 h-5 ${theme === 'dark' ? 'text-teal-400' : 'text-teal-600'}`} />
+                              <div>
+                                <h5 className={`font-bold text-xs uppercase tracking-wider ${textTitleColor}`}>Projek Unggulan Beranda (Maksimal 3)</h5>
+                                <p className="text-[10px] text-slate-500 font-sans mt-0.5">
+                                  Pilih hingga maksimal 3 projek yang akan ditampilkan secara ringkas pada Halaman Beranda (Home). Projek selebihnya akan tetap muncul di sub-halaman ini.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 items-center p-3 border rounded-xl min-h-[50px] transition-all duration-200 focus-within:border-teal-505 bg-slate-950/20">
+                              {(() => {
+                                const allProjs = localCV.caseStudies || [];
+                                const featuredIds: string[] = (() => {
+                                  try {
+                                    const val = localCV.webTexts?.featured_project_ids;
+                                    if (val) return JSON.parse(val);
+                                  } catch (e) {}
+                                  if (typeof localCV.webTexts?.featured_project_ids === 'string' && localCV.webTexts.featured_project_ids) {
+                                    return localCV.webTexts.featured_project_ids.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                  }
+                                  return allProjs.slice(0, 3).map(p => p.id);
+                                })();
+
+                                if (featuredIds.length === 0) {
+                                  return <span className="text-xs text-slate-500 italic">Belum ada projek yang dipilih. Ketuk opsi di bawah untuk memilih.</span>;
+                                }
+
+                                return featuredIds.map(id => {
+                                  const proj = allProjs.find(p => p.id === id);
+                                  if (!proj) return null;
+                                  return (
+                                    <span 
+                                      key={id} 
+                                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                                        theme === 'dark' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/30' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                                      }`}
+                                    >
+                                      {proj.title}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          let nextFeatured = featuredIds.filter(fId => fId !== id);
+                                          const currentTexts = localCV.webTexts || {};
+                                          setLocalCV({
+                                            ...localCV,
+                                            webTexts: {
+                                              ...currentTexts,
+                                              featured_project_ids: JSON.stringify(nextFeatured)
+                                            }
+                                          });
+                                        }}
+                                        className="text-slate-400 hover:text-red-500 cursor-pointer"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  );
+                                });
+                              })()}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              {(() => {
+                                const allProjs = localCV.caseStudies || [];
+                                const featuredIds: string[] = (() => {
+                                  try {
+                                    const val = localCV.webTexts?.featured_project_ids;
+                                    if (val) return JSON.parse(val);
+                                  } catch (e) {}
+                                  if (typeof localCV.webTexts?.featured_project_ids === 'string' && localCV.webTexts.featured_project_ids) {
+                                    return localCV.webTexts.featured_project_ids.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                  }
+                                  return allProjs.slice(0, 3).map(p => p.id);
+                                })();
+
+                                return allProjs.map(proj => {
+                                  const isSelected = featuredIds.includes(proj.id);
+                                  return (
+                                    <button
+                                      key={proj.id}
+                                      type="button"
+                                      onClick={() => {
+                                        let nextFeatured = [...featuredIds];
+                                        if (nextFeatured.includes(proj.id)) {
+                                          nextFeatured = nextFeatured.filter(id => id !== proj.id);
+                                        } else {
+                                          if (nextFeatured.length >= 3) {
+                                            alert("Maksimal 3 projek unggulan saja yang dapat ditampilkan di Beranda.");
+                                            return;
+                                          }
+                                          nextFeatured.push(proj.id);
+                                        }
+                                        const currentTexts = localCV.webTexts || {};
+                                        setLocalCV({
+                                          ...localCV,
+                                          webTexts: {
+                                            ...currentTexts,
+                                            featured_project_ids: JSON.stringify(nextFeatured)
+                                          }
+                                        });
+                                      }}
+                                      className={`px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-all select-none ${
+                                        isSelected
+                                          ? 'bg-teal-600 border-teal-550 text-white shadow-xs'
+                                          : theme === 'dark'
+                                            ? 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                                            : 'bg-slate-50 border-slate-200 text-slate-655 hover:bg-slate-100 hover:text-slate-900'
+                                      }`}
+                                    >
+                                      {proj.title} {isSelected && "✓"}
+                                    </button>
+                                  );
+                                });
+                              })()}
+                              {(localCV.caseStudies || []).length === 0 && (
+                                <p className="text-xs text-slate-500 italic">Tidak ada projek tersedia. Silakan tambahkan projek baru di bawah terlebih dahulu.</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Projects List and Editor */}
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center border-b pb-3 border-slate-700/10">
+                              <div className="flex items-center gap-2">
+                                <LayoutGrid className={`w-5 h-5 ${theme === 'dark' ? 'text-teal-400' : 'text-teal-600'}`} />
+                                <div>
+                                  <h5 className={`font-bold text-xs uppercase tracking-wider ${textTitleColor}`}>Studi Kasus &amp; Projek Utama</h5>
+                                  <p className="text-[10px] text-slate-500 font-sans mt-0.5">
+                                    Kelola daftar semua studi kasus dan presentasi slide PPT analitik Anda di halaman kumpulan project ini.
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleAddProject}
+                                className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white border border-teal-550 rounded-lg px-3 py-1.8 text-[10px] font-bold tracking-wider cursor-pointer shadow-md transition-colors select-none"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> TAMBAH PROJEK BARU
+                              </button>
+                            </div>
+
+                            <div className="space-y-6">
+                              {(localCV.caseStudies || []).map((proj, idx) => (
+                                <div key={idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm("Apakah Anda yakin ingin menghapus projek ini?")) {
+                                        handleRemoveProject(proj.id);
+                                      }
+                                    }}
+                                    className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
+                                    title="Hapus Projek"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+
+                                  <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
+                                    Portfolio Projek #{idx + 1}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Bahasa-Spesifik)</label>
+                                      <input 
+                                        type="text" 
+                                        value={proj.id} 
+                                        onChange={e => handleUpdateProjectField(proj.id, 'id', e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 font-mono ${inputBgBorder}`}
+                                        placeholder="e.g. proj-1-id"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Projek</label>
+                                      <input 
+                                        type="text" 
+                                        value={proj.title} 
+                                        onChange={e => handleUpdateProjectField(proj.id, 'title', e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div>
+                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>URL Github / Link Projek</label>
+                                      <input 
+                                        type="text" 
+                                        value={proj.projectUrl || ''} 
+                                        onChange={e => handleUpdateProjectField(proj.id, 'projectUrl', e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                        placeholder="e.g. https://github.com/..."
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Tools (Pisahkan dengan koma)</label>
+                                      <input 
+                                        type="text" 
+                                        value={proj.tools ? proj.tools.join(', ') : ''} 
+                                        onChange={e => handleUpdateProjectField(proj.id, 'tools', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                        placeholder="e.g. SQL, Python, BigQuery"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>URL Gambar Thumbnail</label>
+                                      <div className="flex gap-2">
+                                        <input 
+                                          type="text" 
+                                          value={proj.image || ''} 
+                                          onChange={e => handleUpdateProjectField(proj.id, 'image', e.target.value)}
+                                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          placeholder="https://..."
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            const url = prompt("Masukkan URL gambar:");
+                                            if (url) handleUpdateProjectField(proj.id, 'image', url);
+                                          }}
+                                          className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
+                                            theme === 'dark' ? 'bg-slate-850 border-slate-700 text-slate-300 hover:text-white' : 'bg-slate-100 border-slate-205 text-slate-700 hover:bg-slate-200'
+                                          }`}
+                                        >
+                                          Set
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Penjelasan Solusi Analitik</label>
+                                    <textarea 
+                                      value={proj.description} 
+                                      onChange={e => handleUpdateProjectField(proj.id, 'description', e.target.value)}
+                                      rows={3}
+                                      className={`w-full px-3 py-2 rounded-lg text-xs outline-none leading-normal border focus:border-teal-500 ${inputBgBorder}`}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+
+                              {(localCV.caseStudies || []).length === 0 && (
+                                <div className={`text-center py-8 border border-dashed rounded-xl font-mono text-xs select-none ${theme === 'dark' ? 'text-slate-500 border-slate-800' : 'text-slate-550 border-slate-300'}`}>
+                                  Belum ada projek kustom. Silakan ketuk tombol "Tambah Projek Baru" di samping kanan atas.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-3 border-slate-700/10">
                           <div className="flex items-center gap-2">
                             <Layers className={`w-5 h-5 ${theme === 'dark' ? 'text-teal-400' : 'text-teal-600'}`} />
@@ -4734,7 +6094,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                           <button
                             type="button"
-                            onClick={handleAddSubPageSection}
+                            onClick={handleAddBilingualPageSection}
                             className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white border border-teal-550 rounded-lg px-4 py-1.8 text-[11px] font-bold tracking-wider cursor-pointer shadow-md transition-colors select-none"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -4742,7 +6102,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           </button>
                         </div>
 
-                        {pageSections.length === 0 ? (
+                        {pageBilingualSections.length === 0 ? (
                           <div className={`p-8 text-center rounded-2xl border border-dashed ${
                             theme === 'dark' ? 'bg-slate-900/20 border-slate-800' : 'bg-slate-50 border-slate-200'
                           }`}>
@@ -4754,116 +6114,157 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {pageSections.map((section: any, idx: number) => (
-                              <div 
-                                key={section.id}
-                                className={`p-5 rounded-2xl border transition-all ${
-                                  theme === 'dark' 
-                                    ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700/60' 
-                                    : 'bg-white border-slate-250/80 shadow-xs hover:border-slate-300'
-                                }`}
-                              >
-                                {/* Header of slide item */}
-                                <div className="flex items-center justify-between border-b pb-3 mb-4 border-slate-700/10">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-mono font-bold text-teal-500 bg-teal-500/10 px-2 py-0.5 rounded">
-                                      Slide #{idx + 1}
-                                    </span>
-                                    <span className={`text-xs font-bold font-sans truncate max-w-xs ${textTitleColor}`}>
-                                      {section.title || "Lembar Tanpa Judul"}
-                                    </span>
-                                  </div>
+                            {pageBilingualSections.map((sectionPair: any, idx: number) => {
+                              const baseId = sectionPair.baseId;
+                              const section = sectionPair.en;
+                              const idSection = sectionPair.id;
 
-                                  <div className="flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMoveSubPageSection(section.id, 'up')}
-                                      disabled={idx === 0}
-                                      className={`p-1.5 rounded-md border ${
-                                        idx === 0 
-                                          ? 'opacity-40 cursor-not-allowed border-transparent text-slate-600' 
-                                          : theme === 'dark' ? 'border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                      }`}
-                                      title="Pindahkan ke atas"
-                                    >
-                                      <ArrowUp className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMoveSubPageSection(section.id, 'down')}
-                                      disabled={idx === pageSections.length - 1}
-                                      className={`p-1.5 rounded-md border ${
-                                        idx === pageSections.length - 1
-                                          ? 'opacity-40 cursor-not-allowed border-transparent text-slate-600' 
-                                          : theme === 'dark' ? 'border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                      }`}
-                                      title="Pindahkan ke bawah"
-                                    >
-                                      <ArrowDown className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (confirm("Apakah Anda yakin ingin menghapus slide cerita ini?")) {
-                                          handleRemoveSubPageSection(section.id);
-                                        }
-                                      }}
-                                      className="p-1.5 rounded-md bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/15 transition-colors"
-                                      title="Hapus slide"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
+                              const handleUpdateSubPageSection = (id: string, field: string, val: any) => {
+                                handleUpdateBilingualPageSection(baseId, 'en', field, val);
+                              };
+
+                              return (
+                                <div 
+                                  key={baseId}
+                                  className={`p-5 rounded-2xl border transition-all ${
+                                    theme === 'dark' 
+                                      ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700/60' 
+                                      : 'bg-white border-slate-250/80 shadow-xs hover:border-slate-300'
+                                  }`}
+                                >
+                                  {/* Header of slide item */}
+                                  <div className="flex items-center justify-between border-b pb-3 mb-4 border-slate-700/10">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-mono font-bold text-teal-500 bg-teal-500/10 px-2 py-0.5 rounded">
+                                        Slide #{idx + 1}
+                                      </span>
+                                      <span className={`text-xs font-bold font-sans truncate max-w-xs ${textTitleColor}`}>
+                                        {section.title || idSection.title || "Lembar Tanpa Judul"}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveBilingualPageSection(baseId, 'up')}
+                                        disabled={idx === 0}
+                                        className={`p-1.5 rounded-md border ${
+                                          idx === 0 
+                                            ? 'opacity-40 cursor-not-allowed border-transparent text-slate-600' 
+                                            : theme === 'dark' ? 'border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                        }`}
+                                        title="Pindahkan ke atas"
+                                      >
+                                        <ArrowUp className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMoveBilingualPageSection(baseId, 'down')}
+                                        disabled={idx === pageBilingualSections.length - 1}
+                                        className={`p-1.5 rounded-md border ${
+                                          idx === pageBilingualSections.length - 1
+                                            ? 'opacity-40 cursor-not-allowed border-transparent text-slate-600' 
+                                            : theme === 'dark' ? 'border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                        }`}
+                                        title="Pindahkan ke bawah"
+                                      >
+                                        <ArrowDown className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm("Apakah Anda yakin ingin menghapus slide cerita ini?")) {
+                                            handleRemoveBilingualPageSection(baseId);
+                                          }
+                                        }}
+                                        className="p-1.5 rounded-md bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-500/15 transition-colors"
+                                        title="Hapus slide"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
                                   </div>
                                 </div>
 
-                                {/* Form fields of slide */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-3">
-                                    <div>
-                                      <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Judul Slide</label>
-                                      <input 
-                                        type="text" 
-                                        value={section.title || ""} 
-                                        onChange={e => handleUpdateSubPageSection(section.id, 'title', e.target.value)}
-                                        placeholder="Judul utama slide..."
-                                        className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
-                                      />
-                                    </div>
+                                 {/* Form fields of slide */}
+                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                                   <div className="space-y-4">
+                                     {selectedAboutPage === 'education' && (
+                                       <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-950/40 border-slate-800/80' : 'bg-slate-50 border-slate-200'}`}>
+                                         <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Hubungkan ke Data Pendidikan (Kredensial)</label>
+                                         <select
+                                           value={getActiveLinkedEduValue(section.linkedEducationDegree || "")}
+                                           onChange={e => handleUpdateBilingualPageSection(baseId, 'en', 'linkedEducationDegree', e.target.value)}
+                                           className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 cursor-pointer ${inputBgBorder}`}
+                                         >
+                                           <option value="">-- Tanpa Kredensial Terhubung (Tulis Manual) --</option>
+                                           {bilingEduList.map((bEdu: any, eIdx: number) => {
+                                             const label = `${bEdu.id?.institution || bEdu.en?.institution} — ${bEdu.id?.degree || bEdu.en?.degree} (${bEdu.id?.period || bEdu.en?.period}) [Bilingual]`;
+                                             return (
+                                               <option key={eIdx} value={bEdu.baseId}>
+                                                 {label}
+                                               </option>
+                                             );
+                                           })}
+                                         </select>
+                                         <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                                           Jika dihubungkan, sistem akan otomatis mengambil nama institusi, gelar, dan deskripsi resmi dari tab Curriculum Vitae (Pendidikan).
+                                         </p>
+                                       </div>
+                                     )}
 
-                                    {selectedAboutPage === 'education' && (
-                                      <div>
-                                        <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Hubungkan ke Data Pendidikan (Kredensial)</label>
-                                        <select
-                                          value={section.linkedEducationDegree || ""}
-                                          onChange={e => handleUpdateSubPageSection(section.id, 'linkedEducationDegree', e.target.value)}
-                                          className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 cursor-pointer ${inputBgBorder}`}
-                                        >
-                                          <option value="">-- Tanpa Kredensial Terhubung (Tulis Manual) --</option>
-                                          {(localCV.education || []).map((edu: any, eIdx: number) => {
-                                            const valueKey = `${edu.degree}|||${edu.institution}`;
-                                            return (
-                                              <option key={eIdx} value={valueKey}>
-                                                {edu.institution} — {edu.degree} ({edu.period})
-                                              </option>
-                                            );
-                                          })}
-                                        </select>
-                                        <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                                          Jika dihubungkan, sistem akan otomatis mengambil nama institusi, gelar, dan deskripsi resmi dari tab Curriculum Vitae (Pendidikan).
-                                        </p>
-                                      </div>
-                                    )}
+                                     {/* English Slide Version Column */}
+                                     <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-950/40 border-slate-800/80' : 'bg-slate-50/50 border-slate-200'} space-y-3`}>
+                                       <div className="flex items-center gap-1 border-b pb-1">
+                                         <span className="text-[10px] font-bold font-sans text-teal-500">English Version (EN)</span>
+                                       </div>
+                                       <div>
+                                         <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Slide Title (EN)</label>
+                                         <input 
+                                           type="text" 
+                                           value={section.title || ""} 
+                                           onChange={e => handleUpdateBilingualPageSection(baseId, 'en', 'title', e.target.value)}
+                                           placeholder="e.g. A New Story Slide..."
+                                           className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Narrative Content (EN) (Markdown supported)</label>
+                                         <textarea
+                                           rows={5}
+                                           value={section.content || ""}
+                                           onChange={e => handleUpdateBilingualPageSection(baseId, 'en', 'content', e.target.value)}
+                                           placeholder="Write narrative content in English..."
+                                           className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 font-sans leading-relaxed ${inputBgBorder}`}
+                                         />
+                                       </div>
+                                     </div>
 
-                                    <div>
-                                      <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Isi Narasi / Content (Markdown Didukung)</label>
-                                      <textarea
-                                        rows={6}
-                                        value={section.content || ""}
-                                        onChange={e => handleUpdateSubPageSection(section.id, 'content', e.target.value)}
-                                        placeholder="Ketik keterangan naratif yang mendalam di sini..."
-                                        className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 font-sans leading-relaxed ${inputBgBorder}`}
-                                      />
-                                    </div>
+                                     {/* Indonesian Slide Version Column */}
+                                     <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-950/40 border-slate-800/80' : 'bg-slate-50/50 border-slate-200'} space-y-3`}>
+                                       <div className="flex items-center gap-1 border-b pb-1">
+                                         <span className="text-[10px] font-bold font-sans text-teal-500">Versi Indonesia (ID)</span>
+                                       </div>
+                                       <div>
+                                         <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Judul Slide (ID)</label>
+                                         <input 
+                                           type="text" 
+                                           value={idSection.title || ""} 
+                                           onChange={e => handleUpdateBilingualPageSection(baseId, 'id', 'title', e.target.value)}
+                                           placeholder="Judul utama slide..."
+                                           className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Isi Narasi / Content (ID) (Markdown Didukung)</label>
+                                         <textarea
+                                           rows={5}
+                                           value={idSection.content || ""}
+                                           onChange={e => handleUpdateBilingualPageSection(baseId, 'id', 'content', e.target.value)}
+                                           placeholder="Ketik keterangan naratif dalam Bahasa Indonesia..."
+                                           className={`w-full px-2.5 py-1.8 rounded-lg text-xs outline-none border focus:border-teal-500 font-sans leading-relaxed ${inputBgBorder}`}
+                                         />
+                                       </div>
+                                     </div>
 
                                     {/* Live Slide Preview */}
                                     <div className="pt-2">
@@ -5552,235 +6953,15 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                   </div>
                                 </div>
                               </div>
-                            ))}
+                            );
+                          })}
                           </div>
                         )}
                       </div>
+                    )}
                     </div>
                   );
                 })()}
-
-                {activeTab === 'personality' && (
-                  <div className="space-y-6">
-                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
-                      <div className="flex items-center gap-2">
-                        <Heart className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
-                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Personality &amp; Values</h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAddPersonality}
-                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> TAMBAH ITEM
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {(localCV.personality || []).map((pers, idx) => (
-                        <div key={pers.id || idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePersonality(idx)}
-                            className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-
-                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
-                            Value Item #{idx + 1}
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="sm:col-span-2">
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul / Nilai Utama</label>
-                              <input 
-                                type="text" 
-                                value={pers.title} 
-                                onChange={e => handleUpdatePersonality(idx, 'title', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Icon (Lucide)</label>
-                              <input 
-                                type="text" 
-                                value={pers.icon} 
-                                onChange={e => handleUpdatePersonality(idx, 'icon', e.target.value)}
-                                placeholder="Cpu, Shield, Smile, Sparkles, dll."
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Lengkap</label>
-                            <textarea 
-                              rows={3}
-                              value={pers.description} 
-                              onChange={e => handleUpdatePersonality(idx, 'description', e.target.value)}
-                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'hobbies' && (
-                  <div className="space-y-6">
-                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
-                      <div className="flex items-center gap-2">
-                        <Compass className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
-                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Hobbies &amp; Interests</h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAddHobby}
-                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> TAMBAH ITEM
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {(localCV.hobbies || []).map((hobby, idx) => (
-                        <div key={hobby.id || idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveHobby(idx)}
-                            className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-
-                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
-                            Hobby Item #{idx + 1}
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="sm:col-span-2">
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Aktivitas / Minat</label>
-                              <input 
-                                type="text" 
-                                value={hobby.title} 
-                                onChange={e => handleUpdateHobby(idx, 'title', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Nama Icon (Lucide)</label>
-                              <input 
-                                type="text" 
-                                value={hobby.icon} 
-                                onChange={e => handleUpdateHobby(idx, 'icon', e.target.value)}
-                                placeholder="Heart, Compass, PenTool, dll."
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Aktivitas</label>
-                            <textarea 
-                              rows={3}
-                              value={hobby.description} 
-                              onChange={e => handleUpdateHobby(idx, 'description', e.target.value)}
-                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'career_goals' && (
-                  <div className="space-y-6">
-                    <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
-                      <div className="flex items-center gap-2">
-                        <Target className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
-                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Career Goals Roadmap</h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAddCareerGoal}
-                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> TAMBAH GOAL
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {(localCV.careerGoals || []).map((goal, idx) => (
-                        <div key={goal.id || idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCareerGoal(idx)}
-                            className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-
-                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
-                            Milestone Goal #{idx + 1}
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Tahun Target (Misal: 2027)</label>
-                              <input 
-                                type="text" 
-                                value={goal.target_year} 
-                                onChange={e => handleUpdateCareerGoal(idx, 'target_year', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-
-                            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div className="sm:col-span-2">
-                                <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Milestone</label>
-                                <input 
-                                  type="text" 
-                                  value={goal.title} 
-                                  onChange={e => handleUpdateCareerGoal(idx, 'title', e.target.value)}
-                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                                />
-                              </div>
-
-                              <div>
-                                <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Icon (Lucide)</label>
-                                <input 
-                                  type="text" 
-                                  value={goal.icon} 
-                                  onChange={e => handleUpdateCareerGoal(idx, 'icon', e.target.value)}
-                                  placeholder="Award, Target, Sparkles, dll."
-                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none font-mono border focus:border-emerald-500 ${inputBgBorder}`}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Pencapaian / Target</label>
-                            <textarea 
-                              rows={3}
-                              value={goal.description} 
-                              onChange={e => handleUpdateCareerGoal(idx, 'description', e.target.value)}
-                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
 
 
@@ -6902,8 +8083,9 @@ CREATE POLICY "Allow admin writes on about_story" ON portfolio_about_story FOR A
 DROP POLICY IF EXISTS "Allow admin writes on layout" ON portfolio_layout;
 CREATE POLICY "Allow admin writes on layout" ON portfolio_layout FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
--- 9. Tambahkan kolom description ke portfolio_education (jika belum ada)
+-- 9. Tambahkan kolom description ke portfolio_education (jika belum ada) dan ubah tipe ID ke VARCHAR
 ALTER TABLE portfolio_education ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE portfolio_education ALTER COLUMN id TYPE VARCHAR;
 
 -- 10. Buat tabel baru untuk portfolio_personality, portfolio_hobbies, dan portfolio_career_goals
 CREATE TABLE IF NOT EXISTS portfolio_personality (
@@ -6981,4 +8163,33 @@ CREATE POLICY "Allow admin writes on career_goals" ON portfolio_career_goals FOR
 
 DROP POLICY IF EXISTS "Allow admin writes on page_sections" ON portfolio_page_section;
 CREATE POLICY "Allow admin writes on page_sections" ON portfolio_page_section FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+
+-- 11. Buat / Sesuaikan tabel portfolio_projects
+CREATE TABLE IF NOT EXISTS portfolio_projects (
+  id VARCHAR PRIMARY KEY,
+  title VARCHAR NOT NULL,
+  description TEXT NOT NULL,
+  project_url TEXT,
+  tags JSONB DEFAULT '[]'::jsonb,
+  image TEXT,
+  sort_order INTEGER DEFAULT 0
+);
+
+-- Sesuaikan kolom jika tabel sudah ada sebelumnya (Hapus kolom tidak diperlukan, tambah project_url)
+ALTER TABLE portfolio_projects ADD COLUMN IF NOT EXISTS project_url TEXT;
+ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS category;
+ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS impact_metric;
+ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS tools;
+ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS slides;
+
+-- Aktifkan RLS untuk portfolio_projects agar aman
+ALTER TABLE portfolio_projects ENABLE ROW LEVEL SECURITY;
+
+-- Kebijakan akses publik (Dapat Dibaca Oleh Semua Orang)
+DROP POLICY IF EXISTS "Allow public reads on projects" ON portfolio_projects;
+CREATE POLICY "Allow public reads on projects" ON portfolio_projects FOR SELECT USING (true);
+
+-- Kebijakan akses admin (Dapat Dimodifikasi Oleh Pengguna yang Terotentikasi)
+DROP POLICY IF EXISTS "Allow admin writes on projects" ON portfolio_projects;
+CREATE POLICY "Allow admin writes on projects" ON portfolio_projects FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 `;

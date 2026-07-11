@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Cpu, Flame, Smile, GraduationCap, Briefcase, Award, Heart, 
   BookOpen, Compass, ArrowLeft, Search, Calendar, MapPin, Mail, 
-  ExternalLink, ChevronRight, Sparkles, Target, PenTool, Bookmark, Share2,
-  Database, Shield, Terminal, ArrowRight, BookMarked, Check
+  ExternalLink, ChevronLeft, ChevronRight, Sparkles, Target, PenTool, Bookmark, Share2,
+  Database, Shield, Terminal, ArrowRight, BookMarked, Check, LayoutGrid
 } from 'lucide-react';
 import { CVData } from '../lib/supabaseClient';
 
@@ -12,7 +12,7 @@ const IconMap: Record<string, any> = {
   Cpu, Flame, Smile, GraduationCap, Briefcase, Award, Heart, 
   BookOpen, Compass, ArrowLeft, Search, Calendar, MapPin, Mail, 
   ExternalLink, ChevronRight, Sparkles, Target, PenTool, Bookmark, Share2,
-  Database, Shield, Terminal, ArrowRight, BookMarked, Check
+  Database, Shield, Terminal, ArrowRight, BookMarked, Check, LayoutGrid
 };
 
 interface SmoothImageProps {
@@ -102,6 +102,87 @@ export default function AboutMeSubPages({
 }: AboutMeSubPagesProps) {
   const isDark = theme === 'dark';
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeProjectIdx, setActiveProjectIdx] = useState(0);
+  const [virtualActiveIdx, setVirtualActiveIdx] = useState(12000);
+  const [slideDirection, setSlideDirection] = useState<'next' | 'prev'>('next');
+  const [thumbWidth, setThumbWidth] = useState(112);
+  const [viewWidth, setViewWidth] = useState(484);
+
+  const prevActiveProjectIdxRef = React.useRef(activeProjectIdx);
+  const prevVirtualActiveIdxRef = React.useRef(virtualActiveIdx);
+
+  React.useEffect(() => {
+    prevActiveProjectIdxRef.current = activeProjectIdx;
+  }, [activeProjectIdx]);
+
+  React.useEffect(() => {
+    prevVirtualActiveIdxRef.current = virtualActiveIdx;
+  }, [virtualActiveIdx]);
+
+  const preloadedCacheRef = React.useRef<HTMLImageElement[]>([]);
+
+  // Pre-decode and cache images for smooth, instant rendering (60 FPS) without delay or flicker
+  React.useEffect(() => {
+    if (cvData.caseStudies && cvData.caseStudies.length > 0) {
+      const cache: HTMLImageElement[] = [];
+      const imageUrlsToPreload = new Set<string>();
+
+      // Collect all case study images and fallback images
+      cvData.caseStudies.forEach(p => {
+        if (p.image) imageUrlsToPreload.add(p.image);
+      });
+      
+      // Also add fallback images
+      imageUrlsToPreload.add('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600&auto=format&fit=crop');
+      imageUrlsToPreload.add('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1200&auto=format&fit=crop');
+
+      imageUrlsToPreload.forEach(url => {
+        const img = new Image();
+        img.src = url;
+        if (img.decode) {
+          img.decode()
+            .then(() => {
+              cache.push(img);
+            })
+            .catch((err) => {
+              console.debug("Failed to decode preloaded image", url, err);
+            });
+        } else {
+          img.onload = () => {
+            cache.push(img);
+          };
+        }
+      });
+
+      preloadedCacheRef.current = cache;
+    }
+  }, [cvData.caseStudies]);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      let w = 484;
+      if (window.innerWidth < 640) {
+        setThumbWidth(80);
+        w = 176;
+      } else if (window.innerWidth < 768) {
+        setThumbWidth(80);
+        w = 266;
+      } else if (window.innerWidth < 1024) {
+        setThumbWidth(90);
+        w = 296;
+      } else if (window.innerWidth < 1440) {
+        setThumbWidth(96);
+        w = 314;
+      } else {
+        setThumbWidth(112);
+        w = 484;
+      }
+      setViewWidth(w);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Scroll to top on mount so entry transition starts cleanly from top of viewport
   React.useEffect(() => {
@@ -110,7 +191,10 @@ export default function AboutMeSubPages({
 
   // Safe navigation back helper
   const handleBack = () => {
-    window.location.hash = '#/about-me';
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    const currentLang = (parts[0] === 'id' || parts[0] === 'en') ? parts[0] : 'en';
+    window.history.pushState(null, '', `/${currentLang}/about-me`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
     onBackToStory();
   };
 
@@ -453,7 +537,7 @@ export default function AboutMeSubPages({
                 } else {
                   const linkedEdu = cvData.education?.find(e => {
                     const compositeKey = `${e.degree}|||${e.institution}`;
-                    return e.degree === section.linkedEducationDegree || compositeKey === section.linkedEducationDegree;
+                    return e.id === section.linkedEducationDegree || e.degree === section.linkedEducationDegree || compositeKey === section.linkedEducationDegree;
                   });
                   if (linkedEdu) {
                     displayTitle = `${linkedEdu.institution} — ${linkedEdu.degree}`;
@@ -984,8 +1068,342 @@ export default function AboutMeSubPages({
   if (subPage === 'skills') {
     return renderCustomPage('skills', 'Skills & Technical Arsenal', 'My categorized skill arsenal spanning across data pipelines, DBMS, engineering stacks, and visual communication.', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1200&auto=format&fit=crop', <Cpu className="w-8 h-8" />, 'Skills & Expertise');
   }
-  if (subPage === 'career-goals') {
-    return renderCustomPage('career-goals', 'Career Goals & Aspirations', 'My tactical career development roadmap, detailing target professional milestones and aspirational horizons.', 'https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?q=80&w=1200&auto=format&fit=crop', <Target className="w-8 h-8" />, 'Career Goals');
+  
+  if (subPage === 'projects' || subPage === 'career-goals') {
+    const list = cvData.caseStudies || [];
+    const prefix = 'projects';
+    const title = cvData.webTexts?.projects_title || 'Projek & Studi Kasus';
+    const intro = cvData.webTexts?.projects_intro || cvData.webTexts?.projects_subtitle || 'Kumpulan lengkap studi kasus, analisis mendalam, dan demonstrasi solusi analitik ujung-ke-ujung.';
+    const bgUrl = cvData.webTexts?.projects_header_bg || 'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?q=80&w=1200&auto=format&fit=crop';
+    
+    // Filter by search query for the BOTTOM grid
+    const filteredList = list.filter(p => {
+      const q = searchQuery.toLowerCase();
+      const projectTools = p.tools && p.tools.length > 0 ? p.tools : (p.tags || []);
+      return (
+        p.title.toLowerCase().includes(q) ||
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        p.description.toLowerCase().includes(q) ||
+        (projectTools && projectTools.some(t => t.toLowerCase().includes(q)))
+      );
+    });
+
+    const N = list.length;
+
+    // We want displayList to be repeated if N is small, so M is at least 6.
+    let displayList: Array<any & { displayKey: string; originalIdx: number }> = [];
+    if (N > 0) {
+      if (N === 1) {
+        displayList = Array(6).fill(list[0]).map((item, idx) => ({ ...item, displayKey: `${item.id}-${idx}`, originalIdx: 0 }));
+      } else if (N === 2) {
+        const arr = [list[0], list[1], list[0], list[1], list[0], list[1]];
+        displayList = arr.map((item, idx) => ({ ...item, displayKey: `${item.id}-${idx}`, originalIdx: idx % N }));
+      } else if (N === 3) {
+        const arr = [list[0], list[1], list[2], list[0], list[1], list[2]];
+        displayList = arr.map((item, idx) => ({ ...item, displayKey: `${item.id}-${idx}`, originalIdx: idx % N }));
+      } else if (N === 4) {
+        const arr = [list[0], list[1], list[2], list[3], list[0], list[1], list[2], list[3]];
+        displayList = arr.map((item, idx) => ({ ...item, displayKey: `${item.id}-${idx}`, originalIdx: idx % N }));
+      } else if (N === 5) {
+        const arr = [list[0], list[1], list[2], list[3], list[4], list[0], list[1], list[2], list[3], list[4]];
+        displayList = arr.map((item, idx) => ({ ...item, displayKey: `${item.id}-${idx}`, originalIdx: idx % N }));
+      } else {
+        displayList = list.map((item, idx) => ({ ...item, displayKey: `${item.id}-${idx}`, originalIdx: idx }));
+      }
+    }
+
+    const M = displayList.length;
+    const activeMIdx = M > 0 ? ((virtualActiveIdx % M) + M) % M : 0;
+    const prevActiveMIdx = M > 0 ? ((prevVirtualActiveIdxRef.current % M) + M) % M : 0;
+
+    const safeActiveIdx = displayList[activeMIdx] ? displayList[activeMIdx].originalIdx : 0;
+    const activeProject = list[safeActiveIdx];
+
+    // Keep activeProjectIdx state in sync with safeActiveIdx for external components reading it
+    React.useEffect(() => {
+      if (N > 0) {
+        setActiveProjectIdx(safeActiveIdx);
+      }
+    }, [safeActiveIdx, N]);
+
+    const getRelIdx = (idx: number, currentActiveMIdx: number, totalM: number) => {
+      let relIdx = idx - currentActiveMIdx;
+      while (relIdx < -1) {
+        relIdx += totalM;
+      }
+      while (relIdx > 4) {
+        relIdx -= totalM;
+      }
+      return relIdx;
+    };
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+        className={`min-h-screen pb-12 font-sans relative overflow-hidden flex flex-col justify-between ${
+          isDark ? 'bg-slate-950 text-slate-100' : 'bg-[#f7f9fb] text-slate-900'
+        }`}
+      >
+        {/* Immersive Background - Full Screen Image with absolutely no bottom gradients */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              key={activeProject?.id || 'default'}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeInOut" }}
+              className="absolute inset-0"
+            >
+              <img 
+                src={(activeProject?.image) || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1200&auto=format&fit=crop'} 
+                alt={activeProject?.title || "Project Background"} 
+                className="w-full h-full object-cover select-none pointer-events-none blur-md scale-105"
+                referrerPolicy="no-referrer"
+              />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Interactive Showcase Slider Section */}
+        {list.length > 0 && activeProject && (
+          <div className="max-w-[1600px] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 md:px-8 lg:px-10 xl:px-16 pt-12 md:pt-16 lg:pt-24 pb-12 relative z-20">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="relative h-[480px] sm:h-[540px] md:h-[600px] lg:h-[650px] xl:h-[700px] flex flex-col justify-end py-6 md:py-8"
+            >
+              {/* Foreground content wrapper */}
+              <div className="relative z-10 w-full h-full flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4 md:gap-6 lg:gap-8 xl:gap-12 my-auto">
+                {/* Left Side: Selected Project Details */}
+                <div className="w-full md:flex-1 md:min-w-0 flex flex-col justify-end items-start text-left gap-4 md:self-end">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeProject.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.35 }}
+                      className={`space-y-4 p-6 sm:p-8 md:p-10 rounded-3xl backdrop-blur-lg border w-full h-[420px] sm:h-[480px] md:h-[540px] lg:h-[590px] xl:h-[640px] flex flex-col justify-between overflow-y-auto scrollbar-none ${
+                        isDark 
+                          ? 'bg-slate-950/40 border-white/10 shadow-2xl shadow-slate-950/60' 
+                          : 'bg-white/45 border-slate-200/60 shadow-2xl shadow-slate-200/40'
+                      }`}
+                    >
+                      <div className="space-y-4">
+                        <h2 className={`text-3xl sm:text-4xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-sans font-black tracking-tight leading-none ${
+                          isDark ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          {activeProject.title}
+                        </h2>
+                        
+                        <p className={`text-xs sm:text-sm md:text-sm lg:text-base xl:text-lg leading-relaxed lg:leading-relaxed max-w-none w-full ${
+                          isDark ? 'text-slate-300' : 'text-slate-600'
+                        }`}>
+                          {activeProject.description}
+                        </p>
+                      </div>
+
+                      {(() => {
+                        const projectTools = activeProject.tools && activeProject.tools.length > 0
+                          ? activeProject.tools
+                          : (activeProject.tags || []);
+                        if (projectTools.length === 0) return null;
+                        return (
+                          <div className="flex flex-wrap gap-1.5 pt-2">
+                            {projectTools.map((tool, tIdx) => (
+                              <span 
+                                key={tIdx} 
+                                className={`font-mono text-[9px] px-2 py-0.5 rounded uppercase font-bold tracking-wider border ${
+                                  isDark 
+                                    ? 'bg-slate-800/80 border-slate-700/60 text-slate-300' 
+                                    : 'bg-slate-100 border-slate-200 text-slate-600'
+                                }`}
+                              >
+                                {tool}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
+                      <div className="pt-4">
+                        <button
+                          onClick={() => {
+                            const url = activeProject.projectUrl || 'https://github.com';
+                            window.open(url, '_blank');
+                          }}
+                          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-xs tracking-wider uppercase transition-all duration-300 cursor-pointer select-none active:scale-97 hover:-translate-y-0.5 ${
+                            isDark 
+                              ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700/60 shadow-lg shadow-slate-950/30' 
+                              : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 shadow-lg shadow-slate-200/20'
+                          }`}
+                        >
+                          <ExternalLink className={`w-4 h-4 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                          <span className={isDark ? 'text-white' : 'text-slate-800'}>Visit Project Link</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Right Side: Thumbnail Slider Gallery ("kotak2 kecil gambar project") */}
+                <div className="w-full md:w-auto flex flex-col justify-end items-stretch md:items-end gap-3 z-30 md:self-end shrink-0">
+                  {N > 1 && (
+                    <>
+                      <div className="flex items-center gap-2 w-full md:justify-end md:items-end">
+                        {/* Left Arrow Button (Sebelumnya) */}
+                        <button
+                          onClick={() => {
+                            setSlideDirection('prev');
+                            setVirtualActiveIdx((prev) => prev - 1);
+                          }}
+                          className={`p-2.5 rounded-full border transition-all duration-300 cursor-pointer flex items-center justify-center hover:-translate-x-0.5 active:scale-95 shrink-0 ${
+                            isDark 
+                              ? 'bg-slate-900/90 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-700/80 shadow-md shadow-slate-950/20' 
+                              : 'bg-white border-slate-200 text-slate-700 hover:text-slate-950 hover:bg-slate-50 shadow-md shadow-slate-200/20'
+                          }`}
+                          title="Projek Sebelumnya"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                        </button>
+
+                        {/* Thumbnails Container */}
+                        <div style={{ width: viewWidth }} className="overflow-hidden h-[104px] sm:h-[120px] md:h-[136px] relative shrink-0">
+                          <div className="absolute inset-0 flex items-center">
+                            {displayList.map((p, idx) => {
+                              const isActive = idx === activeMIdx;
+                              
+                              // Calculate wrapped relative index for circular placement
+                              const relIdx = getRelIdx(idx, activeMIdx, M);
+                              const prevRelIdx = getRelIdx(idx, prevActiveMIdx, M);
+                              
+                              // If wrapping, transition instantly to avoid slide-across artifact
+                              const hasWrapped = Math.abs(relIdx - prevRelIdx) > 1.5;
+  
+                              // Scale and opacity depending on distance (active on the left, next 3 visible on the right)
+                              const distance = relIdx;
+                              let cardScale = 1;
+                              let cardOpacity = 0;
+                              const isClickable = distance >= 0 && distance <= 3;
+  
+                              if (distance === 0) {
+                                cardScale = 1;
+                                cardOpacity = 1;
+                              } else if (distance === 1) {
+                                cardScale = 0.85;
+                                cardOpacity = 0.8;
+                              } else if (distance === 2) {
+                                cardScale = 0.72;
+                                cardOpacity = 0.55;
+                              } else if (distance === 3) {
+                                cardScale = 0.60;
+                                cardOpacity = 0.35;
+                              } else if (distance === -1) {
+                                cardScale = 0.50;
+                                cardOpacity = 0; // hidden leftmost edge (slides in beautifully on Prev)
+                              } else if (distance === 4) {
+                                cardScale = 0.50;
+                                cardOpacity = 0; // hidden rightmost edge (slides in beautifully on Next)
+                              } else {
+                                cardScale = 0.4;
+                                cardOpacity = 0;
+                              }
+
+                              const thumbGap = thumbWidth >= 112 ? 12 : 10;
+                              const targetX = 6 + relIdx * (thumbWidth + thumbGap);
+   
+                              return (
+                                <motion.div
+                                  key={p.displayKey}
+                                  style={{ 
+                                    pointerEvents: isClickable ? 'auto' : 'none',
+                                    width: thumbWidth,
+                                    height: thumbWidth
+                                  }}
+                                  onClick={() => {
+                                    if (idx === activeMIdx) return;
+                                    
+                                    if (idx > activeMIdx) {
+                                      setSlideDirection('next');
+                                    } else {
+                                      setSlideDirection('prev');
+                                    }
+                                    
+                                    setVirtualActiveIdx(prev => {
+                                      const dist = getRelIdx(idx, activeMIdx, M);
+                                      return prev + dist;
+                                    });
+                                  }}
+                                  animate={{ 
+                                    scale: cardScale,
+                                    opacity: cardOpacity,
+                                    x: targetX
+                                  }}
+                                  transition={hasWrapped ? {
+                                    type: "tween",
+                                    duration: 0
+                                  } : {
+                                    type: "spring",
+                                    stiffness: 120,
+                                    damping: 20,
+                                    mass: 0.8
+                                  }}
+                                  className={`absolute left-0 top-1/2 -translate-y-1/2 shrink-0 rounded-xl overflow-hidden border transition-colors duration-300 cursor-pointer group ${
+                                    isActive 
+                                      ? (isDark ? 'border-emerald-500/80 z-10' : 'border-emerald-600/80 z-10')
+                                      : (isDark 
+                                          ? 'border-white/10 hover:border-white/20' 
+                                          : 'border-slate-200 hover:border-slate-300')
+                                  }`}
+                                  title={`Tampilkan: ${p.title}`}
+                                >
+                                  <img 
+                                    src={p.image || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600&auto=format&fit=crop'} 
+                                    alt={p.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div className="absolute inset-0 bg-slate-950/45 group-hover:bg-transparent transition-colors duration-300 flex items-end p-2.5 sm:p-3">
+                                    <span className="text-[9px] sm:text-[10px] md:text-xs font-bold font-mono text-white/90 truncate w-full drop-shadow-md">
+                                      {p.title}
+                                    </span>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Right Arrow Button (Berikutnya) */}
+                        <button
+                          onClick={() => {
+                            setSlideDirection('next');
+                            setVirtualActiveIdx((prev) => prev + 1);
+                          }}
+                          className={`p-2.5 rounded-full border transition-all duration-300 cursor-pointer flex items-center justify-center hover:translate-x-0.5 active:scale-95 shrink-0 ${
+                            isDark 
+                              ? 'bg-slate-900/90 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-700/80 shadow-md shadow-slate-950/20' 
+                              : 'bg-white border-slate-200 text-slate-700 hover:text-slate-950 hover:bg-slate-50 shadow-md shadow-slate-200/20'
+                          }`}
+                          title="Projek Berikutnya"
+                        >
+                          <ChevronRight className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </motion.div>
+    );
   }
 
   return null;
