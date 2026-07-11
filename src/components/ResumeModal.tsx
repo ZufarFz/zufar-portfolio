@@ -49,6 +49,11 @@ interface LayoutSettings {
   headerPhotoPosition?: 'left' | 'top';
   headerAlignment?: 'left' | 'center';
   headerContactPosition?: 'bottom' | 'right';
+  showEducation?: boolean;
+  visibleExperiences?: string[];
+  visibleEducations?: string[];
+  marginTopBottom?: 'lebar' | 'sedang' | 'sempit';
+  marginLeftRight?: 'lebar' | 'sedang' | 'sempit';
 }
 
 const getCircularBase64Image = (
@@ -147,7 +152,9 @@ const DEFAULT_SETTINGS: LayoutSettings = {
   sectionOrder: ['arsenal', 'education', 'experience', 'methodology'],
   headerPhotoPosition: 'left',
   headerAlignment: 'left',
-  headerContactPosition: 'bottom'
+  headerContactPosition: 'bottom',
+  marginTopBottom: 'sedang',
+  marginLeftRight: 'sedang'
 };
 
 export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light', inlinePreview = false }: ResumeModalProps) {
@@ -217,8 +224,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
     setIsDownloadingPdf(true);
     
     const element = resumeRef.current;
+    const originalTitle = document.title;
     
     try {
+      // Set temporary title for PDF file naming
+      const rawName = cvData.name || 'NAMA LENGKAP';
+      document.title = `CV-${rawName.toUpperCase()}`;
+
       // Create print container
       const printContainer = document.createElement('div');
       printContainer.className = 'print-only-container';
@@ -246,20 +258,36 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       document.body.classList.add('is-printing');
       
       // Brief timeout to ensure DOM registration and image renders are bound correctly prior to printing
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Mobile browsers need a little longer (500ms) to successfully compile styles before print triggers
+      await new Promise((resolve) => setTimeout(resolve, 500));
       
       window.print();
       
-      // Cleanup elements
-      document.body.classList.remove('is-printing');
-      if (document.body.contains(printContainer)) {
-        document.body.removeChild(printContainer);
-      }
+      // On mobile browsers, window.print() is non-blocking, so immediate cleanup destroys the preview source.
+      // We use 'afterprint' event to clean up only when the user has dismissed the print preview modal,
+      // with a secure fallback timeout of 10 seconds.
+      let cleaned = false;
+      const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
+        document.body.classList.remove('is-printing');
+        if (document.body.contains(printContainer)) {
+          document.body.removeChild(printContainer);
+        }
+        document.title = originalTitle;
+        window.removeEventListener('afterprint', cleanup);
+        setIsDownloadingPdf(false);
+      };
+
+      window.addEventListener('afterprint', cleanup);
+      // Fallback cleanup (10 seconds)
+      setTimeout(cleanup, 10000);
+      
     } catch (err) {
       console.error("Gagal melakukan penyiapan cetak PDF vektor:", err);
       // Clean fallback directly to browser print function
       window.print();
-    } finally {
+      document.title = originalTitle;
       setIsDownloadingPdf(false);
     }
   };
@@ -363,7 +391,34 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       }
     }[currentSettings.spacing || 'standard'];
 
-    return { colors, fonts, fontSizes, spacings };
+    const mtb = currentSettings.marginTopBottom || 'sedang';
+    const mlr = currentSettings.marginLeftRight || 'sedang';
+
+    const paddingYClass = {
+      sempit: 'py-5 sm:py-7',
+      sedang: 'py-10 sm:py-14',
+      lebar: 'py-14 sm:py-20'
+    }[mtb];
+
+    const paddingXClass = {
+      sempit: 'px-5 sm:px-7',
+      sedang: 'px-8 sm:px-12',
+      lebar: 'px-12 sm:px-16'
+    }[mlr];
+
+    const printPaddingY = {
+      sempit: '6mm',
+      sedang: '12mm',
+      lebar: '18mm'
+    }[mtb];
+
+    const printPaddingX = {
+      sempit: '6mm',
+      sedang: '10mm',
+      lebar: '16mm'
+    }[mlr];
+
+    return { colors, fonts, fontSizes, spacings, paddingYClass, paddingXClass, printPaddingY, printPaddingX };
   };
 
   const activeStyles = getLayoutStyles(settings);
@@ -532,12 +587,22 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             </div>
           `;
         case 'education':
+          const getEduBaseId = (idStr: string) => {
+            if (!idStr) return '';
+            if (idStr.endsWith('-en')) return idStr.slice(0, -3);
+            if (idStr.endsWith('-id')) return idStr.slice(0, -3);
+            return idStr;
+          };
+          const visibleEdu = settings.visibleEducations 
+            ? cvData.education.filter(edu => settings.visibleEducations?.includes(getEduBaseId(String(edu.id || '')))) 
+            : cvData.education;
+          if (visibleEdu.length === 0) return '';
           return `
             <div style="margin-bottom: 15pt;">
               <h4 style="font-family: ${wordFontFamily}; font-size: 11pt; font-weight: bold; color: #0f172a; border-bottom: 2px solid ${activeColorHex}; padding-bottom: 3pt; margin-top: 10pt; margin-bottom: 8pt; text-transform: uppercase; letter-spacing: 0.5px;">
                 Education
               </h4>
-              ${cvData.education.map(edu => `
+              ${visibleEdu.map(edu => `
                 <div style="margin-bottom: 8pt; font-family: ${wordFontFamily};">
                   <span style="font-size: 8pt; font-weight: bold; color: #94a3b8; display: block;">${edu.period}</span>
                   <span style="font-size: 9.5pt; font-weight: bold; color: #0f172a; display: block; margin-top: 1pt;">${edu.degree}</span>
@@ -547,12 +612,22 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             </div>
           `;
         case 'experience':
+          const getExpBaseId = (idStr: string) => {
+            if (!idStr) return '';
+            if (idStr.endsWith('-en')) return idStr.slice(0, -3);
+            if (idStr.endsWith('-id')) return idStr.slice(0, -3);
+            return idStr;
+          };
+          const visibleExp = settings.visibleExperiences 
+            ? cvData.experiences.filter(exp => settings.visibleExperiences?.includes(getExpBaseId(String(exp.id || '')))) 
+            : cvData.experiences;
+          if (visibleExp.length === 0) return '';
           return `
             <div style="margin-bottom: 15pt;">
               <h4 style="font-family: ${wordFontFamily}; font-size: 11pt; font-weight: bold; color: #0f172a; border-bottom: 2px solid ${activeColorHex}; padding-bottom: 3pt; margin-top: 10pt; margin-bottom: 8pt; text-transform: uppercase; letter-spacing: 0.5px;">
                 Professional Experience
               </h4>
-              ${cvData.experiences.map(exp => `
+              ${visibleExp.map(exp => `
                 <div style="margin-bottom: 12pt; font-family: ${wordFontFamily};">
                   <table width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 2pt;">
                     <tr>
@@ -707,6 +782,16 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
         );
 
       case 'education':
+        const getEduBaseIdJSX = (idStr: string) => {
+          if (!idStr) return '';
+          if (idStr.endsWith('-en')) return idStr.slice(0, -3);
+          if (idStr.endsWith('-id')) return idStr.slice(0, -3);
+          return idStr;
+        };
+        const visibleEduList = settings.visibleEducations 
+          ? cvData.education.filter(edu => settings.visibleEducations?.includes(getEduBaseIdJSX(String(edu.id || '')))) 
+          : cvData.education;
+        if (visibleEduList.length === 0) return null;
         return (
           <div key="education" className={`relative rounded-lg transition-all ${isEditorMode ? 'hover:ring-2 hover:ring-indigo-500/30 hover:bg-slate-50/50 p-2 -m-2' : ''}`}>
             {isEditorMode && (
@@ -718,7 +803,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               <GraduationCap className={`w-3.5 h-3.5 ${activeStyles.colors.bullet}`} /> Education
             </h4>
             <div className="space-y-3">
-              {cvData.education.map((edu, idx) => (
+              {visibleEduList.map((edu, idx) => (
                 <div key={idx}>
                   <span className="text-[9px] font-mono font-bold text-slate-400 block">{edu.period}</span>
                   <span className="text-xs font-bold text-slate-900 block leading-tight">{edu.degree}</span>
@@ -730,6 +815,16 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
         );
 
       case 'experience':
+        const getExpBaseIdJSX = (idStr: string) => {
+          if (!idStr) return '';
+          if (idStr.endsWith('-en')) return idStr.slice(0, -3);
+          if (idStr.endsWith('-id')) return idStr.slice(0, -3);
+          return idStr;
+        };
+        const visibleExpList = settings.visibleExperiences 
+          ? cvData.experiences.filter(exp => settings.visibleExperiences?.includes(getExpBaseIdJSX(String(exp.id || '')))) 
+          : cvData.experiences;
+        if (visibleExpList.length === 0) return null;
         return (
           <div key="experience" className={`relative rounded-lg transition-all ${isEditorMode ? 'hover:ring-2 hover:ring-indigo-500/30 hover:bg-slate-50/50 p-2 -m-2' : ''}`}>
             {isEditorMode && (
@@ -742,7 +837,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             </h4>
 
             <div className="space-y-4">
-              {cvData.experiences.map((exp) => (
+              {visibleExpList.map((exp) => (
                 <div key={exp.id} className={activeStyles.spacings.block}>
                   <div className="flex justify-between items-baseline gap-2">
                     <h5 className={`${activeStyles.fontSizes.text} font-bold text-slate-900 leading-tight`}>{exp.role}</h5>
@@ -812,6 +907,32 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               max-width: 210mm !important;
               box-sizing: border-box !important;
             }
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0mm !important; /* Strips browser-generated date, title, link, page numbers */
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background-color: white !important;
+                color: #1e293b !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+              .a4-inline-sheet {
+                width: 210mm !important;
+                /* Tighter margins on paper to maximize printable width and keep layout on a single-page */
+                padding: ${activeStyles.printPaddingY} ${activeStyles.printPaddingX} !important; 
+                margin: 0 auto !important;
+                border: none !important;
+                box-shadow: none !important;
+                box-sizing: border-box !important;
+              }
+            }
           </style>
         `}} />
         
@@ -841,7 +962,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
         <div className="w-full overflow-x-auto p-1 sm:p-4 flex justify-center bg-slate-950/25 rounded-xl border border-slate-800/40">
           <div 
             ref={resumeRef}
-            className={`a4-inline-sheet bg-white px-8 py-10 sm:px-12 sm:py-14 rounded-xl border border-slate-200/80 shadow-md mx-auto text-slate-800 print:border-none print:shadow-none print:p-0 print:m-0 transition-all ${
+            className={`a4-inline-sheet bg-white ${activeStyles.paddingXClass} ${activeStyles.paddingYClass} rounded-xl border border-slate-200/80 shadow-md mx-auto text-slate-800 print:border-none print:shadow-none print:p-0 print:m-0 transition-all ${
               activeStyles.fonts
             }`}
             style={{
@@ -1182,7 +1303,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               .a4-sheet {
                 width: 210mm !important;
                 /* Tighter margins on paper to maximize printable width and keep layout on a single-page */
-                padding: 12mm 10mm !important; 
+                padding: ${activeStyles.printPaddingY} ${activeStyles.printPaddingX} !important; 
                 margin: 0 auto !important;
                 border: none !important;
                 box-shadow: none !important;
@@ -1362,7 +1483,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     </div>
                   </div>
 
-                  {/* Line Spacing / Margin Density */}
+                   {/* Line Spacing / Margin Density */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
                       Kepadatan Margins &amp; Isi
@@ -1379,6 +1500,50 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                           }`}
                         >
                           {sp === 'tight' ? 'Padat' : sp === 'standard' ? 'Standard' : 'Renggang'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Margin Atas-Bawah */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
+                      Margin Atas-Bawah CV
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(['sempit', 'sedang', 'lebar'] as const).map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => updateSetting('marginTopBottom', m)}
+                          className={`py-1.5 text-center border rounded-lg text-[9px] cursor-pointer tracking-wider font-bold uppercase transition-all ${
+                            (settings.marginTopBottom || 'sedang') === m
+                              ? 'bg-indigo-600 border-indigo-500 text-white'
+                              : 'bg-slate-800 border-slate-750 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {m === 'sempit' ? 'Sempit' : m === 'sedang' ? 'Sedang' : 'Lebar'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Margin Kanan-Kiri */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
+                      Margin Kanan-Kiri CV
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(['sempit', 'sedang', 'lebar'] as const).map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => updateSetting('marginLeftRight', m)}
+                          className={`py-1.5 text-center border rounded-lg text-[9px] cursor-pointer tracking-wider font-bold uppercase transition-all ${
+                            (settings.marginLeftRight || 'sedang') === m
+                              ? 'bg-indigo-600 border-indigo-500 text-white'
+                              : 'bg-slate-800 border-slate-750 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {m === 'sempit' ? 'Sempit' : m === 'sedang' ? 'Sedang' : 'Lebar'}
                         </button>
                       ))}
                     </div>
@@ -1484,7 +1649,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             {/* Standard A4 Paper Wrapper */}
             <div 
               ref={resumeRef}
-              className={`a4-sheet bg-white px-8 py-10 sm:px-12 sm:py-14 rounded-xl border border-slate-200/80 shadow-md mx-auto text-slate-800 print:border-none print:shadow-none print:p-0 print:m-0 transition-all ${
+              className={`a4-sheet bg-white ${activeStyles.paddingXClass} ${activeStyles.paddingYClass} rounded-xl border border-slate-200/80 shadow-md mx-auto text-slate-800 print:border-none print:shadow-none print:p-0 print:m-0 transition-all ${
                 activeStyles.fonts
               } ${
                 isEditorMode ? 'hover:shadow-2xl' : ''

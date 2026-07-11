@@ -2887,6 +2887,10 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                               { id: 'grid', label: 'Engine Grid Layout', desc: 'Engineering grid blueprint' },
                               { id: 'ambient', label: 'Ambient Radial Glow', desc: 'Modern colorful blurred orbs' },
                               { id: 'abstract', label: 'Diagonal Overlapping', desc: 'Elegant stripe intersections' },
+                              { id: 'watercolor_blush', label: 'Watercolor Blush 🌸', desc: 'Soft pink & peach liquid with subtle gold accents' },
+                              { id: 'watercolor_gold', label: 'Earthy Gold Marble ✨', desc: 'Earthy beige/rose wash with elegant kintsugi veins' },
+                              { id: 'watercolor_pastel', label: 'Pastel Dream Glow 🎨', desc: 'Dreamy lavender, apricot and baby blue blend' },
+                              { id: 'watercolor_sunset', label: 'Sunset Crimson Wash 🌅', desc: 'Coral sunset gradient with Japanese gold rings' },
                               { id: 'solid', label: 'Minimalist Solid', desc: 'No overlays, pure flat color' },
                               { id: 'custom_upload', label: 'Unggahan Gambar Kustom', desc: 'Transparent watermark overlay' }
                             ].map((styleOpt) => {
@@ -7004,7 +7008,15 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                     spacing: 'standard',
                     layoutStyle: 'left-sidebar',
                     fontFamily: 'sans',
-                    sectionOrder: ['arsenal', 'education', 'experience', 'methodology']
+                    sectionOrder: ['arsenal', 'education', 'experience', 'methodology'],
+                    showEducation: true,
+                    visibleExperiences: undefined as string[] | undefined,
+                    visibleEducations: undefined as string[] | undefined,
+                    marginTopBottom: 'sedang' as 'lebar' | 'sedang' | 'sempit',
+                    marginLeftRight: 'sedang' as 'lebar' | 'sedang' | 'sempit',
+                    headerPhotoPosition: 'left' as 'left' | 'top',
+                    headerAlignment: 'left' as 'left' | 'center',
+                    headerContactPosition: 'bottom' as 'bottom' | 'right'
                   };
 
                   const currentSettings = (localCV.layoutSettings as any) || { ...DEFAULT_LAYOUT_SETTINGS };
@@ -7162,6 +7174,56 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                   }`}
                                 >
                                   {sp === 'tight' ? 'Padat' : sp === 'standard' ? 'Standard' : 'Renggang'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Margin Atas-Bawah */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
+                              Margin Atas-Bawah CV
+                            </label>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {(['sempit', 'sedang', 'lebar'] as const).map((m) => (
+                                <button
+                                  type="button"
+                                  key={m}
+                                  onClick={() => updateLayoutSetting('marginTopBottom', m)}
+                                  className={`py-2 text-center border rounded-lg text-[9px] cursor-pointer tracking-wider font-bold uppercase transition-all ${
+                                    (currentSettings.marginTopBottom || 'sedang') === m
+                                      ? 'bg-emerald-600 border-emerald-500 text-white shadow'
+                                      : theme === 'dark'
+                                        ? 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-950 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {m === 'sempit' ? 'Sempit' : m === 'sedang' ? 'Sedang' : 'Lebar'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Margin Kanan-Kiri */}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
+                              Margin Kanan-Kiri CV
+                            </label>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {(['sempit', 'sedang', 'lebar'] as const).map((m) => (
+                                <button
+                                  type="button"
+                                  key={m}
+                                  onClick={() => updateLayoutSetting('marginLeftRight', m)}
+                                  className={`py-2 text-center border rounded-lg text-[9px] cursor-pointer tracking-wider font-bold uppercase transition-all ${
+                                    (currentSettings.marginLeftRight || 'sedang') === m
+                                      ? 'bg-emerald-600 border-emerald-500 text-white shadow'
+                                      : theme === 'dark'
+                                        ? 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:text-slate-950 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {m === 'sempit' ? 'Sempit' : m === 'sedang' ? 'Sedang' : 'Lebar'}
                                 </button>
                               ))}
                             </div>
@@ -7346,6 +7408,166 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 ))}
                               </div>
                             </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Konfigurasi Visibilitas Konten CV */}
+                      <div className={`p-5 rounded-xl border space-y-5 ${
+                        theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}>
+                        <div className="flex items-center gap-2 border-b pb-2.5">
+                          <Eye className="w-4 h-4 text-emerald-400" />
+                          <h5 className={`font-bold text-xs uppercase tracking-wider ${
+                            theme === 'dark' ? 'text-white' : 'text-slate-900'
+                          }`}>Visibilitas &amp; Konten Bagian CV</h5>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Pendidikan Toggle */}
+                          <div className="space-y-3">
+                            <span className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
+                              1. Riwayat Pendidikan (Education Background)
+                            </span>
+                            <p className="text-[11px] text-slate-400 leading-normal">
+                              Pilih secara spesifik riwayat pendidikan (English &amp; Indonesia otomatis terpilih bersamaan) untuk ditampilkan di dokumen CV:
+                            </p>
+
+                            {(() => {
+                              const bilingEduList = getBilingualEducation();
+                              if (bilingEduList.length === 0) {
+                                return <p className="text-[11px] text-slate-500 italic">Tidak ada data riwayat pendidikan.</p>;
+                              }
+                              return (
+                                <div className="space-y-2 mt-2 max-h-[160px] overflow-y-auto pr-1">
+                                  {bilingEduList.map((bEdu) => {
+                                    const isEduVisible = !currentSettings.visibleEducations || currentSettings.visibleEducations.includes(bEdu.baseId);
+                                    const degreeName = bEdu.en.degree || bEdu.id.degree || 'Untitled Degree';
+                                    const institutionName = bEdu.en.institution || bEdu.id.institution || 'Untitled Institution';
+                                    return (
+                                      <label 
+                                        key={bEdu.baseId} 
+                                        className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-all select-none ${
+                                          isEduVisible
+                                            ? theme === 'dark'
+                                              ? 'bg-emerald-950/20 border-emerald-800/60'
+                                              : 'bg-emerald-50/50 border-emerald-200'
+                                            : theme === 'dark'
+                                              ? 'bg-slate-900/40 border-slate-800/50 opacity-60'
+                                              : 'bg-slate-100/40 border-slate-200 opacity-60'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isEduVisible}
+                                          onChange={() => {
+                                            const currentVisible = currentSettings.visibleEducations;
+                                            const allBaseIds = bilingEduList.map((e: any) => e.baseId);
+                                            let nextVisible: string[];
+                                            if (!currentVisible) {
+                                              nextVisible = allBaseIds.filter((id: string) => id !== bEdu.baseId);
+                                            } else {
+                                              if (currentVisible.includes(bEdu.baseId)) {
+                                                nextVisible = currentVisible.filter((id: string) => id !== bEdu.baseId);
+                                              } else {
+                                                nextVisible = [...currentVisible, bEdu.baseId];
+                                              }
+                                            }
+                                            updateLayoutSetting('visibleEducations', nextVisible);
+                                          }}
+                                          className="w-3.5 h-3.5 mt-0.5 rounded border-slate-700 text-emerald-600 focus:ring-emerald-500/20 focus:ring-offset-slate-900 focus:ring-2 bg-slate-900 cursor-pointer"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className={`text-[11px] font-bold leading-tight ${
+                                            isEduVisible 
+                                              ? theme === 'dark' ? 'text-emerald-400' : 'text-emerald-800'
+                                              : theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+                                          }`}>
+                                            {degreeName}
+                                          </p>
+                                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                            {institutionName} • <span className="font-mono text-[9px]">{bEdu.en.period || bEdu.id.period}</span>
+                                          </p>
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Pengalaman Kerja Selection */}
+                          <div className="space-y-3 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-slate-800/40">
+                            <span className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
+                              2. Riwayat Pekerjaan (Work Experiences)
+                            </span>
+                            <p className="text-[11px] text-slate-400 leading-normal">
+                              Pilih secara spesifik riwayat pekerjaan yang ingin Anda tampilkan pada dokumen CV:
+                            </p>
+                            
+                            {(() => {
+                              const bilingExpList = getBilingualExperiences();
+                              if (bilingExpList.length === 0) {
+                                return <p className="text-[11px] text-slate-500 italic">Tidak ada data riwayat pekerjaan.</p>;
+                              }
+                              return (
+                                <div className="space-y-2 mt-2 max-h-[160px] overflow-y-auto pr-1">
+                                  {bilingExpList.map((bExp) => {
+                                    const isExpVisible = !currentSettings.visibleExperiences || currentSettings.visibleExperiences.includes(bExp.baseId);
+                                    const roleName = bExp.en.role || bExp.id.role || 'Untitled Role';
+                                    const companyName = bExp.en.company || bExp.id.company || 'Untitled Company';
+                                    return (
+                                      <label 
+                                        key={bExp.baseId} 
+                                        className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-all select-none ${
+                                          isExpVisible
+                                            ? theme === 'dark'
+                                              ? 'bg-emerald-950/20 border-emerald-800/60'
+                                              : 'bg-emerald-50/50 border-emerald-200'
+                                            : theme === 'dark'
+                                              ? 'bg-slate-900/40 border-slate-800/50 opacity-60'
+                                              : 'bg-slate-100/40 border-slate-200 opacity-60'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isExpVisible}
+                                          onChange={() => {
+                                            const currentVisible = currentSettings.visibleExperiences;
+                                            const allBaseIds = bilingExpList.map((e: any) => e.baseId);
+                                            let nextVisible: string[];
+                                            if (!currentVisible) {
+                                              nextVisible = allBaseIds.filter((id: string) => id !== bExp.baseId);
+                                            } else {
+                                              if (currentVisible.includes(bExp.baseId)) {
+                                                nextVisible = currentVisible.filter((id: string) => id !== bExp.baseId);
+                                              } else {
+                                                nextVisible = [...currentVisible, bExp.baseId];
+                                              }
+                                            }
+                                            updateLayoutSetting('visibleExperiences', nextVisible);
+                                          }}
+                                          className="w-3.5 h-3.5 mt-0.5 rounded border-slate-700 text-emerald-600 focus:ring-emerald-500/20 focus:ring-offset-slate-900 focus:ring-2 bg-slate-900 cursor-pointer"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className={`text-[11px] font-bold leading-tight ${
+                                            isExpVisible 
+                                              ? theme === 'dark' ? 'text-emerald-400' : 'text-emerald-800'
+                                              : theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+                                          }`}>
+                                            {roleName}
+                                          </p>
+                                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                            {companyName} • <span className="font-mono text-[9px]">{bExp.en.period || bExp.id.period}</span>
+                                          </p>
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -7981,8 +8203,25 @@ CREATE TABLE IF NOT EXISTS portfolio_layout (
   layout_style VARCHAR,
   font_family VARCHAR,
   section_order JSONB,
+  show_education BOOLEAN DEFAULT true,
+  visible_experiences JSONB,
+  visible_educations JSONB,
+  margin_top_bottom VARCHAR DEFAULT 'sedang',
+  margin_left_right VARCHAR DEFAULT 'sedang',
+  header_photo_position VARCHAR DEFAULT 'left',
+  header_alignment VARCHAR DEFAULT 'left',
+  header_contact_position VARCHAR DEFAULT 'bottom',
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS show_education BOOLEAN DEFAULT true;
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS visible_experiences JSONB;
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS visible_educations JSONB;
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS margin_top_bottom VARCHAR DEFAULT 'sedang';
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS margin_left_right VARCHAR DEFAULT 'sedang';
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS header_photo_position VARCHAR DEFAULT 'left';
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS header_alignment VARCHAR DEFAULT 'left';
+ALTER TABLE portfolio_layout ADD COLUMN IF NOT EXISTS header_contact_position VARCHAR DEFAULT 'bottom';
 
 -- 4b. Buat tabel baru untuk menyimpan informasi "About Me Story" secara berkelanjutan
 CREATE TABLE IF NOT EXISTS portfolio_about_story (

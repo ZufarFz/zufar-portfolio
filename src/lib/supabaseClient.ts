@@ -567,6 +567,14 @@ export interface CVData {
     layoutStyle: 'left-sidebar' | 'right-sidebar' | 'single-column';
     fontFamily: 'sans' | 'serif' | 'mono';
     sectionOrder: string[];
+    showEducation?: boolean;
+    visibleExperiences?: string[];
+    visibleEducations?: string[];
+    marginTopBottom?: 'lebar' | 'sedang' | 'sempit';
+    marginLeftRight?: 'lebar' | 'sedang' | 'sempit';
+    headerPhotoPosition?: 'left' | 'top';
+    headerAlignment?: 'left' | 'center';
+    headerContactPosition?: 'bottom' | 'right';
   };
 }
 
@@ -847,7 +855,15 @@ export async function fetchCVData(): Promise<CVData> {
           spacing: dbLayout.spacing,
           layoutStyle: dbLayout.layout_style,
           fontFamily: dbLayout.font_family,
-          sectionOrder: dbLayout.section_order || []
+          sectionOrder: dbLayout.section_order || [],
+          showEducation: dbLayout.show_education !== false,
+          visibleExperiences: dbLayout.visible_experiences || undefined,
+          visibleEducations: dbLayout.visible_educations || undefined,
+          marginTopBottom: dbLayout.margin_top_bottom || 'sedang',
+          marginLeftRight: dbLayout.margin_left_right || 'sedang',
+          headerPhotoPosition: dbLayout.header_photo_position || 'left',
+          headerAlignment: dbLayout.header_alignment || 'left',
+          headerContactPosition: dbLayout.header_contact_position || 'bottom'
         } : undefined
       };
 
@@ -1399,6 +1415,14 @@ export async function saveCVData(newData: CVData): Promise<{ success: boolean; e
             layout_style: newData.layoutSettings.layoutStyle,
             font_family: newData.layoutSettings.fontFamily,
             section_order: newData.layoutSettings.sectionOrder || [],
+            show_education: newData.layoutSettings.showEducation !== false,
+            visible_experiences: newData.layoutSettings.visibleExperiences || null,
+            visible_educations: newData.layoutSettings.visibleEducations || null,
+            margin_top_bottom: newData.layoutSettings.marginTopBottom || 'sedang',
+            margin_left_right: newData.layoutSettings.marginLeftRight || 'sedang',
+            header_photo_position: newData.layoutSettings.headerPhotoPosition || 'left',
+            header_alignment: newData.layoutSettings.headerAlignment || 'left',
+            header_contact_position: newData.layoutSettings.headerContactPosition || 'bottom',
             updated_at: new Date().toISOString()
           });
           if (error) {

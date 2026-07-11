@@ -132,9 +132,7 @@ html:not(.dark) textarea::placeholder {
 /* ==========================================
    OFFLINE VECTOR PDF (REAL TEXT COPYABLE)
    ========================================== */
-body.is-printing #root {
-  display: none !important;
-}
+/* We do not hide the active root layout using JS class on screen, because on mobile devices this causes the viewport to go completely blank and results in a blank PDF preview. Instead, we rely strictly on @media print to hide #root during actual printing. */
 
 .print-only-container {
   display: none;
@@ -157,7 +155,7 @@ body.is-printing #root {
     height: auto !important;
     box-shadow: none !important;
     border: none !important;
-    padding: 12mm 16mm !important;
+    padding: 0 !important;
     margin: 0 !important;
     background-color: white !important;
     color: #0f172a !important;

@@ -34,8 +34,9 @@ import AdminPage from './components/AdminPage';
 import CaseStudyPresentationPage from './components/CaseStudyPresentationPage';
 import AboutMeStoryPage from './components/AboutMeStoryPage';
 import AboutMeSubPages from './components/AboutMeSubPages';
-import { fetchCVData, DEFAULT_CV_DATA, EMPTY_CV_DATA, CVData, isSupabaseConfigured } from './lib/supabaseClient';
+import { fetchCVData, DEFAULT_CV_DATA, EMPTY_CV_DATA, CVData, isSupabaseConfigured, DEFAULT_WEB_TEXTS } from './lib/supabaseClient';
 import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
+import BackgroundTextures from './components/BackgroundTextures';
 
 // Helper to format unstructured phone numbers or domain strings into clean absolute hyperlinks
 function formatSocialLink(link: string | undefined, platform: string, defaultValue: string): string {
@@ -358,7 +359,8 @@ function getLocalizedCVData(cvData: CVData, lang: 'id' | 'en'): CVData {
     Object.entries(cvData.webTexts).forEach(([key, val]) => {
       if (!key.endsWith('_id') && !key.endsWith('_en') && !key.endsWith('-id') && !key.endsWith('-en')) {
         // Fallback to default Indonesian if language is ID and value is default English or not overridden
-        if (lang === 'id' && ID_TRANSLATIONS.webTexts[key] !== undefined) {
+        const isDefaultVal = val === undefined || val === null || val === "" || val === DEFAULT_WEB_TEXTS[key];
+        if (lang === 'id' && ID_TRANSLATIONS.webTexts[key] !== undefined && isDefaultVal) {
           localizedWebTexts[key] = ID_TRANSLATIONS.webTexts[key];
         } else {
           localizedWebTexts[key] = val;
@@ -1429,6 +1431,9 @@ export default function App() {
                 </div>
               );
             }
+            if (bgStyle === 'watercolor_blush' || bgStyle === 'watercolor_gold' || bgStyle === 'watercolor_pastel' || bgStyle === 'watercolor_sunset') {
+              return <BackgroundTextures type={bgStyle} theme={theme} />;
+            }
             if (bgStyle === 'custom_upload' && customBgUrl) {
               return (
                 <div 
@@ -1456,7 +1461,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                className={`font-sans font-black text-4xl sm:text-5.5xl leading-[1.1] tracking-tight mb-4 transition-colors duration-200 ${
+                className={`font-sans font-black text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl leading-[1.05] tracking-tight mb-6 transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}
               >
@@ -1477,46 +1482,24 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.35 }}
-                className={`font-sans text-base sm:text-lg mb-8 max-w-xl xl:max-w-2xl leading-relaxed text-justify whitespace-pre-line mr-auto transition-colors duration-200 ${
+                className={`font-sans text-sm sm:text-base mb-8 max-w-xl xl:max-w-2xl leading-relaxed text-justify whitespace-pre-line mr-auto transition-colors duration-200 ${
                   theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
-              </motion.p>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 25 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-                className="flex flex-col sm:flex-row gap-3"
-              >
-                <motion.button
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => scrollToSection('projects')}
-                  className={`px-6 py-3 rounded-lg font-bold hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer text-sm shadow-md select-none text-white ${
-                    theme === 'dark' 
-                      ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/30' 
-                      : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
-                  }`}
-                >
-                  View My Work
-                  <ArrowRight className="w-4 h-4 text-white" />
-                </motion.button>
-                
-                 <motion.button
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                <span>
+                  {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
+                </span>{" "}
+                <button
                   onClick={() => setCvModalOpen(true)}
-                  className={`px-6 py-3 rounded-lg font-bold transition-all text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-sm select-none ${
+                  className={`font-semibold italic underline decoration-2 underline-offset-4 cursor-pointer inline transition-colors duration-150 ${
                     theme === 'dark' 
-                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' 
-                      : 'border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50'
+                      ? 'text-blue-400 hover:text-blue-350' 
+                      : 'text-blue-600 hover:text-blue-700'
                   }`}
                 >
-                  Download Formal Resume
-                </motion.button>
-              </motion.div>
+                  {lang === 'id' ? 'Unduh resume formal saya di sini.' : 'Download my formal resume here.'}
+                </button>
+              </motion.p>
             </div>
 
             <motion.div 
