@@ -452,6 +452,10 @@ export default function App() {
   const langContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
     function handleClickOutside(event: MouseEvent) {
       if (langContainerRef.current && !langContainerRef.current.contains(event.target as Node)) {
         setShowLangConfirm(false);
@@ -497,6 +501,11 @@ export default function App() {
   const [expandedExperienceId, setExpandedExperienceId] = useState<string | null>('exp-1');
   const [activeSection, setActiveSection] = useState('home');
   const [isStoryView, setIsStoryView] = useState(false);
+  const isStoryViewRef = useRef(false);
+
+  useEffect(() => {
+    isStoryViewRef.current = isStoryView;
+  }, [isStoryView]);
   const [aboutSubPage, setAboutSubPage] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isAssetsLoaded, setIsAssetsLoaded] = useState(false);
@@ -1332,33 +1341,45 @@ export default function App() {
 
       {/* 2. MAIN GRID LAYOUT CONTENT */}
       <main className="flex-grow pt-0">
-        {isStoryView ? (
-          <AnimatePresence mode="wait">
-            {aboutSubPage ? (
-              <AboutMeSubPages 
-                key={`subpage-${aboutSubPage}`}
-                subPage={aboutSubPage}
-                cvData={activeCVData}
-                theme={theme}
-                onBackToStory={() => {
-                  navigateToPath('about-me');
-                }}
-              />
-            ) : (
-              <AboutMeStoryPage 
-                key="story-main"
-                cvData={activeCVData}
-                theme={theme}
-                onBackToMain={() => scrollToSection('home')}
-                onGoToProjects={() => scrollToSection('projects')}
-                onNavigateSubpage={(sub) => {
-                  navigateToPath(sub);
-                }}
-              />
-            )}
-          </AnimatePresence>
-        ) : (
-          <>
+        <AnimatePresence mode="wait">
+          {aboutSubPage ? (
+            <AboutMeSubPages 
+              key={`subpage-${aboutSubPage}`}
+              subPage={aboutSubPage}
+              cvData={activeCVData}
+              theme={theme}
+              onBackToStory={() => {
+                navigateToPath('about-me');
+              }}
+            />
+          ) : isStoryView ? (
+            <AboutMeStoryPage 
+              key="story-main"
+              cvData={activeCVData}
+              theme={theme}
+              onBackToMain={() => scrollToSection('home')}
+              onGoToProjects={() => scrollToSection('projects')}
+              onNavigateSubpage={(sub) => {
+                navigateToPath(sub);
+              }}
+            />
+          ) : (
+            <motion.div
+              key="home-main-sections"
+              ref={(node) => {
+                if (node) {
+                  const parsed = parseRoute();
+                  // Scroll to top instantly if no deep section anchor is active
+                  if (!parsed.activeSection || parsed.activeSection === 'home') {
+                    window.scrollTo(0, 0);
+                  }
+                }
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+            >
             {/* HERO HERO SECTION */}
         <section id="home" className={`relative min-h-[90vh] flex items-center overflow-hidden border-b transition-colors duration-250 ${
           theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
@@ -1593,7 +1614,7 @@ export default function App() {
           theme === 'dark' ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+            <div className="mb-12">
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -1601,7 +1622,7 @@ export default function App() {
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 className="max-w-3xl"
               >
-                <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
+                <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}>
                   {activeCVData.webTexts?.projects_title || "Selected Case Studies"}
@@ -1612,32 +1633,13 @@ export default function App() {
                   {activeCVData.webTexts?.projects_subtitle || "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits."}
                 </p>
               </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-                className="shrink-0"
-              >
-                <button
-                  onClick={() => {
-                    navigateToPath('projects');
-                  }}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-full font-bold text-xs tracking-wider uppercase transition-all duration-305 border shadow-md cursor-pointer select-none active:scale-98 ${
-                    theme === 'dark' 
-                      ? 'bg-emerald-655 hover:bg-emerald-500 text-white border-emerald-600 shadow-emerald-900/10' 
-                      : 'bg-slate-900 hover:bg-slate-800 text-white border-slate-950 shadow-slate-900/10'
-                  }`}
-                >
-                  <LayoutGrid className="w-4 h-4 text-emerald-450" />
-                  <span>{lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}</span>
-                </button>
-              </motion.div>
             </div>
 
-            {/* Case Studies Cards Grid */}
-            <div className={`grid ${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-8`}>
+            {/* Case Studies Container and Side Button */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
+              <div className="flex-1 min-w-0">
+                {/* Case Studies Cards Grid */}
+                <div className={`grid ${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-8`}>
               {!isSupabaseConfigured ? (
                 <div className={`p-8 rounded-xl text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
@@ -1763,6 +1765,33 @@ export default function App() {
                   </motion.div>
                   ));
                 })()
+              )}
+                </div>
+              </div>
+
+              {/* The elegant view all projects button beside the project cards container */}
+              {isSupabaseConfigured && activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
+                <motion.button
+                  whileHover={{ scale: 1.05, x: 4 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    navigateToPath('projects');
+                  }}
+                  title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                  className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl transition-all duration-200 border cursor-pointer select-none shrink-0 group ${
+                    theme === 'dark'
+                      ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md lg:w-16 lg:h-64'
+                      : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm lg:w-16 lg:h-64'
+                  }`}
+                >
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  <span className="font-mono text-[9px] font-bold tracking-widest uppercase hidden lg:block" style={{ writingMode: 'vertical-lr' }}>
+                    {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
+                  </span>
+                  <span className="font-sans text-xs font-bold tracking-wider uppercase lg:hidden">
+                    {lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                  </span>
+                </motion.button>
               )}
             </div>
 
@@ -1971,8 +2000,9 @@ export default function App() {
           </div>
         </section>
 
-          </>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* 3. PROFESSIONAL FOOTER */}

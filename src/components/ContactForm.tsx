@@ -49,6 +49,7 @@ export default function ContactForm({
   ) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (success) setSuccess(false);
   };
 
   const handleFormSubmit = (e: FormEvent) => {
@@ -78,12 +79,23 @@ export default function ContactForm({
     }
 
     setLoading(true);
+    
+    // Construct the mailto link to open the user's default email client with pre-filled content
+    const subjectLine = encodeURIComponent(formData.inquiryType.trim() ? formData.inquiryType : (lang === 'id' ? 'Kontak dari Portofolio' : 'Inquiry from Portfolio'));
+    const bodyText = encodeURIComponent(
+      `${lang === 'id' ? 'Nama' : 'Name'}: ${formData.name}\n` +
+      `${lang === 'id' ? 'Email Pengirim' : 'Sender Email'}: ${formData.email}\n\n` +
+      `${lang === 'id' ? 'Pesan' : 'Message'}:\n${formData.message}`
+    );
+    
+    const mailtoUrl = `mailto:${email}?subject=${subjectLine}&body=${bodyText}`;
 
-    // Simulate standard server-side message ingestion
     setTimeout(() => {
       setLoading(false);
       setSuccess(true);
-    }, 2400);
+      // Trigger opening the mail client
+      window.location.href = mailtoUrl;
+    }, 1200);
   };
 
   const resetForm = () => {
@@ -155,148 +167,143 @@ export default function ContactForm({
         className="lg:col-span-7"
       >
         <AnimatePresence mode="wait">
-          {success ? (
-            <motion.div 
-              key="success-card"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-emerald-50/20 dark:bg-emerald-950/20 rounded-xl border border-emerald-500/20 p-8 shadow-sm flex flex-col items-center justify-center text-center"
-            >
-              <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              
-              <h3 className="font-display text-xl font-bold text-slate-900 dark:text-white">
-                {lang === 'id' ? "Permintaan Terkirim & Diproses" : "Analysis Request Parsed"}
-              </h3>
-              
-              {/* Simulation Terminal Console logs */}
-              <div className="w-full bg-slate-950 text-slate-300 font-mono text-[11px] text-left p-4 rounded-lg mt-5 border border-slate-800 max-w-md mx-auto space-y-1 shadow-inner">
-                <div className="text-slate-500 font-bold border-b border-slate-900 pb-1 mb-2 flex justify-between">
-                  <span>{lang === 'id' ? "STATUS PIPELINE PESAN" : "INBOX PIPELINE STATUS"}</span>
-                  <span className="text-emerald-500">{lang === 'id' ? "PENGIRIMAN SELESAI" : "INGESTION COMPLETE"}</span>
-                </div>
-                <p>&gt; {lang === 'id' ? "skor analisis sentimen" : "sentiment analysis score"}: <span className="text-emerald-400">0.96 (Positive)</span></p>
-                <p>&gt; {lang === 'id' ? "klasifikasi kategori" : "category classification"}: <span className="text-blue-400">{formData.inquiryType || (lang === 'id' ? "Umum" : "General")}</span></p>
-                <p>&gt; {lang === 'id' ? "rute prioritas" : "priority routing"}: <span className="text-violet-400">P2 (Primary Exec Slack Gateway)</span></p>
-                <p>&gt; {lang === 'id' ? "antrean pengiriman target" : "target dispatch queue"}: <span className="text-amber-400">NewYork_EastCoast_Express_01</span></p>
-                <p>&gt; {lang === 'id' ? "SLA respons estimasi" : "expected response SLA"}: <span className="text-emerald-400 font-bold">{computedSla}</span></p>
-              </div>
-
-              <p className="text-slate-500 dark:text-slate-400 text-sm mt-5 leading-normal max-w-sm">
-                {lang === 'id' 
-                  ? `Terima kasih telah menghubungi saya, ${formData.name}! Pesan Anda telah divalidasi dan masuk ke dalam antrean komunikasi.`
-                  : `Thanks for connecting, ${formData.name}! Your message payload has been validated and queued in my notification routing pipeline.`
-                }
-              </p>
-
-              <button
-                onClick={resetForm}
-                className="mt-6 px-4 py-2 bg-slate-900 dark:bg-emerald-600 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 dark:hover:bg-emerald-500 transition-colors cursor-pointer"
+          <motion.form 
+            key="contact-form"
+            onSubmit={handleFormSubmit}
+            className="bg-white dark:bg-slate-900/40 p-6 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
+          >
+            {errorText && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-450 text-xs px-4 py-2.5 rounded-lg"
               >
-                {lang === 'id' ? "Kirim Pesan Lainnya" : "Send Another Inquiry"}
-              </button>
-            </motion.div>
-          ) : (
-            <motion.form 
-              key="contact-form"
-              onSubmit={handleFormSubmit}
-              className="bg-white dark:bg-slate-900/40 p-6 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
-            >
-              {errorText && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-450 text-xs px-4 py-2.5 rounded-lg"
+                <strong>{lang === 'id' ? "Kesalahan Validasi" : "Ingestion Error"}: </strong> {errorText}
+              </motion.div>
+            )}
+
+            {success && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`p-4 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                  theme === 'dark'
+                    ? 'bg-emerald-950/25 border-emerald-500/20 text-emerald-300'
+                    : 'bg-emerald-50/60 border-emerald-200 text-emerald-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>
+                    {lang === 'id' 
+                      ? "Pesan disiapkan! Aplikasi email Anda seharusnya otomatis terbuka." 
+                      : "Email prepared! Your email application should open automatically."}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const subjectLine = encodeURIComponent(formData.inquiryType.trim() ? formData.inquiryType : (lang === 'id' ? 'Kontak dari Portofolio' : 'Inquiry from Portfolio'));
+                    const bodyText = encodeURIComponent(
+                      `${lang === 'id' ? 'Nama' : 'Name'}: ${formData.name}\n` +
+                      `${lang === 'id' ? 'Email Pengirim' : 'Sender Email'}: ${formData.email}\n\n` +
+                      `${lang === 'id' ? 'Pesan' : 'Message'}:\n${formData.message}`
+                    );
+                    window.location.href = `mailto:${email}?subject=${subjectLine}&body=${bodyText}`;
+                  }}
+                  className="underline font-bold hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors cursor-pointer text-[10px] uppercase tracking-wider shrink-0"
                 >
-                  <strong>{lang === 'id' ? "Kesalahan Validasi" : "Ingestion Error"}: </strong> {errorText}
-                </motion.div>
-              )}
+                  {lang === 'id' ? "Buka Email Lagi" : "Reopen Email"}
+                </button>
+              </motion.div>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] text-slate-450 dark:text-slate-500 block uppercase font-bold">
-                    {lang === 'id' ? "Nama Lengkap" : "Full Name"}
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                    placeholder={lang === 'id' ? "Nama Anda" : "Your Name"}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] text-slate-450 dark:text-slate-500 block uppercase font-bold">
-                    {lang === 'id' ? "Alamat Email" : "Email Address"}
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                    placeholder={lang === 'id' ? "emailAnda@perusahaan.com" : "youremail@company.com"}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="font-mono text-[10px] text-slate-450 dark:text-slate-500 block uppercase font-bold">
-                  {lang === 'id' ? "Subjek" : "Subject"}
+                <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
+                  {lang === 'id' ? "Nama Lengkap" : "Full Name"}
                 </label>
                 <input
                   type="text"
-                  name="inquiryType"
-                  value={formData.inquiryType}
+                  name="name"
+                  value={formData.name}
                   onChange={handleInputChange}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                  placeholder={lang === 'id' ? "Subjek Pesan" : "Your Subject"}
+                  placeholder={lang === 'id' ? "Nama Anda" : "Your Name"}
                   disabled={loading}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="font-mono text-[10px] text-slate-450 dark:text-slate-500 block uppercase font-bold">
-                  {lang === 'id' ? "Pesan" : "Message"}
+                <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
+                  {lang === 'id' ? "Alamat Email" : "Email Address"}
                 </label>
-                <textarea
-                  name="message"
-                  value={formData.message}
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
-                  rows={4}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
-                  placeholder={lang === 'id' ? "Tulis pesan Anda di sini..." : "Write us a message"}
+                  placeholder={lang === 'id' ? "emailAnda@perusahaan.com" : "youremail@company.com"}
                   disabled={loading}
-                ></textarea>
+                />
               </div>
+            </div>
 
-              <motion.button
-                type="submit"
+            <div className="space-y-1.5">
+              <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
+                {lang === 'id' ? "Subjek" : "Subject"}
+              </label>
+              <input
+                type="text"
+                name="inquiryType"
+                value={formData.inquiryType}
+                onChange={handleInputChange}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                placeholder={lang === 'id' ? "Subjek Pesan" : "Your Subject"}
                 disabled={loading}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border dark:border-slate-700/60 text-white py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider shadow-sm select-none"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {lang === 'id' ? "Mengirim Email..." : "Sending Email..."}
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    {lang === 'id' ? "Kirim Email" : "Send Email"}
-                  </>
-                )}
-              </motion.button>
-            </motion.form>
-          )}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
+                {lang === 'id' ? "Pesan" : "Message"}
+              </label>
+              <textarea
+                name="message"
+                value={formData.message}
+                onChange={handleInputChange}
+                rows={4}
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                placeholder={lang === 'id' ? "Tulis pesan Anda di sini..." : "Write us a message"}
+                disabled={loading}
+              ></textarea>
+            </div>
+
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider shadow-md select-none ${
+                theme === 'dark'
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/80 shadow-slate-950/30'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-sm'
+              }`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {lang === 'id' ? "Mengirim Email..." : "Sending Email..."}
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  {lang === 'id' ? "Kirim Email" : "Send Email"}
+                </>
+              )}
+            </motion.button>
+          </motion.form>
         </AnimatePresence>
       </motion.div>
     </div>
