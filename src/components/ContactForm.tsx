@@ -170,7 +170,7 @@ export default function ContactForm({
           <motion.form 
             key="contact-form"
             onSubmit={handleFormSubmit}
-            className="bg-white dark:bg-slate-900/40 p-6 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
+            className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5 sm:space-y-4"
           >
             {errorText && (
               <motion.div 
@@ -218,8 +218,8 @@ export default function ContactForm({
               </motion.div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+              <div className="space-y-1 sm:space-y-1.5">
                 <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
                   {lang === 'id' ? "Nama Lengkap" : "Full Name"}
                 </label>
@@ -234,7 +234,7 @@ export default function ContactForm({
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1 sm:space-y-1.5">
                 <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
                   {lang === 'id' ? "Alamat Email" : "Email Address"}
                 </label>
@@ -250,7 +250,7 @@ export default function ContactForm({
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1 sm:space-y-1.5">
               <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
                 {lang === 'id' ? "Subjek" : "Subject"}
               </label>
@@ -265,7 +265,7 @@ export default function ContactForm({
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1 sm:space-y-1.5">
               <label className="font-mono text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-bold">
                 {lang === 'id' ? "Pesan" : "Message"}
               </label>
@@ -273,7 +273,7 @@ export default function ContactForm({
                 name="message"
                 value={formData.message}
                 onChange={handleInputChange}
-                rows={4}
+                rows={3}
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
                 placeholder={lang === 'id' ? "Tulis pesan Anda di sini..." : "Write us a message"}
                 disabled={loading}

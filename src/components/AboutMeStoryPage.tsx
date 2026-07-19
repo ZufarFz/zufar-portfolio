@@ -153,7 +153,7 @@ export default function AboutMeStoryPage({
       <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto relative z-20">
         
         {/* Symmetrical Header without background container for a clean, integrated look */}
-        <div className="text-center pt-8 pb-12 max-w-3xl mx-auto relative z-30 px-6">
+        <div className="text-center pt-8 pb-3 sm:pb-12 max-w-3xl mx-auto relative z-30 px-6">
           <motion.h1 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -165,21 +165,13 @@ export default function AboutMeStoryPage({
             {titleText}
           </motion.h1>
 
-          {/* Minimalist Golden/Emerald Underline */}
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: 64 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className={`h-0.5 mx-auto rounded mb-6 ${
-              isDark ? 'bg-emerald-400' : 'bg-amber-500'
-            }`} 
-          />
+          {/* Minimalist Golden/Emerald Underline Removed as requested */}
 
           <motion.p
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.6 }}
-            className={`font-sans text-sm sm:text-base leading-relaxed whitespace-pre-line ${
+            className={`font-sans text-[13px] sm:text-base leading-relaxed whitespace-pre-line ${
               isDark ? 'text-slate-400' : 'text-slate-600'
             }`}
           >
@@ -191,7 +183,7 @@ export default function AboutMeStoryPage({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-14 2xl:gap-18 items-stretch mt-4">
           
           {/* LEFT SIDE: Text Right Aligned on Desktop */}
-          <div className="lg:col-span-4 flex flex-col justify-between gap-8 order-2 lg:order-1 text-left lg:text-right relative z-0">
+          <div className="hidden lg:flex lg:col-span-4 flex-col justify-between gap-8 order-2 lg:order-1 text-left lg:text-right relative z-0">
             
             {/* Left Feature 1: Education Background */}
             <div className="w-full lg:translate-x-8">
@@ -298,43 +290,79 @@ export default function AboutMeStoryPage({
           <div className="lg:col-span-4 flex flex-col items-center justify-center order-1 lg:order-2 relative z-20">
             
             {/* Interactive Physics-driven Lanyard ID Card */}
-            <div className="w-full overflow-visible flex justify-center">
-              <InteractiveIDCard 
-                portraitUrl={portraitUrl}
-                name={cvData.name || 'Professional User'}
-                title={cvData.title || 'BI & Analytics Consultant'}
-                theme={theme}
-                nickname={cvData.nickname}
-                useNicknameOnCard={cvData.useNicknameOnCard}
-                cardSocials={cvData.cardSocials}
-                idCardGroup={cvData.idCardGroup}
-                idCardSubText={cvData.idCardSubText}
-                customSocials={cvData.customSocials}
-                imageScale={cvData.aboutStoryImageScale}
-                imageX={cvData.aboutStoryImageX}
-                imageY={cvData.aboutStoryImageY}
-                idCardText3={cvData.idCardText3}
-                idCardBgTextSize={cvData.idCardBgTextSize}
-                idCardSvgLight={cvData.idCardSvgLight}
-                idCardSvgDark={cvData.idCardSvgDark}
-                idCardSvgScale={cvData.idCardSvgScale}
-                idCardSvgX={cvData.idCardSvgX}
-                idCardSvgY={cvData.idCardSvgY}
-                idCardTextX={cvData.idCardTextX}
-                idCardTextY={cvData.idCardTextY}
-                idCardBadgeX={cvData.idCardBadgeX}
-                idCardBadgeY={cvData.idCardBadgeY}
-                idCardSvgs={cvData.idCardSvgs}
-                idCardPortraitFadeEnabled={cvData.idCardPortraitFadeEnabled}
-                idCardPortraitFadeStart={cvData.idCardPortraitFadeStart}
-                idCardPortraitFadeEnd={cvData.idCardPortraitFadeEnd}
-              />
+            <div className="w-full overflow-visible flex flex-col items-center">
+              <div className="w-full overflow-visible flex justify-center">
+                <InteractiveIDCard 
+                  portraitUrl={portraitUrl}
+                  name={cvData.name || 'Professional User'}
+                  title={cvData.title || 'BI & Analytics Consultant'}
+                  theme={theme}
+                  nickname={cvData.nickname}
+                  useNicknameOnCard={cvData.useNicknameOnCard}
+                  cardSocials={cvData.cardSocials}
+                  idCardGroup={cvData.idCardGroup}
+                  idCardSubText={cvData.idCardSubText}
+                  customSocials={cvData.customSocials}
+                  imageScale={cvData.aboutStoryImageScale}
+                  imageX={cvData.aboutStoryImageX}
+                  imageY={cvData.aboutStoryImageY}
+                  idCardText3={cvData.idCardText3}
+                  idCardBgTextSize={cvData.idCardBgTextSize}
+                  idCardSvgLight={cvData.idCardSvgLight}
+                  idCardSvgDark={cvData.idCardSvgDark}
+                  idCardSvgScale={cvData.idCardSvgScale}
+                  idCardSvgX={cvData.idCardSvgX}
+                  idCardSvgY={cvData.idCardSvgY}
+                  idCardTextX={cvData.idCardTextX}
+                  idCardTextY={cvData.idCardTextY}
+                  idCardBadgeX={cvData.idCardBadgeX}
+                  idCardBadgeY={cvData.idCardBadgeY}
+                  idCardSvgs={cvData.idCardSvgs}
+                  idCardPortraitFadeEnabled={cvData.idCardPortraitFadeEnabled}
+                  idCardPortraitFadeStart={cvData.idCardPortraitFadeStart}
+                  idCardPortraitFadeEnd={cvData.idCardPortraitFadeEnd}
+                />
+              </div>
+
+              {/* Mobile Only Points Grid: 2 columns, 3 rows, only title & icon, no description */}
+              <div className="lg:hidden grid grid-cols-2 gap-3 mt-12 w-full max-w-[340px] px-2">
+                {[
+                  { title: left1Title, icon: <GraduationCap className="w-4 h-4" />, path: '#/educational', colorClass: isDark ? 'text-amber-400' : 'text-amber-600', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
+                  { title: right1Title, icon: <Briefcase className="w-4 h-4" />, path: '#/career-journey', colorClass: isDark ? 'text-sky-400' : 'text-sky-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
+                  { title: left2Title, icon: <Cpu className="w-4 h-4" />, path: '#/personality', colorClass: isDark ? 'text-emerald-400' : 'text-emerald-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
+                  { title: right2Title, icon: <Sparkles className="w-4 h-4" />, path: '#/skills', colorClass: isDark ? 'text-pink-400' : 'text-pink-600', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
+                  { title: left3Title, icon: <Heart className="w-4 h-4" />, path: '#/hobbies', colorClass: isDark ? 'text-rose-400' : 'text-rose-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
+                  { title: right3Title, icon: <LayoutGrid className="w-4 h-4" />, path: '#/projects', colorClass: isDark ? 'text-orange-400' : 'text-orange-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' }
+                ].map((item, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05, duration: 0.3 }}
+                    onClick={() => handlePointClick(item.path)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-t border-r border-l cursor-pointer active:translate-y-[2.5px] transition-all duration-150 ${
+                      isDark
+                        ? 'bg-slate-900 border-white/[0.08] border-b-[3.5px] border-b-slate-950 active:border-b active:border-b-slate-900 shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-emerald-500/25'
+                        : 'bg-white border-slate-200 border-b-[3.5px] border-b-slate-300 active:border-b active:border-b-slate-200 shadow-[0_6px_14px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] hover:border-emerald-500/20'
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-lg shrink-0 ${item.colorClass} ${item.bgClass}`}>
+                      {item.icon}
+                    </div>
+                    <span className={`font-sans font-bold text-[11px] leading-tight tracking-tight line-clamp-2 ${
+                      isDark ? 'text-slate-200' : 'text-slate-800'
+                    }`}>
+                      {item.title}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
             </div>
 
           </div>
 
           {/* RIGHT SIDE: Text Left Aligned */}
-          <div className="lg:col-span-4 flex flex-col justify-between gap-8 order-3 lg:order-3 text-left relative z-0">
+          <div className="hidden lg:flex lg:col-span-4 flex-col justify-between gap-8 order-3 lg:order-3 text-left relative z-0">
             
             {/* Right Feature 1: Career Journey */}
             <div className="w-full lg:-translate-x-8">

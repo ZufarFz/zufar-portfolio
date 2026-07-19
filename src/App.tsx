@@ -21,9 +21,12 @@ import {
   Moon,
   Instagram,
   MessageCircle,
+  Home,
   Globe,
   LayoutGrid,
-  ExternalLink
+  ExternalLink,
+  Menu,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CASE_STUDIES } from './data/portfolioData';
@@ -104,7 +107,7 @@ function SocialFooterButton({ s, theme }: SocialFooterButtonProps) {
           const url = formatSocialLink(target, s.name || 'custom', '');
           window.open(url, '_blank', 'noreferrer');
         }}
-        className={`h-9 w-9 rounded-lg transition-all duration-300 border cursor-pointer flex items-center justify-center group ${
+        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-md sm:rounded-lg transition-all duration-300 border cursor-pointer flex items-center justify-center group ${
           theme === 'dark' 
             ? 'bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700 hover:text-white hover:border-slate-600' 
             : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-sm'
@@ -449,7 +452,32 @@ export default function App() {
   }, [lang]);
 
   const [showLangConfirm, setShowLangConfirm] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Lock body scroll when mobile menu drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const langContainerRef = useRef<HTMLDivElement>(null);
+  const langContainerRefMobile = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if ('scrollRestoration' in window.history) {
@@ -457,7 +485,9 @@ export default function App() {
     }
 
     function handleClickOutside(event: MouseEvent) {
-      if (langContainerRef.current && !langContainerRef.current.contains(event.target as Node)) {
+      const clickedInsideDesktop = langContainerRef.current && langContainerRef.current.contains(event.target as Node);
+      const clickedInsideMobile = langContainerRefMobile.current && langContainerRefMobile.current.contains(event.target as Node);
+      if (!clickedInsideDesktop && !clickedInsideMobile) {
         setShowLangConfirm(false);
       }
     }
@@ -502,16 +532,28 @@ export default function App() {
   const [activeSection, setActiveSection] = useState('home');
   const [isStoryView, setIsStoryView] = useState(false);
   const isStoryViewRef = useRef(false);
+  const [isAllProjectsHovered, setIsAllProjectsHovered] = useState(false);
 
   useEffect(() => {
     isStoryViewRef.current = isStoryView;
   }, [isStoryView]);
+
   const [aboutSubPage, setAboutSubPage] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isAssetsLoaded, setIsAssetsLoaded] = useState(false);
   const [elapsedMinTime, setElapsedMinTime] = useState(false);
   const [canFinishLoading, setCanFinishLoading] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
+
+  // Dynamically update document title based on profile nickname/name
+  useEffect(() => {
+    const displayName = activeCVData.nickname || activeCVData.name;
+    if (loadingProgress < 100 || !displayName) {
+      document.title = 'Portfolio';
+    } else {
+      document.title = `Portfolio ${displayName}`;
+    }
+  }, [activeCVData.nickname, activeCVData.name, loadingProgress]);
   const lastScrollY = useRef(0);
   const navbarRef = useRef<HTMLDivElement>(null);
   const [navbarWidth, setNavbarWidth] = useState(0);
@@ -561,6 +603,7 @@ export default function App() {
       } else if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
         // Scrolling down past threshold -> hide
         setIsNavVisible(false);
+        setMobileMenuOpen(false);
       } else if (currentScrollY < lastScrollY.current - 50) {
         // Scrolling up significantly -> show
         setIsNavVisible(true);
@@ -1185,126 +1228,274 @@ export default function App() {
               pointerEvents: isNavVisible ? 'auto' : 'none'
             }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed top-0 left-0 right-0 w-full z-50 bg-transparent border-none shadow-none"
+            className="hidden md:block fixed top-0 left-0 right-0 w-full z-50 bg-transparent border-none shadow-none"
           >
             <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
-              <nav ref={navbarRef} className={`w-fit ml-auto flex items-center gap-4 h-11 mt-3 px-4 rounded-2xl backdrop-blur-md transition-all duration-250 ${
+              <nav ref={navbarRef} className={`w-full md:w-fit ml-0 md:ml-auto flex items-center h-auto md:h-11 mt-2 md:mt-3 px-3 md:px-4 py-0 rounded-xl md:rounded-2xl backdrop-blur-md transition-all duration-250 ${
                 theme === 'dark' 
                   ? 'bg-slate-800/85 border-none shadow-lg shadow-black/30 text-white' 
                   : 'bg-white/85 border border-slate-200/85 shadow-md shadow-slate-100 text-slate-800'
               }`}>
-                {/* Right-aligned Navigation links & Action Controls group */}
-                <div className="flex items-center gap-4">
-                  {/* Nav links (Desktop only) */}
-                  <div className="hidden md:flex gap-1 items-center">
-                    {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
-                      const active = activeSection === section;
-                      return (
-                        <button
-                          key={section}
-                          onClick={() => scrollToSection(section)}
-                          className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3 py-1.5 rounded-full border relative ${
-                            active 
-                              ? (theme === 'dark' 
-                                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-xs' 
-                                  : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10 shadow-xs') 
-                              : (theme === 'dark' 
-                                  ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]' 
-                                  : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
-                          }`}
-                        >
-                          {section}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Language Switcher Toggle with Confirmation Overlay */}
-                    <div className="relative" ref={langContainerRef}>
-                      <button
-                        onClick={() => setShowLangConfirm(!showLangConfirm)}
-                        title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 ${
-                          theme === 'dark' 
-                            ? 'border-slate-800 text-slate-350 hover:bg-slate-800 hover:text-white' 
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-xs'
-                        } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
-                      >
-                        <Globe className="w-3 h-3 text-emerald-500" />
-                        <span className="tracking-wide uppercase">{lang}</span>
-                      </button>
-
-                      <AnimatePresence>
-                        {showLangConfirm && (
-                          <motion.div
-                            initial={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
-                            animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
-                            exit={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
-                            transition={{ duration: 0.2, ease: "easeOut" }}
-                            className={`absolute top-full right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 min-w-[260px] max-w-[300px] ${
-                              theme === 'dark'
-                                ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
-                                : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
+                {/* Responsive Navigation container */}
+                <div className="w-full">
+                  {/* DESKTOP VIEW */}
+                  <div className="hidden md:flex items-center gap-4">
+                    {/* Nav links (Desktop only) */}
+                    <div className="flex gap-1 items-center">
+                      {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
+                        const active = activeSection === section;
+                        return (
+                          <button
+                            key={section}
+                            onClick={() => scrollToSection(section)}
+                            className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3 py-1.5 rounded-full border relative ${
+                              active 
+                                ? (theme === 'dark' 
+                                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-xs' 
+                                    : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10 shadow-xs') 
+                                : (theme === 'dark' 
+                                    ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]' 
+                                    : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
                             }`}
                           >
-                            {/* Upward tiny triangle anchor */}
-                            <div className={`absolute right-6 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
-                              theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-                            }`} />
-
-                            <div className="flex flex-col gap-3">
-                              <p className="text-xs font-medium leading-relaxed">
-                                {lang === 'id' 
-                                  ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
-                                  : "Are you sure you want to change the language to Indonesian?"
-                                }
-                              </p>
-                              <div className="flex justify-end gap-2 mt-1">
-                                <button
-                                  onClick={() => setShowLangConfirm(false)}
-                                  className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                    theme === 'dark'
-                                      ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
-                                      : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
-                                  }`}
-                                >
-                                  {lang === 'id' ? "Batal" : "Cancel"}
-                                </button>
-                                <button
-                                  onClick={handleConfirmLanguageChange}
-                                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
-                                >
-                                  {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
-                                </button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                            {section}
+                          </button>
+                        );
+                      })}
                     </div>
 
-                    {/* Dynamic Theme Toggle Icon */}
-                    <button
-                      onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
-                      title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
-                      className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
-                        theme === 'dark' 
-                          ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800 hover:border-slate-700' 
-                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
-                      }`}
-                    >
-                      {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Language Switcher Toggle with Confirmation Overlay */}
+                      <div className="relative" ref={langContainerRef}>
+                        <button
+                          onClick={() => setShowLangConfirm(!showLangConfirm)}
+                          title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
+                          className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 ${
+                            theme === 'dark' 
+                              ? 'border-slate-800 text-slate-350 hover:bg-slate-800 hover:text-white' 
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-xs'
+                          } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
+                        >
+                          <Globe className="w-3 h-3 text-emerald-500" />
+                          <span className="tracking-wide uppercase">{lang}</span>
+                        </button>
+
+                        <AnimatePresence>
+                          {showLangConfirm && (
+                            <motion.div
+                              initial={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                              animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
+                              exit={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className={`absolute top-full right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 min-w-[260px] max-w-[300px] ${
+                                theme === 'dark'
+                                  ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
+                                  : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
+                              }`}
+                            >
+                              {/* Upward tiny triangle anchor */}
+                              <div className={`absolute right-6 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
+                                theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+                              }`} />
+
+                              <div className="flex flex-col gap-3">
+                                <p className="text-xs font-medium leading-relaxed">
+                                  {lang === 'id' 
+                                    ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
+                                    : "Are you sure you want to change the language to Indonesian?"
+                                  }
+                                </p>
+                                <div className="flex justify-end gap-2 mt-1">
+                                  <button
+                                    onClick={() => setShowLangConfirm(false)}
+                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                      theme === 'dark'
+                                        ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
+                                        : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                    }`}
+                                  >
+                                    {lang === 'id' ? "Batal" : "Cancel"}
+                                  </button>
+                                  <button
+                                    onClick={handleConfirmLanguageChange}
+                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
+                                  >
+                                    {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Dynamic Theme Toggle Icon */}
+                      <button
+                        onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
+                        title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
+                          theme === 'dark' 
+                            ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800 hover:border-slate-700' 
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* MOBILE VIEW */}
+                  <div className="flex md:hidden items-center justify-between w-full h-11">
+                    {/* Active menu category tag */}
+                    <span className="text-xs font-mono font-bold tracking-wider text-emerald-500 uppercase flex items-center gap-1.5">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      {activeSection}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {/* Language Switcher Toggle for Mobile */}
+                      <div className="relative" ref={langContainerRefMobile}>
+                        <button
+                          onClick={() => setShowLangConfirm(!showLangConfirm)}
+                          title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
+                          className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 ${
+                            theme === 'dark' 
+                              ? 'border-slate-800 text-slate-350 hover:bg-slate-800 hover:text-white' 
+                              : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-xs'
+                          } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
+                        >
+                          <Globe className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="tracking-wide uppercase text-[10px]">{lang}</span>
+                        </button>
+
+                        <AnimatePresence>
+                          {showLangConfirm && (
+                            <motion.div
+                              initial={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                              animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
+                              exit={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className={`absolute top-full right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 min-w-[260px] max-w-[300px] ${
+                                theme === 'dark'
+                                  ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
+                                  : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
+                              }`}
+                            >
+                              {/* Upward tiny triangle anchor */}
+                              <div className={`absolute right-6 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
+                                theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+                              }`} />
+
+                              <div className="flex flex-col gap-3">
+                                <p className="text-xs font-medium leading-relaxed">
+                                  {lang === 'id' 
+                                    ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
+                                    : "Are you sure you want to change the language to Indonesian?"
+                                  }
+                                </p>
+                                <div className="flex justify-end gap-2 mt-1">
+                                  <button
+                                    onClick={() => setShowLangConfirm(false)}
+                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                      theme === 'dark'
+                                        ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
+                                        : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                    }`}
+                                  >
+                                    {lang === 'id' ? "Batal" : "Cancel"}
+                                  </button>
+                                  <button
+                                    onClick={handleConfirmLanguageChange}
+                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
+                                  >
+                                    {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Theme Toggle Icon for Mobile */}
+                      <button
+                        onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
+                        title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
+                          theme === 'dark' 
+                            ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800' 
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                      </button>
+
+                      {/* Hamburger Button */}
+                      <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border ${
+                          theme === 'dark' 
+                            ? 'border-slate-800 text-emerald-400 hover:bg-slate-850 hover:text-white' 
+                            : 'border-slate-200 text-emerald-600 hover:bg-slate-50 hover:text-emerald-700'
+                        }`}
+                        title="Menu"
+                      >
+                        {mobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </nav>
+
+              {/* Mobile menu dropdown */}
+              <AnimatePresence>
+                {mobileMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className={`md:hidden w-full mt-2 rounded-2xl overflow-hidden border backdrop-blur-lg ${
+                      theme === 'dark'
+                        ? 'bg-slate-900/95 border-slate-800 text-white shadow-xl shadow-black/40'
+                        : 'bg-white/95 border-slate-200 text-slate-800 shadow-lg shadow-slate-100/60'
+                    }`}
+                  >
+                    <div className="flex flex-col p-3 gap-1.5">
+                      {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
+                        const active = activeSection === section;
+                        return (
+                          <button
+                            key={section}
+                            onClick={() => {
+                              scrollToSection(section);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-3 px-4 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
+                              active
+                                ? (theme === 'dark'
+                                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                    : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10')
+                                : (theme === 'dark'
+                                    ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
+                                    : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                            }`}
+                          >
+                            <span>{section}</span>
+                            {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.header>
 
           {/* Floating Down-Arrow button to show Nav when hidden */}
           <div
-            className="fixed top-0 z-50 pointer-events-none"
+            className="hidden md:block fixed top-0 z-50 pointer-events-none"
             style={{
               right: `${navbarRight + navbarWidth / 2}px`,
               transform: 'translateX(50%)'
@@ -1324,15 +1515,219 @@ export default function App() {
                     setIsNavVisible(true);
                     lastScrollY.current = window.scrollY + 150; // Delay next scroll hide
                   }}
-                  className={`pointer-events-auto w-16 h-8 flex items-center justify-center rounded-b-full rounded-t-none border-t-0 border-x border-b shadow-md backdrop-blur-md cursor-pointer transition-colors ${
+                  className={`pointer-events-auto w-12 h-6 md:w-16 md:h-8 flex items-center justify-center rounded-b-full rounded-t-none border-t-0 border-x border-b shadow-md backdrop-blur-md cursor-pointer transition-colors ${
                     theme === 'dark'
                       ? 'bg-[#0f172a]/95 border-slate-800 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800/80 shadow-black/40'
                       : 'bg-white/95 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-slate-50/80 shadow-slate-100/60'
                   }`}
                   title="Tampilkan Navigasi"
                 >
-                  <ChevronsDown className="w-4 h-4 translate-y-[-2px]" />
+                  <ChevronsDown className="w-3 h-3 md:w-4 md:h-4 translate-y-[-1px] md:translate-y-[-2px]" />
                 </motion.button>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* MOBILE VIEW NAVIGATION - FULL-WIDTH HEADER BAR */}
+          <div className="md:hidden fixed top-0 left-0 right-0 w-full z-50">
+            {/* Header Box Container - White Container with shadow */}
+            <div className={`relative z-10 flex items-center justify-between px-4 h-14 border-b shadow-sm transition-colors duration-250 ${
+              theme === 'dark' 
+                ? 'bg-slate-900 border-slate-800 text-slate-100' 
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}>
+              {/* Left Section: Menu icon on the far left, followed by the static "Portfolio" text */}
+              <div className="flex items-center gap-2">
+                {/* Hamburger Menu Toggle Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className={`p-1 flex items-center justify-center transition-colors cursor-pointer select-none ${
+                    theme === 'dark' ? 'text-slate-200 hover:text-emerald-400' : 'text-slate-800 hover:text-emerald-600'
+                  }`}
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+
+                {/* Static Portfolio Title */}
+                <span className={`font-sans font-black tracking-widest text-xs uppercase ${
+                  theme === 'dark' ? 'text-white' : 'text-black'
+                }`}>
+                  Portfolio
+                </span>
+              </div>
+
+              {/* Configurations on Right */}
+              <div className="flex items-center gap-2">
+                {/* Language button */}
+                <div ref={langContainerRefMobile} className="relative flex items-center">
+                  <button
+                    onClick={() => setShowLangConfirm(!showLangConfirm)}
+                    className={`p-1 flex items-center justify-center text-[9px] font-mono font-black uppercase transition-colors cursor-pointer select-none ${
+                      theme === 'dark' ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-800 hover:text-emerald-600'
+                    }`}
+                    title={lang === 'id' ? 'Ubah Bahasa' : 'Change Language'}
+                  >
+                    <span>{lang}</span>
+                  </button>
+
+                  <AnimatePresence>
+                    {showLangConfirm && (
+                      <motion.div
+                        initial={{ y: 5, scale: 0.95, opacity: 0 }}
+                        animate={{ y: 0, scale: 1, opacity: 1 }}
+                        exit={{ y: 5, scale: 0.95, opacity: 0 }}
+                        className={`absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-xl z-50 w-48 ${
+                          theme === 'dark'
+                            ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/80'
+                            : 'bg-white text-slate-850 border-slate-200 shadow-slate-200/80'
+                        }`}
+                      >
+                        <div className="flex flex-col gap-2">
+                          <p className="text-[10px] font-medium leading-relaxed">
+                            {lang === 'id'
+                              ? "Ganti ke Bahasa Inggris?"
+                              : "Change to Indonesian?"}
+                          </p>
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => setShowLangConfirm(false)}
+                              className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all cursor-pointer ${
+                                theme === 'dark'
+                                  ? 'text-slate-400 hover:text-white bg-slate-900'
+                                  : 'text-slate-500 hover:text-slate-800 bg-slate-50'
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleConfirmLanguageChange();
+                                setMobileMenuOpen(false);
+                              }}
+                              className="px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-600 text-white cursor-pointer"
+                            >
+                              {lang === 'id' ? "Ya" : "Yes"}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Theme Toggle Button */}
+                <button
+                  onClick={(e) => {
+                    toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e);
+                  }}
+                  className={`p-1 flex items-center justify-center transition-colors cursor-pointer select-none ${
+                    theme === 'dark' ? 'text-slate-200 hover:text-yellow-400' : 'text-slate-800 hover:text-emerald-600'
+                  }`}
+                  title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="w-3.5 h-3.5 text-yellow-500 hover:text-yellow-600" />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5 text-slate-600 hover:text-slate-950" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Menu Left Drawer */}
+            <AnimatePresence>
+              {mobileMenuOpen && (
+                <>
+                  {/* Backdrop Overlay */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="fixed inset-0 bg-black/50 backdrop-blur-xs z-40"
+                  />
+
+                  {/* Sidebar Drawer */}
+                  <motion.div
+                    initial={{ x: "-100%" }}
+                    animate={{ x: 0 }}
+                    exit={{ x: "-100%" }}
+                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    className={`fixed top-0 left-0 h-[100dvh] w-[60%] min-w-[220px] max-w-[280px] z-50 p-5 shadow-2xl flex flex-col justify-between border-r overflow-hidden ${
+                      theme === 'dark'
+                        ? 'bg-slate-950/98 border-slate-800 text-white'
+                        : 'bg-white/98 border-slate-200 text-slate-800'
+                    }`}
+                  >
+                    <div>
+                      {/* Drawer Header */}
+                      <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100 dark:border-slate-800/80">
+                        <span className={`font-sans font-black tracking-widest text-xs uppercase ${
+                          theme === 'dark' ? 'text-white' : 'text-slate-950'
+                        }`}>
+                          Portfolio
+                        </span>
+                        <button
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            theme === 'dark' ? 'hover:bg-slate-900 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
+                          }`}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Navigation links */}
+                      <div className="flex flex-col gap-1.5">
+                        {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
+                          const active = activeSection === section;
+                          const getIcon = (sec: string) => {
+                            switch(sec) {
+                              case 'home': return <Home className="w-4 h-4" />;
+                              case 'projects': return <LayoutGrid className="w-4 h-4" />;
+                              case 'skills': return <Award className="w-4 h-4" />;
+                              case 'experience': return <Briefcase className="w-4 h-4" />;
+                              case 'contact': return <MessageCircle className="w-4 h-4" />;
+                              default: return null;
+                            }
+                          };
+                          return (
+                            <button
+                              key={section}
+                              onClick={() => {
+                                scrollToSection(section);
+                                setMobileMenuOpen(false);
+                              }}
+                              className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-2.5 px-3 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
+                                active
+                                  ? (theme === 'dark'
+                                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                      : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10')
+                                  : (theme === 'dark'
+                                      ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
+                                      : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                              }`}
+                            >
+                              <span className="flex items-center gap-2.5">
+                                {getIcon(section)}
+                                {section}
+                              </span>
+                              {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Footer inside drawer */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                      <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 text-center">
+                        © 2026 • Built with React
+                      </p>
+                    </div>
+                  </motion.div>
+                </>
               )}
             </AnimatePresence>
           </div>
@@ -1476,58 +1871,50 @@ export default function App() {
             return null;
           })()}
           
-          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-12 gap-12 xl:gap-16 2xl:gap-24 relative z-10 w-full">
-            <div className="md:col-span-6 flex flex-col justify-center">
-              <motion.h1 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                className={`font-sans font-black text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl leading-[1.05] tracking-tight mb-6 transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-white' : 'text-slate-900'
-                }`}
-              >
-                {(activeCVData.webTexts?.hero_title || (isSupabaseConfigured ? "Masukkan Judul Portofolio Anda\ndi Panel Admin" : "Instalasi Database Supabase\npada Google AI Studio")).split('\n').map((line, i) => {
-                  if (line.includes("Supabase")) {
-                    return (
-                      <span key={i} className="block">
-                        {line.replace("Supabase", "")}
-                        <span className="text-emerald-600">Supabase</span>
-                      </span>
-                    );
-                  }
-                  return <span key={i} className="block">{line}</span>;
-                })}
-              </motion.h1>
-              
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.35 }}
-                className={`font-sans text-sm sm:text-base mb-8 max-w-xl xl:max-w-2xl leading-relaxed text-justify whitespace-pre-line mr-auto transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                }`}
-              >
-                <span>
-                  {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
-                </span>{" "}
-                <button
-                  onClick={() => setCvModalOpen(true)}
-                  className={`font-semibold italic underline decoration-2 underline-offset-4 cursor-pointer inline transition-colors duration-150 ${
-                    theme === 'dark' 
-                      ? 'text-blue-400 hover:text-blue-350' 
-                      : 'text-blue-600 hover:text-blue-700'
-                  }`}
-                >
-                  {lang === 'id' ? 'Unduh resume formal saya di sini.' : 'Download my formal resume here.'}
-                </button>
-              </motion.p>
-            </div>
+          <div 
+            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 md:py-20 lg:py-24 grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-16 xl:gap-x-24 gap-y-4 items-center justify-items-center md:justify-items-start text-center md:text-left relative z-10 w-full"
+            style={{
+              gridTemplateAreas: isMobile 
+                ? `"title" "image" "desc"` 
+                : `"title image" "desc image"`,
+              gridTemplateRows: isMobile 
+                ? "auto auto auto" 
+                : "auto 1fr",
+              gridTemplateColumns: isMobile
+                ? "1fr"
+                : "1.05fr 0.95fr"
+            }}
+          >
+            {/* 1. Title/Judul at the top, centered */}
+            <motion.h1 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+              style={{ gridArea: 'title' }}
+              className={`font-sans font-black text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight mb-4 md:mb-2 transition-colors duration-200 text-center md:text-left max-w-3xl md:max-w-none ${
+                theme === 'dark' ? 'text-white' : 'text-slate-900'
+              }`}
+            >
+              {(activeCVData.webTexts?.hero_title || (isSupabaseConfigured ? "Masukkan Judul Portofolio Anda\ndi Panel Admin" : "Instalasi Database Supabase\npada Google AI Studio")).split('\n').map((line, i) => {
+                if (line.includes("Supabase")) {
+                  return (
+                    <span key={i} className="block">
+                      {line.replace("Supabase", "")}
+                      <span className="text-emerald-600">Supabase</span>
+                    </span>
+                  );
+                }
+                return <span key={i} className="block">{line}</span>;
+              })}
+            </motion.h1>
 
+            {/* 2. Image/Gambar in the center */}
             <motion.div 
-              initial={{ opacity: 0, x: 40, scale: 0.96 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
+              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
-              className="md:col-span-6 hidden md:flex items-center justify-center"
+              style={{ gridArea: 'image' }}
+              className="w-full flex items-center justify-center md:justify-end mb-5 md:mb-0"
             >
               {(() => {
                 const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
@@ -1566,7 +1953,7 @@ export default function App() {
 
                 return (
                   <div 
-                    className={`relative w-full aspect-square max-w-[580px] xl:max-w-[660px] 2xl:max-w-[760px] group transition-all duration-300 ease-out hover:scale-102 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
+                    className={`relative w-full aspect-square max-w-[420px] sm:max-w-[480px] md:max-w-[500px] lg:max-w-[620px] xl:max-w-[680px] 2xl:max-w-[760px] group transition-all duration-300 ease-out hover:scale-102 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
                     onClick={() => scrollToSection('profil')}
                     title="Buka Halaman Tentang Saya (Story)"
                   >
@@ -1605,6 +1992,31 @@ export default function App() {
                 );
               })()}
             </motion.div>
+
+            {/* 3. Description/Deskripsi at the bottom, centered */}
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+              style={{ gridArea: 'desc' }}
+              className={`font-sans text-xs sm:text-base md:text-lg mb-4 md:mb-0 max-w-2xl leading-relaxed text-justify md:text-left whitespace-pre-line mx-auto md:mx-0 transition-colors duration-200 ${
+                theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
+              }`}
+            >
+              <span>
+                {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
+              </span>{" "}
+              <button
+                onClick={() => setCvModalOpen(true)}
+                className={`font-semibold italic underline decoration-2 underline-offset-4 cursor-pointer inline-block mt-2 transition-colors duration-150 ${
+                  theme === 'dark' 
+                    ? 'text-blue-400 hover:text-blue-350' 
+                    : 'text-blue-600 hover:text-blue-700'
+                }`}
+              >
+                {lang === 'id' ? 'Unduh resume formal saya di sini.' : 'Download my formal resume here.'}
+              </button>
+            </motion.p>
           </div>
         </section>
 
@@ -1622,12 +2034,12 @@ export default function App() {
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 className="max-w-3xl"
               >
-                <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight transition-colors duration-200 ${
+                <h2 className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}>
                   {activeCVData.webTexts?.projects_title || "Selected Case Studies"}
                 </h2>
-                <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
+                <p className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
                   theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                 }`}>
                   {activeCVData.webTexts?.projects_subtitle || "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits."}
@@ -1639,7 +2051,7 @@ export default function App() {
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
               <div className="flex-1 min-w-0">
                 {/* Case Studies Cards Grid */}
-                <div className={`grid ${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-8`}>
+                <div className={`${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid grid-cols-1' : 'flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-mandatory no-scrollbar pb-4 md:pb-0'} gap-6 sm:gap-8`}>
               {!isSupabaseConfigured ? (
                 <div className={`p-8 rounded-xl text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
@@ -1682,24 +2094,28 @@ export default function App() {
                     return allProjs.slice(0, 3);
                   })();
 
-                  return homeFeaturedProjects.map((study, idx) => (
+                  const mappedCards = homeFeaturedProjects.map((study, idx) => (
                   <motion.div 
                     key={study.id} 
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.05 }}
-                    transition={{ duration: 0.7, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
-                    whileHover={{ y: -8, transition: { duration: 0.25, ease: "easeOut" } }}
+                    viewport={isMobile ? undefined : { once: true, amount: 0.05 }}
+                    transition={isMobile ? { duration: 0 } : { duration: 0.7, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                    whileHover={isMobile ? undefined : { y: -8, transition: { duration: 0.25, ease: "easeOut" } }}
                     onClick={() => {
                       const url = study.projectUrl || 'https://github.com';
                       window.open(url, '_blank');
                     }}
-                    className={`bento-card rounded-xl overflow-hidden p-5 flex flex-col justify-between group transition-all cursor-pointer relative ${
+                    className={`bento-card rounded-xl overflow-hidden p-5 flex flex-col justify-between group transition-all cursor-pointer relative shrink-0 w-[82vw] sm:w-[380px] md:w-auto snap-center md:snap-align-none ${
                       theme === 'dark' ? 'bg-slate-800 border-none hover:border-emerald-500/40' : 'bg-white border border-slate-200/80 hover:border-emerald-500/30 hover:shadow-lg'
                     }`}
                     title="Click to open project link"
                   >
-                    <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600/95 text-white font-mono text-[9px] font-bold tracking-wider px-2 py-1 rounded-lg leading-none flex items-center gap-1 shadow-sm">
+                    <div className={`absolute top-2.5 right-2.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity font-mono text-[9px] font-bold tracking-wider px-2.5 py-1 rounded-lg leading-none flex items-center gap-1 border shadow-xs backdrop-blur-xs transition-all duration-200 ${
+                      theme === 'dark'
+                        ? 'bg-slate-800/90 text-slate-200 border-slate-700/50 hover:bg-slate-700'
+                        : 'bg-slate-50/90 text-slate-700 border-slate-200/50 hover:bg-slate-100'
+                    }`}>
                       <ExternalLink className="w-3 h-3" />
                       <span>OPEN</span>
                     </div>
@@ -1726,29 +2142,22 @@ export default function App() {
                         ))}
                       </div>
 
-                      <h3 className={`font-sans font-extrabold text-base sm:text-lg tracking-tight mb-2 leading-tight transition-colors duration-200 ${
+                      <h3 className={`font-sans font-extrabold text-sm sm:text-lg tracking-tight mb-2 leading-tight transition-colors duration-200 ${
                         theme === 'dark' ? 'text-white' : 'text-slate-950'
                       }`}>
                         {study.title}
                       </h3>
                       
-                      <p className={`text-xs sm:text-sm leading-relaxed mb-6 transition-colors duration-200 ${
+                      <p className={`text-[11px] sm:text-sm leading-relaxed mb-6 transition-colors duration-200 ${
                         theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                       }`}>
                         {study.description}
                       </p>
                     </div>
 
-                    <div className={`pt-4 border-t flex justify-between items-center transition-colors duration-200 ${
+                    <div className={`pt-4 border-t flex justify-end items-center transition-colors duration-200 ${
                       theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-white'
                     }`}>
-                      <span className={`font-mono text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors select-none ${
-                        theme === 'dark' ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'
-                      }`}>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Visit Project</span>
-                      </span>
-                      
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1764,6 +2173,35 @@ export default function App() {
                     </div>
                   </motion.div>
                   ));
+
+                  return (
+                    <>
+                      {mappedCards}
+                      {isSupabaseConfigured && activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
+                        <div className="md:hidden flex items-center justify-center shrink-0 pr-4 snap-center pl-2">
+                          <button
+                            onClick={() => {
+                              navigateToPath('projects');
+                            }}
+                            title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                            className={`flex flex-col items-center justify-center gap-2 w-[54px] h-[180px] rounded-xl border cursor-pointer select-none shrink-0 ${
+                              theme === 'dark'
+                                ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md'
+                                : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm'
+                            }`}
+                          >
+                            <ArrowRight className="w-4 h-4 text-emerald-500 animate-pulse shrink-0" />
+                            <span 
+                              className="font-mono text-[9px] font-bold tracking-widest uppercase text-center leading-none"
+                              style={{ writingMode: 'vertical-lr' }}
+                            >
+                              {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
                 })()
               )}
                 </div>
@@ -1771,27 +2209,43 @@ export default function App() {
 
               {/* The elegant view all projects button beside the project cards container */}
               {isSupabaseConfigured && activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
-                <motion.button
-                  whileHover={{ scale: 1.05, x: 4 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => {
-                    navigateToPath('projects');
-                  }}
-                  title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
-                  className={`flex flex-col items-center justify-center gap-2 p-5 rounded-xl transition-all duration-200 border cursor-pointer select-none shrink-0 group ${
-                    theme === 'dark'
-                      ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md lg:w-16 lg:h-64'
-                      : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm lg:w-16 lg:h-64'
-                  }`}
-                >
-                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                  <span className="font-mono text-[9px] font-bold tracking-widest uppercase hidden lg:block" style={{ writingMode: 'vertical-lr' }}>
-                    {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
-                  </span>
-                  <span className="font-sans text-xs font-bold tracking-wider uppercase lg:hidden">
-                    {lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
-                  </span>
-                </motion.button>
+                <div className="hidden md:flex justify-center items-center shrink-0 w-full lg:w-auto">
+                  <motion.button
+                    onMouseEnter={() => setIsAllProjectsHovered(true)}
+                    onMouseLeave={() => setIsAllProjectsHovered(false)}
+                    onClick={() => {
+                      navigateToPath('projects');
+                    }}
+                    title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                    animate={{
+                      height: isAllProjectsHovered ? 256 : 64,
+                      width: isAllProjectsHovered ? (window.innerWidth >= 1024 ? 64 : 180) : 64,
+                    }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    className={`flex flex-col items-center justify-center gap-3 rounded-xl border cursor-pointer select-none shrink-0 overflow-hidden ${
+                      theme === 'dark'
+                        ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md'
+                        : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm'
+                    }`}
+                  >
+                    <ArrowRight className={`w-5 h-5 transition-transform duration-300 shrink-0 ${isAllProjectsHovered ? 'rotate-90' : ''}`} />
+                    
+                    <AnimatePresence>
+                      {isAllProjectsHovered && (
+                        <motion.span
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2, ease: 'easeOut' }}
+                          className="font-mono text-[9px] font-bold tracking-widest uppercase text-center select-none shrink-0 leading-none block whitespace-nowrap"
+                          style={{ writingMode: window.innerWidth >= 1024 ? 'vertical-lr' : 'horizontal-tb' }}
+                        >
+                          {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
+                </div>
               )}
             </div>
 
@@ -1811,12 +2265,12 @@ export default function App() {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="text-center max-w-2xl mx-auto mb-12"
             >
-              <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
+              <h2 className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
                 {activeCVData.webTexts?.skills_title || "Technical Arsenal"}
               </h2>
-              <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
+              <p className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
                 {activeCVData.webTexts?.skills_subtitle || "Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters."}
@@ -1828,7 +2282,7 @@ export default function App() {
         </section>
 
         {/* CHRONOLOGY timeline SECTION */}
-        <section id="experience" className={`py-20 border-b transition-colors duration-250 ${
+        <section id="experience" className={`py-12 sm:py-20 border-b transition-colors duration-250 ${
           theme === 'dark' ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -1837,14 +2291,14 @@ export default function App() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.1 }}
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-3xl mb-12"
+              className="max-w-3xl mb-6 sm:mb-12"
             >
-              <h2 className={`font-sans font-extrabold text-3xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
+              <h2 className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}>
                 {activeCVData.webTexts?.experience_title || "Professional Journey"}
               </h2>
-              <p className={`font-sans text-sm sm:text-base mt-2 transition-colors duration-200 ${
+              <p className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`}>
                 {activeCVData.webTexts?.experience_subtitle || "Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries."}
@@ -1852,7 +2306,7 @@ export default function App() {
             </motion.div>
 
             {/* Timeline Cards */}
-            <div className="space-y-6 max-w-4xl xl:max-w-5xl">
+            <div className="space-y-3 sm:space-y-6 max-w-4xl xl:max-w-5xl">
               {!isSupabaseConfigured ? (
                 <div className={`p-8 rounded-xl border text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
@@ -1885,26 +2339,19 @@ export default function App() {
                     transition={{ duration: 0.7, delay: expIdx * 0.06, ease: [0.16, 1, 0.3, 1] }}
                     whileHover={{ scale: 1.01, transition: { duration: 0.25, ease: "easeOut" } }}
                     onClick={() => setExpandedExperienceId(isExpanded ? null : exp.id)}
-                    className={`bento-card p-5 sm:p-6 rounded-xl border cursor-pointer select-none transition-all duration-200 ${
+                    className={`bento-card p-3.5 sm:p-6 rounded-xl border cursor-pointer select-none transition-all duration-200 ${
                       isExpanded 
                         ? 'border-emerald-500/45 shadow-sm bg-emerald-500/5' 
                         : (theme === 'dark' ? 'border-slate-800 bg-slate-900/60 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300')
                     }`}
                   >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                      <div className="flex gap-4 items-center">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isExpanded 
-                            ? (theme === 'dark' ? 'bg-emerald-950 text-emerald-400' : 'bg-emerald-100 text-emerald-800') 
-                            : (theme === 'dark' ? 'bg-slate-950 text-slate-500' : 'bg-slate-100 text-slate-600')
-                        }`}>
-                          <Briefcase className="w-5 h-5" />
-                        </div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-2">
+                      <div className="flex gap-3 sm:gap-4 items-center">
                         <div>
                           <span className="font-mono text-[10px] text-slate-400 font-bold block">
                             {exp.period}
                           </span>
-                          <h4 className={`font-sans font-bold text-base sm:text-lg transition-colors ${
+                          <h4 className={`font-sans font-bold text-sm sm:text-lg transition-colors leading-tight ${
                             theme === 'dark' ? 'text-white' : 'text-slate-950'
                           }`}>
                             {exp.role} <span className="text-emerald-500 font-extrabold">@ {exp.company}</span>
@@ -1926,9 +2373,9 @@ export default function App() {
 
                         {/* toggle status indicators */}
                         {isExpanded ? (
-                          <ChevronUp className="w-5 h-5 text-slate-400 shrink-0" />
+                          <ChevronUp className="hidden sm:block w-5 h-5 text-slate-400 shrink-0" />
                         ) : (
-                          <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" />
+                          <ChevronDown className="hidden sm:block w-5 h-5 text-slate-400 shrink-0" />
                         )}
                       </div>
                     </div>
@@ -1942,11 +2389,11 @@ export default function App() {
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.3, ease: "easeInOut" }}
-                          className={`overflow-hidden mt-5 pt-4 border-t text-xs sm:text-sm transition-colors ${
+                          className={`overflow-hidden mt-3 sm:mt-5 pt-3 sm:pt-4 border-t text-xs sm:text-sm transition-colors ${
                             theme === 'dark' ? 'border-slate-800 text-slate-300' : 'border-slate-100 text-slate-600'
                           }`}
                         >
-                          <ul className="space-y-2">
+                          <ul className="space-y-1 sm:space-y-2">
                             {exp.bulletPoints.map((bullet, idx) => (
                               <motion.li 
                                 key={idx}
@@ -1956,13 +2403,13 @@ export default function App() {
                                 className="flex items-start gap-2.5"
                               >
                                 <span className="w-2 h-2 rounded bg-emerald-500 shrink-0 mt-1.5" />
-                                <span className="leading-relaxed">{bullet}</span>
+                                <span className="leading-relaxed text-justify w-full">{bullet}</span>
                               </motion.li>
                             ))}
                           </ul>
 
                           {/* Mobile stack indicators */}
-                          <div className={`flex sm:hidden flex-wrap gap-1 mt-4 pt-4 border-t ${
+                          <div className={`flex sm:hidden flex-wrap gap-1 mt-3 pt-3 sm:mt-4 sm:pt-4 border-t ${
                             theme === 'dark' ? 'border-slate-800' : 'border-slate-100'
                           }`}>
                             {exp.tools?.map((tool, idx) => (
@@ -2006,16 +2453,16 @@ export default function App() {
       </main>
 
       {/* 3. PROFESSIONAL FOOTER */}
-      <footer className={`transition-colors duration-250 py-12 border-t ${
+      <footer className={`transition-colors duration-250 py-6 sm:py-10 border-t ${
         theme === 'dark' 
           ? 'bg-slate-900 border-slate-800 text-slate-400' 
           : 'bg-white border-slate-200 text-slate-500'
       }`}>
-        <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-6">
-          <p className="font-mono text-[10px] text-slate-500 text-center sm:text-left select-none">
+        <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-6">
+          <p className="font-mono text-[9px] sm:text-[10px] text-slate-500 text-center sm:text-left select-none">
             © 2026 Data Decisions Index. Standard Vectorized Layout. All rights reserved.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Unified Social Media Icon Controls */}
             {(() => {
                const list = [...(activeCVData.customSocials || [])];

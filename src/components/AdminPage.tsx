@@ -522,29 +522,165 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
   };
 
   // 2. CASE STUDIES PROJECT MUTATORS
-  const handleAddProject = () => {
-    const list = localCV.caseStudies || [];
-    const newProj: CaseStudy = {
-      id: `proj-${Date.now()}`,
+  const getBilingualProjects = () => {
+    const flatList = localCV.caseStudies || [];
+    const baseIds = Array.from(new Set(flatList.map(item => {
+      if (item.id.endsWith('-en')) return item.id.slice(0, -3);
+      if (item.id.endsWith('-id')) return item.id.slice(0, -3);
+      return item.id;
+    }))) as string[];
+
+    return baseIds.map(baseId => {
+      let enItem = flatList.find(e => e.id === `${baseId}-en`) || flatList.find(e => e.id === baseId);
+      let idItem = flatList.find(e => e.id === `${baseId}-id`);
+
+      if (enItem && !idItem) {
+        idItem = {
+          ...enItem,
+          id: `${baseId}-id`
+        };
+      }
+
+      if (enItem && enItem.id === baseId) {
+        enItem = { ...enItem, id: `${baseId}-en` };
+      }
+
+      if (!enItem) {
+        enItem = {
+          id: `${baseId}-en`,
+          title: '',
+          category: '',
+          description: '',
+          tags: [],
+          image: '',
+          impactMetric: '',
+          tools: [],
+          slides: [],
+          projectUrl: ''
+        };
+      }
+      if (!idItem) {
+        idItem = {
+          id: `${baseId}-id`,
+          title: '',
+          category: '',
+          description: '',
+          tags: [],
+          image: '',
+          impactMetric: '',
+          tools: [],
+          slides: [],
+          projectUrl: ''
+        };
+      }
+
+      return {
+        baseId,
+        en: enItem,
+        id: idItem
+      };
+    });
+  };
+
+  const handleUpdateBilingualProj = (baseId: string, lang: 'en' | 'id', field: string, val: any) => {
+    const bilingualList = getBilingualProjects();
+    const isSharedField = ['image', 'projectUrl', 'tags', 'tools', 'slides'].includes(field);
+    const updated = bilingualList.map(item => {
+      if (item.baseId === baseId) {
+        if (isSharedField) {
+          const extraUpdate = field === 'tags' ? { tags: val, tools: val } : { [field]: val };
+          return {
+            ...item,
+            en: { ...item.en, ...extraUpdate },
+            id: { ...item.id, ...extraUpdate }
+          };
+        } else {
+          return {
+            ...item,
+            [lang]: {
+              ...item[lang],
+              [field]: val
+            }
+          };
+        }
+      }
+      return item;
+    });
+    
+    const flatList: any[] = [];
+    updated.forEach(item => {
+      flatList.push({ ...item.en, id: `${item.baseId}-en` });
+      flatList.push({ ...item.id, id: `${item.baseId}-id` });
+    });
+    updateGeneralField('caseStudies', flatList);
+  };
+
+  const handleUpdateBilingualProjBaseId = (oldBaseId: string, newBaseId: string) => {
+    const bilingualList = getBilingualProjects();
+    const updated = bilingualList.map(item => {
+      if (item.baseId === oldBaseId) {
+        return {
+          ...item,
+          baseId: newBaseId,
+          en: { ...item.en, id: `${newBaseId}-en` },
+          id: { ...item.id, id: `${newBaseId}-id` }
+        };
+      }
+      return item;
+    });
+    const flatList: any[] = [];
+    updated.forEach(item => {
+      flatList.push({ ...item.en });
+      flatList.push({ ...item.id });
+    });
+    updateGeneralField('caseStudies', flatList);
+  };
+
+  const handleAddBilingualProj = () => {
+    const baseId = `proj-${Date.now()}`;
+    const enItem = {
+      id: `${baseId}-en`,
+      title: 'New Case Study Title',
+      category: 'Analytics Category',
+      description: 'Describe how you cleaned the dataset, built SQL queries, and optimized the system.',
+      tags: ['SQL', 'Python'],
+      image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4at_MfB3KVhLLsSAvR5O74aQ77QDJm5dapXWTiarjOduQPHE1pBfcrbGjeCW7o9usfS9TX8d-Gin7Kp0dJ0WTbNDL_ZwHe_JHbcmlZw3c_EWFbdd415cMyJy6qotSUSzinHUaJ-eINpz4Gh5Pk4Rz-_Qd3bmOcuA-_hPnMZvnayUVcsWZt7S_6mV71rvlkCXIdcCNenlUaSbFdmLog6E26dnCv-_hqCx5PcV-Klbi-t7cgynNu6p_Hz2Yt_F0IKOaCPVGlRmEI4Y',
+      impactMetric: 'Optimization +20%',
+      tools: ['SQL', 'Python'],
+      slides: [],
+      projectUrl: ''
+    };
+    const idItem = {
+      id: `${baseId}-id`,
       title: 'Judul Studi Kasus Baru',
       category: 'Kategori Analisis',
       description: 'Jelaskan bagaimana Anda membersihkan dataset, menyusun query SQL, dan mengoptimalisasi sistem.',
       tags: ['SQL', 'Python'],
       image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB4at_MfB3KVhLLsSAvR5O74aQ77QDJm5dapXWTiarjOduQPHE1pBfcrbGjeCW7o9usfS9TX8d-Gin7Kp0dJ0WTbNDL_ZwHe_JHbcmlZw3c_EWFbdd415cMyJy6qotSUSzinHUaJ-eINpz4Gh5Pk4Rz-_Qd3bmOcuA-_hPnMZvnayUVcsWZt7S_6mV71rvlkCXIdcCNenlUaSbFdmLog6E26dnCv-_hqCx5PcV-Klbi-t7cgynNu6p_Hz2Yt_F0IKOaCPVGlRmEI4Y',
       impactMetric: 'Optimalisasi +20%',
-      tools: ['SQL', 'Python']
+      tools: ['SQL', 'Python'],
+      slides: [],
+      projectUrl: ''
     };
-    updateGeneralField('caseStudies', [...list, newProj]);
+
+    const flatList = [...(localCV.caseStudies || []), enItem, idItem];
+    updateGeneralField('caseStudies', flatList);
   };
 
-  const handleRemoveProject = (id: string) => {
-    const list = localCV.caseStudies || [];
-    updateGeneralField('caseStudies', list.filter(p => p.id !== id));
+  const handleRemoveBilingualProj = (baseId: string) => {
+    const flatList = localCV.caseStudies || [];
+    const filtered = flatList.filter(e => e.id !== `${baseId}-en` && e.id !== `${baseId}-id` && e.id !== baseId);
+    updateGeneralField('caseStudies', filtered);
   };
 
+  const handleAddProject = handleAddBilingualProj;
+  const handleRemoveProject = handleRemoveBilingualProj;
   const handleUpdateProjectField = (id: string, field: keyof CaseStudy, val: any) => {
-    const list = localCV.caseStudies || [];
-    updateGeneralField('caseStudies', list.map(p => p.id === id ? { ...p, [field]: val } : p));
+    const isEn = id.endsWith('-en');
+    const isId = id.endsWith('-id');
+    const baseId = isEn ? id.slice(0, -3) : isId ? id.slice(0, -3) : id;
+    const lang = isId ? 'id' : 'en';
+    handleUpdateBilingualProj(baseId, lang, field as any, val);
   };
 
   // 3. EDUCATION MUTATORS
@@ -4651,178 +4787,273 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                     <div className={`flex justify-between items-center border-b pb-3 mb-2 ${dividerColor}`}>
                       <div className="flex items-center gap-2">
                         <LayoutGrid className={`w-5 h-5 ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-655'}`} />
-                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Studi Kasus &amp; Projek Utama</h4>
+                        <h4 className={`font-bold text-sm uppercase tracking-wider ${textTitleColor}`}>Studi Kasus &amp; Projek Utama (Bilingual)</h4>
                       </div>
                       <button
                         type="button"
-                        onClick={handleAddProject}
+                        onClick={handleAddBilingualProj}
                         className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg px-3 py-1.5 text-[10px] font-bold tracking-wider cursor-pointer shadow-md select-none"
                       >
-                        <Plus className="w-3.5 h-3.5" /> TAMBAH PROJEK BARU
+                        <Plus className="w-3.5 h-3.5" /> TAMBAH PROJEK BILINGUAL
                       </button>
                     </div>
 
                     <p className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                      Bagian ini menampung deretan Projek Case Studies visual utama pada landing page website portfolio Anda.
+                      Bagian ini menampung deretan Projek Case Studies visual utama dalam Bahasa Indonesia dan Inggris.
                     </p>
 
-                    <div className="space-y-6">
-                      {(localCV.caseStudies || []).map((proj, idx) => (
-                        <div key={idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
+                    <div className="space-y-8">
+                      {getBilingualProjects().map((bProj, idx) => (
+                        <div key={bProj.baseId} className={`relative p-6 border rounded-2xl space-y-6 shadow-sm ${theme === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          {/* Trash / Delete record */}
                           <button
                             type="button"
-                            onClick={() => handleRemoveProject(proj.id)}
-                            className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
-                            title="Hapus Projek"
+                            onClick={() => {
+                              if (confirm("Apakah Anda yakin ingin menghapus projek bilingual ini?")) {
+                                handleRemoveBilingualProj(bProj.baseId);
+                              }
+                            }}
+                            className="absolute top-5 right-5 text-slate-400 hover:text-red-500 transition-colors p-1.5 hover:bg-slate-500/10 rounded-lg cursor-pointer"
+                            title="Hapus Projek ini (Bilingual)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
 
-                          <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
-                            Portfolio Projek #{idx + 1}
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Bahasa-Spesifik)</label>
-                              <input 
-                                type="text" 
-                                value={proj.id} 
-                                onChange={e => handleUpdateProjectField(proj.id, 'id', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono ${inputBgBorder}`}
-                                placeholder="e.g. proj-1-id atau proj-1-en"
-                              />
-                            </div>
-
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Projek</label>
-                              <input 
-                                type="text" 
-                                value={proj.title} 
-                                onChange={e => handleUpdateProjectField(proj.id, 'title', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                              />
-                            </div>
-
-                            <div>
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Kategori Bidang</label>
-                              <input 
-                                type="text" 
-                                value={proj.category} 
-                                onChange={e => handleUpdateProjectField(proj.id, 'category', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                          {/* Record header and badge */}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className={`text-[10px] font-bold font-mono uppercase px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/50'}`}>
+                              Record Projek #{idx + 1}
+                            </span>
+                            
+                            {/* Base ID editor */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-slate-550">ID Base:</span>
+                              <input
+                                type="text"
+                                value={bProj.baseId}
+                                onChange={(e) => handleUpdateBilingualProjBaseId(bProj.baseId, e.target.value.trim())}
+                                className={`px-2 py-0.5 rounded text-[10px] font-mono border focus:border-emerald-500 outline-none w-36 ${inputBgBorder}`}
+                                placeholder="e.g. proj-name"
                               />
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="sm:col-span-1">
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Dampak Bisnis (Impact Metric)</label>
-                              <input 
-                                type="text" 
-                                value={proj.impactMetric} 
-                                onChange={e => handleUpdateProjectField(proj.id, 'impactMetric', e.target.value)}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono font-semibold ${inputBgBorder} ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}
-                                placeholder="e.g. +24% Sales"
-                              />
-                            </div>
-
-                            <div className="sm:col-span-2">
-                              <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Tools Terpakai (Pisahkan dengan koma)</label>
-                              <input 
-                                type="text" 
-                                value={proj.tools ? proj.tools.join(', ') : ''} 
-                                onChange={e => handleUpdateProjectField(proj.id, 'tools', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
-                                placeholder="SQL, Python, PowerBI"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-2 ${textLabelColor}`}>Gambar Ilustrasi Projek (Upload File)</label>
-                            <div className={`flex flex-col sm:flex-row items-center gap-4 p-4 border rounded-lg ${theme === 'dark' ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-white'}`}>
-                              {proj.image ? (
-                                <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-700 group shrink-0">
-                                  <img 
-                                    src={proj.image} 
-                                    alt="Project Preview" 
-                                    className="w-full h-full object-cover"
+                          {/* Languages Split Side-by-Side */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                            {/* ENGLISH VERSION */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/20 border-slate-800/80' : 'bg-slate-50/50 border-slate-200'}`}>
+                              <div className="flex items-center gap-2 mb-3 pb-1 border-b border-dashed border-slate-700/10">
+                                <span className="text-xs">🇬🇧</span>
+                                <h5 className={`font-bold text-xs uppercase tracking-wider ${textTitleColor}`}>ENGLISH VERSION</h5>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Project Title (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bProj.en.title} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'title', e.target.value)}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Marketing Dashboard Optimization"
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateProjectField(proj.id, 'image', '')}
-                                    className="absolute inset-0 bg-red-650/90 text-white font-bold text-[9px] tracking-widest opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
-                                  >
-                                    HAPUS
-                                  </button>
                                 </div>
-                              ) : (
-                                <div className={`w-24 h-16 rounded-xl border border-dashed flex items-center justify-center shrink-0 text-[10px] font-mono text-center font-bold ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-350 text-slate-400'}`}>
-                                  NO IMAGE
+
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Category / Field (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bProj.en.category} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'category', e.target.value)}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Analytics / Business Intelligence"
+                                  />
                                 </div>
-                              )}
-                              <div className="flex-grow w-full text-center sm:text-left space-y-1">
-                                <input 
-                                  type="file" 
-                                  accept="image/*"
-                                  id={`project-file-input-${proj.id}`}
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      if (file.size > 2 * 1024 * 1024) {
-                                        alert("Ukuran berkas gambar maksimal 2MB.");
-                                        return;
-                                      }
-                                      try {
-                                        const url = await uploadFileToStorage(file);
-                                        handleUpdateProjectField(proj.id, 'image', url);
-                                        alert("✓ Gambar projek berhasil diunggah ke bucket 'portfolio_assets'!");
-                                      } catch (err: any) {
-                                        console.error("Gagal mengunggah ke bucket:", err);
-                                        alert(`❌ Gagal mengunggah gambar ke bucket 'portfolio_assets'. Harap pastikan bucket Anda sudah di-create di Supabase, di-set ke PUBLIC, dan memiliki kebijakan/policies RLS yang memperbolehkan upload berkas anonim/terautentikasi.\n\nDetail Error: ${err.message}`);
-                                      }
-                                    }
-                                  }}
-                                  className="hidden"
-                                />
-                                <label 
-                                  htmlFor={`project-file-input-${proj.id}`}
-                                  className={`inline-block px-4 py-2 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-800 text-slate-200 hover:text-white border-slate-750' : 'bg-slate-100 hover:bg-slate-150 text-slate-705 hover:text-slate-900 border-slate-250'}`}
-                                >
-                                  Pilih Berkas Gambar
-                                </label>
-                                <p className="text-[10px] text-slate-500 leading-normal font-mono">
-                                  Wajib terunggah ke Supabase Storage (Bucket: portfolio_assets). Maksimal file 2.0MB. PNG/JPG/WEBP.
-                                </p>
+
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Impact Metric (EN)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bProj.en.impactMetric || ''} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'impactMetric', e.target.value)}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono font-semibold ${inputBgBorder} ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}
+                                    placeholder="e.g. +15% ROI boost"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Description / Analysis (EN)</label>
+                                  <textarea 
+                                    value={bProj.en.description} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'description', e.target.value)}
+                                    rows={4}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none leading-normal border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="Describe the problem, method, and results..."
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* INDONESIAN VERSION */}
+                            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/20 border-slate-800/80' : 'bg-slate-50/50 border-slate-200'}`}>
+                              <div className="flex items-center gap-2 mb-3 pb-1 border-b border-dashed border-slate-700/10">
+                                <span className="text-xs">🇮🇩</span>
+                                <h5 className={`font-bold text-xs uppercase tracking-wider ${textTitleColor}`}>VERSI BAHASA INDONESIA</h5>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Judul Projek (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bProj.id.title} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'title', e.target.value)}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Optimalisasi Dasbor Pemasaran"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Kategori Bidang (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bProj.id.category} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'category', e.target.value)}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="e.g. Analisis / Kecerdasan Bisnis"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Metrik Dampak (ID)</label>
+                                  <input 
+                                    type="text" 
+                                    value={bProj.id.impactMetric || ''} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'impactMetric', e.target.value)}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none border focus:border-emerald-500 font-mono font-semibold ${inputBgBorder} ${theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700'}`}
+                                    placeholder="e.g. +15% peningkatan ROI"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className={`text-[10px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Deskripsi Analisis (ID)</label>
+                                  <textarea 
+                                    value={bProj.id.description} 
+                                    onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'description', e.target.value)}
+                                    rows={4}
+                                    className={`w-full px-3 py-1.5 rounded-lg text-xs outline-none leading-normal border focus:border-emerald-500 ${inputBgBorder}`}
+                                    placeholder="Jelaskan masalah, metode, dan hasilnya..."
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
 
-                          <div>
-                            <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Penjelasan Solusi Analitik</label>
-                            <textarea 
-                              value={proj.description} 
-                              onChange={e => handleUpdateProjectField(proj.id, 'description', e.target.value)}
-                              rows={4}
-                              className={`w-full px-3 py-2 rounded-lg text-xs outline-none leading-normal border focus:border-emerald-500 ${inputBgBorder}`}
-                            />
-                          </div>
+                          {/* SHARED PROPERTIES (IMAGE, TOOLS, PROJECT URL, SLIDES) */}
+                          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-900/10 border-slate-800' : 'bg-slate-50/20 border-slate-150'} space-y-4`}>
+                            <h5 className={`font-bold text-[10px] font-mono uppercase tracking-wider text-slate-500`}>Shared Project Properties (Sama untuk EN &amp; ID)</h5>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Github / Project URL</label>
+                                <input 
+                                  type="text" 
+                                  value={bProj.en.projectUrl || ''} 
+                                  onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'projectUrl', e.target.value)}
+                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                  placeholder="e.g. https://github.com/..."
+                                />
+                              </div>
 
-                          {/* PPT SLIDER DECK BUILDER */}
-                          <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-800/40' : 'border-slate-200'}`}>
-                            <PPTSlideEditor 
-                              slides={proj.slides || []}
-                              onUpdateSlides={(updatedSlides) => handleUpdateProjectField(proj.id, 'slides', updatedSlides)}
-                              theme={theme}
-                            />
+                              <div>
+                                <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Tools / Tags (Separate with comma)</label>
+                                <input 
+                                  type="text" 
+                                  value={bProj.en.tags ? bProj.en.tags.join(', ') : ''} 
+                                  onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'tags', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                  className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-emerald-500 ${inputBgBorder}`}
+                                  placeholder="SQL, Python, PowerBI"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Image Upload */}
+                            <div>
+                              <label className={`text-[10px] font-mono font-bold block uppercase mb-2 ${textLabelColor}`}>Gambar Ilustrasi Projek (Upload File)</label>
+                              <div className={`flex flex-col sm:flex-row items-center gap-4 p-4 border rounded-lg ${theme === 'dark' ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-white'}`}>
+                                {bProj.en.image ? (
+                                  <div className="relative w-24 h-16 rounded-xl overflow-hidden border border-slate-700 group shrink-0">
+                                    <img 
+                                      src={bProj.en.image} 
+                                      alt="Project Preview" 
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateBilingualProj(bProj.baseId, 'en', 'image', '')}
+                                      className="absolute inset-0 bg-red-650/90 text-white font-bold text-[9px] tracking-widest opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                                    >
+                                      HAPUS
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className={`w-24 h-16 rounded-xl border border-dashed flex items-center justify-center shrink-0 text-[10px] font-mono text-center font-bold ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-350 text-slate-400'}`}>
+                                    NO IMAGE
+                                  </div>
+                                )}
+                                <div className="flex-grow w-full text-center sm:text-left space-y-1">
+                                  <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    id={`project-file-input-${bProj.baseId}`}
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        if (file.size > 2 * 1024 * 1024) {
+                                          alert("Ukuran berkas gambar maksimal 2MB.");
+                                          return;
+                                        }
+                                        try {
+                                          const url = await uploadFileToStorage(file);
+                                          handleUpdateBilingualProj(bProj.baseId, 'en', 'image', url);
+                                          alert("✓ Gambar projek berhasil diunggah ke bucket 'portfolio_assets'!");
+                                        } catch (err: any) {
+                                          console.error("Gagal mengunggah ke bucket:", err);
+                                          alert(`❌ Gagal mengunggah gambar ke bucket 'portfolio_assets'. Harap pastikan bucket Anda sudah di-create di Supabase, di-set ke PUBLIC, dan memiliki kebijakan/policies RLS yang memperbolehkan upload berkas anonim/terautentikasi.\n\nDetail Error: ${err.message}`);
+                                        }
+                                      }
+                                    }}
+                                    className="hidden"
+                                  />
+                                  <label 
+                                    htmlFor={`project-file-input-${bProj.baseId}`}
+                                    className={`inline-block px-4 py-2 font-bold font-sans text-xs rounded-lg cursor-pointer shadow-sm active:scale-97 transition-all select-none border ${theme === 'dark' ? 'bg-slate-850 hover:bg-slate-800 text-slate-200 hover:text-white border-slate-750' : 'bg-slate-100 hover:bg-slate-150 text-slate-705 hover:text-slate-900 border-slate-250'}`}
+                                  >
+                                    Pilih Berkas Gambar
+                                  </label>
+                                  <p className="text-[10px] text-slate-500 leading-normal font-mono">
+                                    Wajib terunggah ke Supabase Storage (Bucket: portfolio_assets). Maksimal file 2.0MB. PNG/JPG/WEBP.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* PPT SLIDER DECK BUILDER */}
+                            <div className={`pt-4 border-t ${theme === 'dark' ? 'border-slate-800/40' : 'border-slate-200'}`}>
+                              <PPTSlideEditor 
+                                slides={bProj.en.slides || []}
+                                onUpdateSlides={(updatedSlides) => handleUpdateBilingualProj(bProj.baseId, 'en', 'slides', updatedSlides)}
+                                theme={theme}
+                              />
+                            </div>
                           </div>
                         </div>
                       ))}
 
-                      {(localCV.caseStudies || []).length === 0 && (
+                      {getBilingualProjects().length === 0 && (
                         <div className={`text-center py-8 border border-dashed rounded-xl font-mono text-xs select-none ${theme === 'dark' ? 'text-slate-500 border-slate-800' : 'text-slate-550 border-slate-300'}`}>
-                          Belum ada projek kustom. Silakan ketuk tombol "Tambah Projek Baru" di samping kanan atas.
+                          Belum ada projek kustom. Silakan ketuk tombol "Tambah Projek Bilingual" di samping kanan atas.
                         </div>
                       )}
                     </div>
@@ -5841,7 +6072,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                             <div className="flex flex-wrap gap-2 items-center p-3 border rounded-xl min-h-[50px] transition-all duration-200 focus-within:border-teal-505 bg-slate-950/20">
                               {(() => {
-                                const allProjs = localCV.caseStudies || [];
+                                const bProjs = getBilingualProjects();
                                 const featuredIds: string[] = (() => {
                                   try {
                                     const val = localCV.webTexts?.featured_project_ids;
@@ -5850,7 +6081,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                   if (typeof localCV.webTexts?.featured_project_ids === 'string' && localCV.webTexts.featured_project_ids) {
                                     return localCV.webTexts.featured_project_ids.split(',').map((s: string) => s.trim()).filter(Boolean);
                                   }
-                                  return allProjs.slice(0, 3).map(p => p.id);
+                                  return bProjs.slice(0, 3).map(p => p.baseId);
                                 })();
 
                                 if (featuredIds.length === 0) {
@@ -5858,8 +6089,10 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                 }
 
                                 return featuredIds.map(id => {
-                                  const proj = allProjs.find(p => p.id === id);
-                                  if (!proj) return null;
+                                  const cleanId = id.replace(/-en$|-id$/, '');
+                                  const bProj = bProjs.find(p => p.baseId === cleanId);
+                                  if (!bProj) return null;
+                                  const displayTitle = bProj.id.title || bProj.en.title || bProj.baseId;
                                   return (
                                     <span 
                                       key={id} 
@@ -5867,7 +6100,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                         theme === 'dark' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/30' : 'bg-teal-50 text-teal-700 border border-teal-200'
                                       }`}
                                     >
-                                      {proj.title}
+                                      {displayTitle}
                                       <button
                                         type="button"
                                         onClick={() => {
@@ -5893,7 +6126,7 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
 
                             <div className="flex flex-wrap gap-2">
                               {(() => {
-                                const allProjs = localCV.caseStudies || [];
+                                const bProjs = getBilingualProjects();
                                 const featuredIds: string[] = (() => {
                                   try {
                                     const val = localCV.webTexts?.featured_project_ids;
@@ -5902,25 +6135,28 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                   if (typeof localCV.webTexts?.featured_project_ids === 'string' && localCV.webTexts.featured_project_ids) {
                                     return localCV.webTexts.featured_project_ids.split(',').map((s: string) => s.trim()).filter(Boolean);
                                   }
-                                  return allProjs.slice(0, 3).map(p => p.id);
+                                  return bProjs.slice(0, 3).map(p => p.baseId);
                                 })();
 
-                                return allProjs.map(proj => {
-                                  const isSelected = featuredIds.includes(proj.id);
+                                return bProjs.map(bProj => {
+                                  const isSelected = featuredIds.includes(bProj.baseId) || 
+                                                     featuredIds.includes(`${bProj.baseId}-en`) || 
+                                                     featuredIds.includes(`${bProj.baseId}-id`);
                                   return (
                                     <button
-                                      key={proj.id}
+                                      key={bProj.baseId}
                                       type="button"
                                       onClick={() => {
                                         let nextFeatured = [...featuredIds];
-                                        if (nextFeatured.includes(proj.id)) {
-                                          nextFeatured = nextFeatured.filter(id => id !== proj.id);
+                                        const baseId = bProj.baseId;
+                                        if (nextFeatured.includes(baseId)) {
+                                          nextFeatured = nextFeatured.filter(id => id !== baseId && id !== `${baseId}-en` && id !== `${baseId}-id`);
                                         } else {
                                           if (nextFeatured.length >= 3) {
                                             alert("Maksimal 3 projek unggulan saja yang dapat ditampilkan di Beranda.");
                                             return;
                                           }
-                                          nextFeatured.push(proj.id);
+                                          nextFeatured.push(baseId);
                                         }
                                         const currentTexts = localCV.webTexts || {};
                                         setLocalCV({
@@ -5935,16 +6171,16 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                         isSelected
                                           ? 'bg-teal-600 border-teal-550 text-white shadow-xs'
                                           : theme === 'dark'
-                                            ? 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                                            ? 'bg-slate-955 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                                             : 'bg-slate-50 border-slate-200 text-slate-655 hover:bg-slate-100 hover:text-slate-900'
                                       }`}
                                     >
-                                      {proj.title} {isSelected && "✓"}
+                                      {bProj.id.title || bProj.en.title || bProj.baseId} {isSelected && "✓"}
                                     </button>
                                   );
                                 });
                               })()}
-                              {(localCV.caseStudies || []).length === 0 && (
+                              {getBilingualProjects().length === 0 && (
                                 <p className="text-xs text-slate-500 italic">Tidak ada projek tersedia. Silakan tambahkan projek baru di bawah terlebih dahulu.</p>
                               )}
                             </div>
@@ -5956,29 +6192,29 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                               <div className="flex items-center gap-2">
                                 <LayoutGrid className={`w-5 h-5 ${theme === 'dark' ? 'text-teal-400' : 'text-teal-600'}`} />
                                 <div>
-                                  <h5 className={`font-bold text-xs uppercase tracking-wider ${textTitleColor}`}>Studi Kasus &amp; Projek Utama</h5>
+                                  <h5 className={`font-bold text-xs uppercase tracking-wider ${textTitleColor}`}>Studi Kasus &amp; Projek Utama (Bilingual)</h5>
                                   <p className="text-[10px] text-slate-500 font-sans mt-0.5">
-                                    Kelola daftar semua studi kasus dan presentasi slide PPT analitik Anda di halaman kumpulan project ini.
+                                    Kelola daftar semua studi kasus dalam Bahasa Inggris dan Bahasa Indonesia pada halaman ini.
                                   </p>
                                 </div>
                               </div>
                               <button
                                 type="button"
-                                onClick={handleAddProject}
+                                onClick={handleAddBilingualProj}
                                 className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white border border-teal-550 rounded-lg px-3 py-1.8 text-[10px] font-bold tracking-wider cursor-pointer shadow-md transition-colors select-none"
                               >
-                                <Plus className="w-3.5 h-3.5" /> TAMBAH PROJEK BARU
+                                <Plus className="w-3.5 h-3.5" /> TAMBAH PROJEK BILINGUAL
                               </button>
                             </div>
 
                             <div className="space-y-6">
-                              {(localCV.caseStudies || []).map((proj, idx) => (
-                                <div key={idx} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
+                              {getBilingualProjects().map((bProj, idx) => (
+                                <div key={bProj.baseId} className={`relative p-5 border rounded-xl space-y-4 ${theme === 'dark' ? 'bg-slate-955 border-slate-800' : 'bg-slate-50 border-slate-205'}`}>
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      if (confirm("Apakah Anda yakin ingin menghapus projek ini?")) {
-                                        handleRemoveProject(proj.id);
+                                      if (confirm("Apakah Anda yakin ingin menghapus projek bilingual ini?")) {
+                                        handleRemoveBilingualProj(bProj.baseId);
                                       }
                                     }}
                                     className="absolute top-4 right-4 text-slate-500 hover:text-red-400 transition-colors p-1 cursor-pointer"
@@ -5987,73 +6223,151 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                     <Trash2 className="w-4 h-4" />
                                   </button>
 
-                                  <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10' : 'text-emerald-705 bg-emerald-50/70 border border-emerald-200/50'}`}>
-                                    Portfolio Projek #{idx + 1}
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>ID Unik (Bahasa-Spesifik)</label>
-                                      <input 
-                                        type="text" 
-                                        value={proj.id} 
-                                        onChange={e => handleUpdateProjectField(proj.id, 'id', e.target.value)}
-                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 font-mono ${inputBgBorder}`}
-                                        placeholder="e.g. proj-1-id"
-                                      />
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <div className={`text-[10px] font-bold font-mono uppercase w-fit px-2 py-0.5 rounded ${theme === 'dark' ? 'text-teal-400 bg-teal-500/10' : 'text-teal-705 bg-teal-50/70 border border-teal-200/50'}`}>
+                                      Portfolio Projek #{idx + 1}
                                     </div>
-
-                                    <div>
-                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Judul Projek</label>
-                                      <input 
-                                        type="text" 
-                                        value={proj.title} 
-                                        onChange={e => handleUpdateProjectField(proj.id, 'title', e.target.value)}
-                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-mono text-slate-500">ID Base:</span>
+                                      <input
+                                        type="text"
+                                        value={bProj.baseId}
+                                        onChange={(e) => handleUpdateBilingualProjBaseId(bProj.baseId, e.target.value.trim())}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-mono border focus:border-teal-500 outline-none w-32 ${inputBgBorder}`}
+                                        placeholder="e.g. proj-name"
                                       />
                                     </div>
                                   </div>
 
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    {/* EN VERSION */}
+                                    <div className={`p-3 rounded-lg border ${theme === 'dark' ? 'bg-slate-900/10 border-slate-800/80' : 'bg-slate-100/30 border-slate-200'}`}>
+                                      <span className="text-[10px] font-bold block uppercase mb-2 text-slate-450">🇬🇧 English</span>
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Project Title (EN)</label>
+                                          <input 
+                                            type="text" 
+                                            value={bProj.en.title} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'title', e.target.value)}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Category (EN)</label>
+                                          <input 
+                                            type="text" 
+                                            value={bProj.en.category} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'category', e.target.value)}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Impact Metric (EN)</label>
+                                          <input 
+                                            type="text" 
+                                            value={bProj.en.impactMetric || ''} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'impactMetric', e.target.value)}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 font-mono ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Description (EN)</label>
+                                          <textarea 
+                                            value={bProj.en.description} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'description', e.target.value)}
+                                            rows={3}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* ID VERSION */}
+                                    <div className={`p-3 rounded-lg border ${theme === 'dark' ? 'bg-slate-900/10 border-slate-800/80' : 'bg-slate-100/30 border-slate-200'}`}>
+                                      <span className="text-[10px] font-bold block uppercase mb-2 text-slate-450">🇮🇩 Indonesia</span>
+                                      <div className="space-y-3">
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Judul Projek (ID)</label>
+                                          <input 
+                                            type="text" 
+                                            value={bProj.id.title} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'title', e.target.value)}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Kategori Bidang (ID)</label>
+                                          <input 
+                                            type="text" 
+                                            value={bProj.id.category} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'category', e.target.value)}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Metrik Dampak (ID)</label>
+                                          <input 
+                                            type="text" 
+                                            value={bProj.id.impactMetric || ''} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'impactMetric', e.target.value)}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 font-mono ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Deskripsi Analisis (ID)</label>
+                                          <textarea 
+                                            value={bProj.id.description} 
+                                            onChange={e => handleUpdateBilingualProj(bProj.baseId, 'id', 'description', e.target.value)}
+                                            rows={3}
+                                            className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* SHARED PROPERTIES (TOOLS, IMAGE, LINK) */}
+                                  <div className={`p-3 rounded-lg border ${theme === 'dark' ? 'bg-slate-900/5 border-slate-800' : 'bg-slate-50/50 border-slate-150'} grid grid-cols-1 sm:grid-cols-3 gap-3`}>
                                     <div>
-                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>URL Github / Link Projek</label>
+                                      <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>URL Github / Link Projek</label>
                                       <input 
                                         type="text" 
-                                        value={proj.projectUrl || ''} 
-                                        onChange={e => handleUpdateProjectField(proj.id, 'projectUrl', e.target.value)}
-                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                        value={bProj.en.projectUrl || ''} 
+                                        onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'projectUrl', e.target.value)}
+                                        className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
                                         placeholder="e.g. https://github.com/..."
                                       />
                                     </div>
 
                                     <div>
-                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Tools (Pisahkan dengan koma)</label>
+                                      <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Tools / Tags (Koma)</label>
                                       <input 
                                         type="text" 
-                                        value={proj.tools ? proj.tools.join(', ') : ''} 
-                                        onChange={e => handleUpdateProjectField(proj.id, 'tools', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
-                                        className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
-                                        placeholder="e.g. SQL, Python, BigQuery"
+                                        value={bProj.en.tags ? bProj.en.tags.join(', ') : ''} 
+                                        onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'tags', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+                                        className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                        placeholder="SQL, Python, Excel"
                                       />
                                     </div>
 
                                     <div>
-                                      <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>URL Gambar Thumbnail</label>
-                                      <div className="flex gap-2">
+                                      <label className={`text-[9px] font-mono font-bold block uppercase mb-1 ${textLabelColor}`}>Thumbnail Image URL</label>
+                                      <div className="flex gap-1.5">
                                         <input 
                                           type="text" 
-                                          value={proj.image || ''} 
-                                          onChange={e => handleUpdateProjectField(proj.id, 'image', e.target.value)}
-                                          className={`w-full px-3 py-2 rounded-lg text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
+                                          value={bProj.en.image || ''} 
+                                          onChange={e => handleUpdateBilingualProj(bProj.baseId, 'en', 'image', e.target.value)}
+                                          className={`w-full px-2 py-1 rounded text-xs outline-none border focus:border-teal-500 ${inputBgBorder}`}
                                           placeholder="https://..."
                                         />
                                         <button
                                           type="button"
                                           onClick={async () => {
                                             const url = prompt("Masukkan URL gambar:");
-                                            if (url) handleUpdateProjectField(proj.id, 'image', url);
+                                            if (url) handleUpdateBilingualProj(bProj.baseId, 'en', 'image', url);
                                           }}
-                                          className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
+                                          className={`px-2 py-1 text-[10px] font-bold rounded border transition-all shrink-0 ${
                                             theme === 'dark' ? 'bg-slate-850 border-slate-700 text-slate-300 hover:text-white' : 'bg-slate-100 border-slate-205 text-slate-700 hover:bg-slate-200'
                                           }`}
                                         >
@@ -6062,22 +6376,12 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                                       </div>
                                     </div>
                                   </div>
-
-                                  <div>
-                                    <label className={`text-[10px] font-mono font-bold block uppercase mb-1.5 ${textLabelColor}`}>Deskripsi Penjelasan Solusi Analitik</label>
-                                    <textarea 
-                                      value={proj.description} 
-                                      onChange={e => handleUpdateProjectField(proj.id, 'description', e.target.value)}
-                                      rows={3}
-                                      className={`w-full px-3 py-2 rounded-lg text-xs outline-none leading-normal border focus:border-teal-500 ${inputBgBorder}`}
-                                    />
-                                  </div>
                                 </div>
                               ))}
 
-                              {(localCV.caseStudies || []).length === 0 && (
+                              {getBilingualProjects().length === 0 && (
                                 <div className={`text-center py-8 border border-dashed rounded-xl font-mono text-xs select-none ${theme === 'dark' ? 'text-slate-500 border-slate-800' : 'text-slate-550 border-slate-300'}`}>
-                                  Belum ada projek kustom. Silakan ketuk tombol "Tambah Projek Baru" di samping kanan atas.
+                                  Belum ada projek kustom. Silakan ketuk tombol "Tambah Projek Bilingual" di samping kanan atas.
                                 </div>
                               )}
                             </div>

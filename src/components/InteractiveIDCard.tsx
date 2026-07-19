@@ -84,7 +84,22 @@ export default function InteractiveIDCard({
 }: InteractiveIDCardProps) {
   const isDark = theme === 'dark';
   const activeSvg = isDark ? idCardSvgDark : idCardSvgLight;
-  const lanyardAnchorY = -1000; // Far off-screen at the upper ceiling of the browser viewport
+
+  // Determine if it is mobile screen to dynamically adjust the lanyard length
+  const [lanyardAnchorY, setLanyardAnchorY] = useState(-1000);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setLanyardAnchorY(-1400); // Scaled by 0.5, this becomes -700px, which safely extends off-screen
+      } else {
+        setLanyardAnchorY(-1000);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Helper to obtain social handles for the bottom card bar
   const getSocialIcon = (id: string) => {
@@ -121,6 +136,7 @@ export default function InteractiveIDCard({
   // Refs for zero-re-render high performance animation loop
   const ribbonStrapRef = useRef<SVGPathElement>(null);
   const ribbonStrapShadowRef = useRef<SVGPathElement>(null);
+  const ribbonStrapBorderRef = useRef<SVGPathElement>(null);
   const ribbonTextPathRef = useRef<SVGPathElement>(null);
   const gSwivelRef = useRef<SVGGElement>(null);
   const cardShadowRef = useRef<HTMLDivElement>(null);
@@ -255,7 +271,7 @@ export default function InteractiveIDCard({
     const startTime = Date.now();
     const delayMs = 150; // 0.15 seconds delay
 
-    const RestY = 115; // Realistic resting height (shorter lanyard, perfectly centered on page)
+    const RestY = window.innerWidth < 640 ? 75 : 115; // Realistic resting height (shorter lanyard, perfectly centered on page)
     const restLength = RestY - lanyardAnchorY; // Total ribbon strap length at rest
     const gravity = 1.1; // Substantially heavier gravity pulling the card down
     const damping = 0.974; // Increased air resistance damping factor (stabilizes faster)
@@ -263,6 +279,9 @@ export default function InteractiveIDCard({
     const stretchDamp = 0.28; // Increased dampener for spring oscillations
 
     const anchorX = containerWidth / 2;
+
+    let lastRibbonPath = '';
+    let lastSwivelTransform = '';
 
     const updateVisuals = (
       pX: number,
@@ -278,19 +297,29 @@ export default function InteractiveIDCard({
       const curveControlY = lanyardAnchorY + (pY - lanyardAnchorY) * 0.55;
       const ribbonPath = `M ${anchorX} ${lanyardAnchorY} Q ${curveControlX} ${curveControlY} ${anchorX + pX} ${pY - 12}`;
 
-      if (ribbonStrapRef.current) {
-        ribbonStrapRef.current.setAttribute('d', ribbonPath);
-      }
-      if (ribbonStrapShadowRef.current) {
-        ribbonStrapShadowRef.current.setAttribute('d', ribbonPath);
-      }
-      if (ribbonTextPathRef.current) {
-        ribbonTextPathRef.current.setAttribute('d', ribbonPath);
+      if (ribbonPath !== lastRibbonPath) {
+        lastRibbonPath = ribbonPath;
+        if (ribbonStrapRef.current) {
+          ribbonStrapRef.current.setAttribute('d', ribbonPath);
+        }
+        if (ribbonStrapShadowRef.current) {
+          ribbonStrapShadowRef.current.setAttribute('d', ribbonPath);
+        }
+        if (ribbonStrapBorderRef.current) {
+          ribbonStrapBorderRef.current.setAttribute('d', ribbonPath);
+        }
+        if (ribbonTextPathRef.current) {
+          ribbonTextPathRef.current.setAttribute('d', ribbonPath);
+        }
       }
 
       // 2. Swivel Group
-      if (gSwivelRef.current) {
-        gSwivelRef.current.setAttribute('transform', `translate(${pX}, ${pY})`);
+      const swivelTransform = `translate(${pX}, ${pY})`;
+      if (swivelTransform !== lastSwivelTransform) {
+        lastSwivelTransform = swivelTransform;
+        if (gSwivelRef.current) {
+          gSwivelRef.current.setAttribute('transform', swivelTransform);
+        }
       }
 
       // 3. Card Shadow (keep blur static at 8px to avoid costly browser layout repaints)
@@ -451,7 +480,7 @@ export default function InteractiveIDCard({
 
     animationFrameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isStatic, containerWidth, isDark]);
+  }, [isStatic, containerWidth, isDark, lanyardAnchorY]);
 
   // Pointer event managers (multi-touch & pointer unification)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -582,14 +611,16 @@ export default function InteractiveIDCard({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[510px] flex items-start justify-center select-none overflow-visible pt-0"
+      className="relative w-full h-[180px] sm:h-[510px] -mt-3 sm:mt-0 flex items-start justify-center select-none overflow-visible pt-0"
       style={{ perspective: '1100px' }}
     >
-      {/* 1. LANYARD STRAP CONNECTOR SVG LAYER (Sit behind card shadow) */}
-      <svg
-        className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible z-10"
-        style={{ filter: 'drop-shadow(0px 3px 6px rgba(0,0,0,0.18))' }}
-      >
+      {/* Scaling wrapper for mobile view to shrink the card by half while maintaining full functionality */}
+      <div className="w-full h-full flex items-start justify-center overflow-visible scale-[0.5] sm:scale-100 origin-top">
+        {/* 1. LANYARD STRAP CONNECTOR SVG LAYER (Sit behind card shadow) */}
+        <svg
+          className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible z-10"
+          style={{ filter: 'drop-shadow(0px 3px 6px rgba(0,0,0,0.18))' }}
+        >
         <defs>
           <linearGradient id="metalSilver" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#f8fafc" />
@@ -634,6 +665,7 @@ export default function InteractiveIDCard({
 
         {/* Fabric side borders for added stitch/texture depth */}
         <path
+          ref={ribbonStrapBorderRef}
           d={initialRibbonPath}
           stroke="#059669"
           strokeWidth="7"
@@ -736,7 +768,7 @@ export default function InteractiveIDCard({
           width: `${cardWidth}px`,
           height: '350px',
           transform: `translate3d(${initialX}px, ${initialY}px, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg)`,
-          transformStyle: 'preserve-3d',
+          transformStyle: 'flat',
           transformOrigin: 'top center',
           touchAction: 'none',
           zIndex: 30,
@@ -746,7 +778,7 @@ export default function InteractiveIDCard({
         <div
           className="w-full h-full rounded-[14px] flex flex-col items-stretch relative overflow-hidden select-none"
           style={{ 
-            transform: 'translateZ(1px)',
+            transform: 'none',
             background: activeSvg ? (isDark ? '#0d0d0f' : '#ffffff') : 'transparent',
             backgroundImage: activeSvg 
               ? (isDark 
@@ -785,9 +817,9 @@ export default function InteractiveIDCard({
             onPointerDown={(e) => handlePartDragStart(e, 'portrait')}
             onPointerMove={(e) => handlePartDragMove(e, 'portrait')}
             onPointerUp={(e) => handlePartDragEnd(e, 'portrait')}
-            className={`absolute top-[52px] left-2 right-2 bottom-[80px] flex items-center justify-center z-10 transition-all ${
+            className={`absolute top-[52px] left-2 right-2 bottom-[80px] flex items-center justify-center z-10 rounded-lg transition-colors duration-200 ${
               isStatic 
-                ? 'pointer-events-auto cursor-move select-none hover:ring-2 hover:ring-amber-500 hover:bg-amber-500/10 rounded-lg' 
+                ? 'pointer-events-auto cursor-move select-none hover:ring-2 hover:ring-amber-500 hover:bg-amber-500/10' 
                 : 'pointer-events-none'
             } ${activePart === 'portrait' ? 'ring-2 ring-amber-400 bg-amber-500/15' : ''}`}
             style={{
@@ -797,7 +829,7 @@ export default function InteractiveIDCard({
               WebkitMaskImage: idCardPortraitFadeEnabled 
                 ? `linear-gradient(to bottom, rgba(0,0,0,1) ${idCardPortraitFadeStart}%, rgba(0,0,0,0) ${idCardPortraitFadeEnd}%)`
                 : 'none',
-              transform: 'translateZ(8px)',
+              transform: 'none',
               touchAction: 'none'
             }}
           >
@@ -829,9 +861,9 @@ export default function InteractiveIDCard({
                 onPointerDown={(e) => handlePartDragStart(e, `svg-item-${svgItem.id}`)}
                 onPointerMove={(e) => handlePartDragMove(e, `svg-item-${svgItem.id}`)}
                 onPointerUp={(e) => handlePartDragEnd(e, `svg-item-${svgItem.id}`)}
-                className={`absolute transition-all select-none ${
+                className={`absolute transition-colors duration-200 select-none rounded-md p-0.5 ${
                   isStatic 
-                    ? 'pointer-events-auto cursor-move select-none hover:ring-2 hover:ring-indigo-500 hover:bg-indigo-500/10 rounded-md p-0.5' 
+                    ? 'pointer-events-auto cursor-move select-none hover:ring-2 hover:ring-indigo-500 hover:bg-indigo-500/10' 
                     : 'pointer-events-none'
                 } ${isActive ? 'ring-2 ring-indigo-400 bg-indigo-500/15' : ''}`}
                 style={{
@@ -875,5 +907,6 @@ export default function InteractiveIDCard({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

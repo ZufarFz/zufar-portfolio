@@ -15,6 +15,15 @@
   }
 }
 
+/* Scrollbar hiding utility and global browser scrollbar hiding */
+html::-webkit-scrollbar, body::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+html, body, .no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 /* No global smooth scroll to prevent distracting scroll-to-top animations on route/tab transitions */
 html {
   scroll-behavior: auto;
