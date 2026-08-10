@@ -87,6 +87,7 @@ export default function InteractiveIDCard({
 
   // Determine if it is mobile screen to dynamically adjust the lanyard length
   const [lanyardAnchorY, setLanyardAnchorY] = useState(-1000);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -99,6 +100,19 @@ export default function InteractiveIDCard({
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(() => {
+        setFontsLoaded(true);
+      }).catch(() => {
+        setFontsLoaded(true);
+      });
+    } else {
+      const timer = setTimeout(() => setFontsLoaded(true), 800);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   // Helper to obtain social handles for the bottom card bar
@@ -250,6 +264,18 @@ export default function InteractiveIDCard({
 
   const rawHoverRef = useRef({ x: 0, y: 0 });
   const smoothHoverRef = useRef({ x: 0, y: 0 });
+  const runTickRef = useRef<() => void>();
+
+  const wakeUp = () => {
+    if (isStatic) return;
+    const p = physicsRef.current;
+    if (p.isSleeping) {
+      p.isSleeping = false;
+      if (runTickRef.current) {
+        runTickRef.current();
+      }
+    }
+  };
 
   // Watch for resizing to keep the local canvas/coordinate boundaries updated
   useEffect(() => {
@@ -282,6 +308,8 @@ export default function InteractiveIDCard({
 
     let lastRibbonPath = '';
     let lastSwivelTransform = '';
+    let lastPX = -9999;
+    let lastPY = -9999;
 
     const updateVisuals = (
       pX: number,
@@ -292,24 +320,29 @@ export default function InteractiveIDCard({
       hX: number,
       hY: number
     ) => {
-      // 1. Calculate path
-      const curveControlX = anchorX + pX * 0.35;
-      const curveControlY = lanyardAnchorY + (pY - lanyardAnchorY) * 0.55;
-      const ribbonPath = `M ${anchorX} ${lanyardAnchorY} Q ${curveControlX} ${curveControlY} ${anchorX + pX} ${pY - 12}`;
+      // 1. Calculate path - Ensure perfectly fluid, continuous sub-pixel movement
+      const distMovement = Math.sqrt((pX - lastPX) * (pX - lastPX) + (pY - lastPY) * (pY - lastPY));
+      if (distMovement > 0.01 || lastRibbonPath === '') {
+        lastPX = pX;
+        lastPY = pY;
+        const curveControlX = anchorX + pX * 0.35;
+        const curveControlY = lanyardAnchorY + (pY - lanyardAnchorY) * 0.55;
+        const ribbonPath = `M ${anchorX} ${lanyardAnchorY} Q ${curveControlX} ${curveControlY} ${anchorX + pX} ${pY - 12}`;
 
-      if (ribbonPath !== lastRibbonPath) {
-        lastRibbonPath = ribbonPath;
-        if (ribbonStrapRef.current) {
-          ribbonStrapRef.current.setAttribute('d', ribbonPath);
-        }
-        if (ribbonStrapShadowRef.current) {
-          ribbonStrapShadowRef.current.setAttribute('d', ribbonPath);
-        }
-        if (ribbonStrapBorderRef.current) {
-          ribbonStrapBorderRef.current.setAttribute('d', ribbonPath);
-        }
-        if (ribbonTextPathRef.current) {
-          ribbonTextPathRef.current.setAttribute('d', ribbonPath);
+        if (ribbonPath !== lastRibbonPath) {
+          lastRibbonPath = ribbonPath;
+          if (ribbonStrapRef.current) {
+            ribbonStrapRef.current.setAttribute('d', ribbonPath);
+          }
+          if (ribbonStrapShadowRef.current) {
+            ribbonStrapShadowRef.current.setAttribute('d', ribbonPath);
+          }
+          if (ribbonStrapBorderRef.current) {
+            ribbonStrapBorderRef.current.setAttribute('d', ribbonPath);
+          }
+          if (ribbonTextPathRef.current) {
+            ribbonTextPathRef.current.setAttribute('d', ribbonPath);
+          }
         }
       }
 
@@ -345,6 +378,8 @@ export default function InteractiveIDCard({
 
     const tick = () => {
       const p = physicsRef.current;
+      const hRaw = rawHoverRef.current;
+      const hSmooth = smoothHoverRef.current;
 
       // Restrain the physics engine until the initial delay of 0.15 seconds completes
       const elapsed = Date.now() - startTime;
@@ -379,7 +414,8 @@ export default function InteractiveIDCard({
         const angleSpeed = Math.abs(p.cardAngleV);
 
         // If we are extremely close to rest and moving slowly, bypass complex physics and guide smoothly to sleep
-        if (distToRest < 5 && speed < 0.4 && angleSpeed < 0.4) {
+        const isHoverActive = Math.abs(hRaw.x) > 0.01 || Math.abs(hRaw.y) > 0.01 || Math.abs(hSmooth.x) > 0.01 || Math.abs(hSmooth.y) > 0.01;
+        if (!isHoverActive && distToRest < 4 && speed < 0.3 && angleSpeed < 0.3) {
           // Gently guide the coordinates to rest state
           p.x += (0 - p.x) * 0.15;
           p.y += (RestY - p.y) * 0.15;
@@ -452,9 +488,6 @@ export default function InteractiveIDCard({
       let finalRotateY = 0;
       let finalRotateZ = 0;
 
-      const hRaw = rawHoverRef.current;
-      const hSmooth = smoothHoverRef.current;
-
       if (!isStatic) {
         hSmooth.x += (hRaw.x - hSmooth.x) * 0.12;
         hSmooth.y += (hRaw.y - hSmooth.y) * 0.12;
@@ -475,6 +508,19 @@ export default function InteractiveIDCard({
       // Commit styling changes directly to DOM nodes (hardware-accelerated, zero-re-render animation)
       updateVisuals(p.x, p.y, finalRotateX, finalRotateY, finalRotateZ, hSmooth.x, hSmooth.y);
 
+      // Wake-up checking: stop animation loop if settled to sleep
+      const isHoverActive = Math.abs(hRaw.x) > 0.01 || Math.abs(hRaw.y) > 0.01 || Math.abs(hSmooth.x) > 0.01 || Math.abs(hSmooth.y) > 0.01;
+      if (p.isSleeping && !p.isDragging && !isHoverActive) {
+        cancelAnimationFrame(animationFrameId);
+        return;
+      }
+
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    // Store the starter function so pointer events can trigger it instantly
+    runTickRef.current = () => {
+      cancelAnimationFrame(animationFrameId);
       animationFrameId = requestAnimationFrame(tick);
     };
 
@@ -496,13 +542,15 @@ export default function InteractiveIDCard({
     const anchorX = rect.left + rect.width / 2;
     const anchorY = rect.top;
 
+    const scale = window.innerWidth < 640 ? 0.5 : 1.0;
+
     const p = physicsRef.current;
     p.isSleeping = false; // Wake up immediately!
     p.isDragging = true;
     setIsCurrentlyDragging(true);
 
-    const mouseXInContainer = e.clientX - anchorX;
-    const mouseYInContainer = e.clientY - anchorY;
+    const mouseXInContainer = (e.clientX - anchorX) / scale;
+    const mouseYInContainer = (e.clientY - anchorY) / scale;
 
     // Track offset from cursor center point to prevent annoying starting jump cuts
     p.dragStartX = mouseXInContainer - p.x;
@@ -514,6 +562,8 @@ export default function InteractiveIDCard({
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch (err) {}
+
+    wakeUp();
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -528,11 +578,13 @@ export default function InteractiveIDCard({
     const anchorX = rect.left + rect.width / 2;
     const anchorY = rect.top;
 
+    const scale = window.innerWidth < 640 ? 0.5 : 1.0;
+
     const p = physicsRef.current;
 
     if (p.isDragging) {
-      const mouseXInContainer = e.clientX - anchorX;
-      const mouseYInContainer = e.clientY - anchorY;
+      const mouseXInContainer = (e.clientX - anchorX) / scale;
+      const mouseYInContainer = (e.clientY - anchorY) / scale;
 
       // Position is bound to mouse minus grab offset
       let targetX = mouseXInContainer - p.dragStartX;
@@ -553,20 +605,24 @@ export default function InteractiveIDCard({
 
       p.x = targetX;
       p.y = targetY;
+
+      wakeUp();
     } else {
       // Calculate local coordinates relative to the stable, smooth physical card center
       const rect = container.getBoundingClientRect();
-      const cardCenterX = rect.left + rect.width / 2 + p.x;
-      const cardCenterY = rect.top + p.y + 175; // 175 is 350/2 (half of card height)
+      const cardCenterX = rect.left + rect.width / 2 + p.x * scale;
+      const cardCenterY = rect.top + p.y * scale + 175 * scale; // 175 is 350/2 (half of card height)
 
-      const relX = e.clientX - cardCenterX;
-      const relY = e.clientY - cardCenterY;
+      const relX = (e.clientX - cardCenterX) / scale;
+      const relY = (e.clientY - cardCenterY) / scale;
 
       // Normalize between -1 and 1 (with 240 width and 350 height of the card)
       rawHoverRef.current = {
         x: Math.max(-1, Math.min(1, relX / 120)), // 120 is 240/2 (half-width)
         y: Math.max(-1, Math.min(1, relY / 175)), // 175 is 350/2 (half-height)
       };
+
+      wakeUp();
     }
   };
 
@@ -582,12 +638,14 @@ export default function InteractiveIDCard({
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch (err) {}
+      wakeUp();
     }
   };
 
   const handlePointerLeave = () => {
     // Reset hover tilt quietly upon mouse leaving, physics handles card swing
     rawHoverRef.current = { x: 0, y: 0 };
+    wakeUp();
   };
 
   // Coordinates mapping
@@ -618,9 +676,18 @@ export default function InteractiveIDCard({
       <div className="w-full h-full flex items-start justify-center overflow-visible scale-[0.5] sm:scale-100 origin-top">
         {/* 1. LANYARD STRAP CONNECTOR SVG LAYER (Sit behind card shadow) */}
         <svg
+          key={fontsLoaded ? 'lanyard-loaded' : 'lanyard-loading'}
           className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible z-10"
-          style={{ filter: 'drop-shadow(0px 3px 6px rgba(0,0,0,0.18))' }}
         >
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap');
+            .lanyard-custom-text {
+              font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace !important;
+              font-weight: 800 !important;
+              font-size: 3.8px !important;
+              letter-spacing: 1px !important;
+            }
+          `}</style>
         <defs>
           <linearGradient id="metalSilver" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#f8fafc" />
@@ -639,17 +706,16 @@ export default function InteractiveIDCard({
           <path ref={ribbonTextPathRef} id="lanyardTextPath" d={initialRibbonPath} fill="none" />
         </defs>
 
-        {/* Shadow of the Ribbon Strap */}
+        {/* Shadow of the Ribbon Strap - Crisp and GPU-friendly vector shadow with no blur filter */}
         <path
           ref={ribbonStrapShadowRef}
           d={initialRibbonPath}
-          stroke="rgba(0, 0, 0, 0.22)"
-          strokeWidth="10"
+          stroke="rgba(0, 0, 0, 0.06)"
+          strokeWidth="9"
           fill="none"
           strokeLinecap="round"
           style={{
             transform: `translate(${shadowOffsetX}px, ${shadowOffsetY}px)`,
-            filter: 'blur(3px)',
           }}
         />
 
@@ -677,14 +743,31 @@ export default function InteractiveIDCard({
 
         {/* Text running down the dynamic curved fabric ribbon strap */}
         <text
+          className="lanyard-custom-text"
           fill="rgba(255, 255, 255, 0.9)"
-          fontSize="3.8"
-          fontFamily="monospace"
-          fontWeight="900"
-          letterSpacing="1"
           dy="1.3"
+          textRendering="geometricPrecision"
+          fontSize="3.8"
+          fontFamily="'JetBrains Mono', ui-monospace, SFMono-Regular, monospace"
+          fontWeight="800"
+          letterSpacing="1"
+          style={{
+            fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+            fontWeight: 800,
+            fontSize: '3.8px',
+            letterSpacing: '1px'
+          }}
         >
-          <textPath href="#lanyardTextPath" startOffset="10%" method="stretch">
+          <textPath 
+            href="#lanyardTextPath" 
+            startOffset="10%"
+            style={{
+              fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+              fontWeight: 800,
+              fontSize: '3.8px',
+              letterSpacing: '1px'
+            }}
+          >
             CREATIVE PORTFOLIO ✦ DATA STRATEGIST ✦ BI DESIGNER ✦ INNOVATOR ✦
           </textPath>
         </text>
@@ -737,6 +820,7 @@ export default function InteractiveIDCard({
           transform: `translate3d(${initialX}px, ${initialY}px, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(0.96)`,
           transformOrigin: 'top center',
           zIndex: 5,
+          willChange: 'transform',
         }}
       />
 
@@ -772,6 +856,7 @@ export default function InteractiveIDCard({
           transformOrigin: 'top center',
           touchAction: 'none',
           zIndex: 30,
+          willChange: 'transform',
         }}
       >
         {/* Inner Border Lining Plate */}

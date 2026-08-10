@@ -515,6 +515,7 @@ export default function App() {
   };
 
   const [cvModalOpen, setCvModalOpen] = useState(false);
+  const [cvModalDirectDownload, setCvModalDirectDownload] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [cvData, setCvData] = useState<CVData>(() => {
@@ -597,15 +598,15 @@ export default function App() {
     const handleScrollVisibility = () => {
       const currentScrollY = window.scrollY;
       
-      // If at the very top, always show the nav bar
+      // If at the very top of the page, keep the nav bar visible
       if (currentScrollY < 50) {
         setIsNavVisible(true);
-      } else if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
-        // Scrolling down past threshold -> hide
+      } else if (currentScrollY > lastScrollY.current + 15 && currentScrollY > 80) {
+        // Scrolling down past threshold -> hide navbar
         setIsNavVisible(false);
         setMobileMenuOpen(false);
-      } else if (currentScrollY < lastScrollY.current - 50) {
-        // Scrolling up significantly -> show
+      } else if (currentScrollY < lastScrollY.current - 20) {
+        // Scrolling up -> show navbar
         setIsNavVisible(true);
       }
       lastScrollY.current = currentScrollY;
@@ -696,6 +697,23 @@ export default function App() {
   });
 
   const toggleThemeWithAnimation = (targetTheme: 'light' | 'dark', e?: React.MouseEvent | React.TouchEvent | any) => {
+    // Keep navigation bar visible and lock scroll-hide ref during theme toggling
+    setIsNavVisible(true);
+    lastScrollY.current = window.scrollY + 200;
+
+    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+
+    // On mobile view, switch theme instantly without heavy ViewTransitions or clip-path animations for lightweight, smooth performance
+    if (isMobileViewport || !(document as any).startViewTransition) {
+      if (targetTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      setTheme(targetTheme);
+      return;
+    }
+
     let x = window.innerWidth / 2;
     let y = window.innerHeight / 2;
 
@@ -723,6 +741,9 @@ export default function App() {
       return;
     }
 
+    // Add high-performance transition optimizer class
+    document.documentElement.classList.add('in-transition');
+
     const endRadius = Math.hypot(
       Math.max(x, window.innerWidth - x),
       Math.max(y, window.innerHeight - y)
@@ -748,11 +769,16 @@ export default function App() {
           clipPath: clipPath,
         },
         {
-          duration: 480,
+          duration: isMobile ? 320 : 480,
           easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
           pseudoElement: '::view-transition-new(root)',
         }
       );
+    });
+
+    // Clean up optimization class after view transition ends
+    transition.finished.then(() => {
+      document.documentElement.classList.remove('in-transition');
     });
   };
 
@@ -1723,7 +1749,7 @@ export default function App() {
                     {/* Footer inside drawer */}
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
                       <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 text-center">
-                        © 2026 • Built with React
+                        © 2026 {activeCVData.name || 'Portfolio'}
                       </p>
                     </div>
                   </motion.div>
@@ -1812,14 +1838,22 @@ export default function App() {
             }
             if (bgStyle === 'ambient') {
               return (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-500 select-none">
+                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
                   <div 
-                    className={`absolute w-[600px] h-[600px] rounded-full blur-[140px] -right-20 -top-40 opacity-[0.25] transition-colors duration-500 ${
+                    className={`absolute rounded-full transition-colors duration-500 ${
+                      isMobile 
+                        ? 'w-[280px] h-[280px] blur-[60px] -right-10 -top-20 opacity-[0.22]' 
+                        : 'w-[600px] h-[600px] blur-[140px] -right-20 -top-40 opacity-[0.25]'
+                    } ${
                       theme === 'dark' ? 'bg-emerald-500/30' : 'bg-emerald-300/40'
                     }`}
                   />
                   <div 
-                    className={`absolute w-[500px] h-[500px] rounded-full blur-[120px] -left-20 bottom-[-100px] opacity-[0.18] transition-colors duration-500 ${
+                    className={`absolute rounded-full transition-colors duration-500 ${
+                      isMobile 
+                        ? 'w-[240px] h-[240px] blur-[50px] -left-10 bottom-[-50px] opacity-[0.15]' 
+                        : 'w-[500px] h-[500px] blur-[120px] -left-20 bottom-[-100px] opacity-[0.18]'
+                    } ${
                       theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-300/30'
                     }`}
                   />
@@ -1828,9 +1862,9 @@ export default function App() {
             }
             if (bgStyle === 'abstract') {
               return (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-500 select-none">
+                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
                   <div 
-                    className="absolute inset-0 opacity-[0.06] dark:opacity-[0.12]" 
+                    className="absolute inset-0 opacity-[0.06] dark:opacity-[0.12] transition-opacity duration-300" 
                     style={{
                       backgroundImage: `
                         repeating-linear-gradient(45deg, ${theme === 'dark' ? '#cbd5e1' : '#1e293b'} 0px, ${theme === 'dark' ? '#cbd5e1' : '#1e293b'} 1px, transparent 0, transparent 50%),
@@ -1853,7 +1887,7 @@ export default function App() {
             if (bgStyle === 'custom_upload' && customBgUrl) {
               return (
                 <div 
-                  className="absolute inset-0 pointer-events-none overflow-hidden transition-all duration-500 select-none"
+                  className="absolute inset-0 pointer-events-none overflow-hidden select-none"
                   style={{ 
                     opacity: customBgOpacity,
                     maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
@@ -1887,9 +1921,9 @@ export default function App() {
           >
             {/* 1. Title/Judul at the top, centered */}
             <motion.h1 
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: isMobile ? 12 : 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+              transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.05 : 0.2, ease: "easeOut" }}
               style={{ gridArea: 'title' }}
               className={`font-sans font-black text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight mb-4 md:mb-2 transition-colors duration-200 text-center md:text-left max-w-3xl md:max-w-none ${
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
@@ -1910,9 +1944,9 @@ export default function App() {
 
             {/* 2. Image/Gambar in the center */}
             <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.96 }}
+              initial={{ opacity: 0, y: isMobile ? 10 : 20, scale: isMobile ? 0.99 : 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
+              transition={{ duration: isMobile ? 0.45 : 0.7, ease: "easeOut", delay: isMobile ? 0.1 : 0.3 }}
               style={{ gridArea: 'image' }}
               className="w-full flex items-center justify-center md:justify-end mb-5 md:mb-0"
             >
@@ -1945,7 +1979,7 @@ export default function App() {
                   };
                 } else if (maskStyle === 'fade_glow_aura') {
                   auraGlowElement = (
-                    <div className={`absolute inset-0 rounded-full blur-3xl opacity-35 animate-pulse -z-10 ${
+                    <div className={`absolute inset-0 rounded-full blur-3xl opacity-35 -z-10 ${isMobile ? '' : 'animate-pulse'} ${
                       theme === 'dark' ? 'bg-emerald-500/35' : 'bg-emerald-600/25'
                     }`} style={{ transform: 'scale(0.85)' }} />
                   );
@@ -1995,9 +2029,9 @@ export default function App() {
 
             {/* 3. Description/Deskripsi at the bottom, centered */}
             <motion.p 
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.35 }}
+              transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.15 : 0.35, ease: "easeOut" }}
               style={{ gridArea: 'desc' }}
               className={`font-sans text-xs sm:text-base md:text-lg mb-4 md:mb-0 max-w-2xl leading-relaxed text-justify md:text-left whitespace-pre-line mx-auto md:mx-0 transition-colors duration-200 ${
                 theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
@@ -2007,7 +2041,11 @@ export default function App() {
                 {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
               </span>{" "}
               <button
-                onClick={() => setCvModalOpen(true)}
+                onClick={() => {
+                  const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+                  setCvModalDirectDownload(isMobileViewport);
+                  setCvModalOpen(true);
+                }}
                 className={`font-semibold italic underline decoration-2 underline-offset-4 cursor-pointer inline-block mt-2 transition-colors duration-150 ${
                   theme === 'dark' 
                     ? 'text-blue-400 hover:text-blue-350' 
@@ -2051,7 +2089,7 @@ export default function App() {
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
               <div className="flex-1 min-w-0">
                 {/* Case Studies Cards Grid */}
-                <div className={`${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid grid-cols-1' : 'flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-mandatory no-scrollbar pb-4 md:pb-0'} gap-6 sm:gap-8`}>
+                <div className={`${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid grid-cols-1' : 'flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-proximity no-scrollbar pb-4 md:pb-0'} gap-6 sm:gap-8`}>
               {!isSupabaseConfigured ? (
                 <div className={`p-8 rounded-xl text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
@@ -2460,7 +2498,7 @@ export default function App() {
       }`}>
         <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-6">
           <p className="font-mono text-[9px] sm:text-[10px] text-slate-500 text-center sm:text-left select-none">
-            © 2026 Data Decisions Index. Standard Vectorized Layout. All rights reserved.
+            © 2026 {activeCVData.name || 'Portfolio'}. Released under MIT License.
           </p>
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Unified Social Media Icon Controls */}
@@ -2485,6 +2523,7 @@ export default function App() {
             cvData={activeCVData} 
             onUpdate={(updated) => setCvData(updated)} 
             theme={theme}
+            directDownload={cvModalDirectDownload}
           />
         )}
       </AnimatePresence>

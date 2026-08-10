@@ -80,22 +80,32 @@ export default function ContactForm({
 
     setLoading(true);
     
-    // Construct the mailto link to open the user's default email client with pre-filled content
-    const subjectLine = encodeURIComponent(formData.inquiryType.trim() ? formData.inquiryType : (lang === 'id' ? 'Kontak dari Portofolio' : 'Inquiry from Portfolio'));
-    const bodyText = encodeURIComponent(
-      `${lang === 'id' ? 'Nama' : 'Name'}: ${formData.name}\n` +
-      `${lang === 'id' ? 'Email Pengirim' : 'Sender Email'}: ${formData.email}\n\n` +
-      `${lang === 'id' ? 'Pesan' : 'Message'}:\n${formData.message}`
-    );
+    const targetEmail = email && email.trim() ? email.trim() : '';
+    const subjectLine = formData.inquiryType.trim() 
+      ? formData.inquiryType.trim() 
+      : (formData.name.trim() 
+          ? (lang === 'id' ? `Pesan Portofolio dari ${formData.name.trim()}` : `Portfolio Inquiry from ${formData.name.trim()}`)
+          : (lang === 'id' ? 'Pesan Portofolio' : 'Portfolio Inquiry'));
     
-    const mailtoUrl = `mailto:${email}?subject=${subjectLine}&body=${bodyText}`;
+    const bodyText = formData.message.trim();
+    
+    const encodedSubject = encodeURIComponent(subjectLine);
+    const encodedBody = encodeURIComponent(bodyText);
+    const encodedEmail = encodeURIComponent(targetEmail);
+    
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodedEmail}&su=${encodedSubject}&body=${encodedBody}`;
 
     setTimeout(() => {
       setLoading(false);
       setSuccess(true);
-      // Trigger opening the mail client
-      window.location.href = mailtoUrl;
-    }, 1200);
+      
+      // Directly open Gmail web composer pre-filled with all form data
+      const win = window.open(gmailUrl, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        // Fallback to location redirect if popup blocker prevented window.open
+        window.location.href = gmailUrl;
+      }
+    }, 500);
   };
 
   const resetForm = () => {
@@ -135,8 +145,13 @@ export default function ContactForm({
                 <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 block uppercase font-bold">
                   {lang === 'id' ? "Saluran Email" : "Email Channel"}
                 </span>
-                <a href={`mailto:${email}`} className="font-sans font-semibold text-sm hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
-                  {email}
+                <a 
+                  href={email && email.trim() ? `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email.trim())}` : '#'} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="font-sans font-semibold text-sm hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
+                >
+                  {email || '-'}
                 </a>
               </div>
             </div>
@@ -196,25 +211,29 @@ export default function ContactForm({
                   <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>
                     {lang === 'id' 
-                      ? "Pesan disiapkan! Aplikasi email Anda seharusnya otomatis terbuka." 
-                      : "Email prepared! Your email application should open automatically."}
+                      ? "Membuka Gmail dengan pesan terisi! Jika tidak terbuka otomatis, klik tombol Buka Gmail:" 
+                      : "Opening Gmail with pre-filled message! If it didn't open automatically, click Open Gmail:"}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const subjectLine = encodeURIComponent(formData.inquiryType.trim() ? formData.inquiryType : (lang === 'id' ? 'Kontak dari Portofolio' : 'Inquiry from Portfolio'));
-                    const bodyText = encodeURIComponent(
-                      `${lang === 'id' ? 'Nama' : 'Name'}: ${formData.name}\n` +
-                      `${lang === 'id' ? 'Email Pengirim' : 'Sender Email'}: ${formData.email}\n\n` +
-                      `${lang === 'id' ? 'Pesan' : 'Message'}:\n${formData.message}`
-                    );
-                    window.location.href = `mailto:${email}?subject=${subjectLine}&body=${bodyText}`;
-                  }}
-                  className="underline font-bold hover:text-emerald-600 dark:hover:text-emerald-300 transition-colors cursor-pointer text-[10px] uppercase tracking-wider shrink-0"
-                >
-                  {lang === 'id' ? "Buka Email Lagi" : "Reopen Email"}
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetEmail = email && email.trim() ? email.trim() : '';
+                      const subjectLine = formData.inquiryType.trim() 
+                        ? formData.inquiryType.trim() 
+                        : (formData.name.trim() 
+                            ? (lang === 'id' ? `Pesan Portofolio dari ${formData.name.trim()}` : `Portfolio Inquiry from ${formData.name.trim()}`)
+                            : (lang === 'id' ? 'Pesan Portofolio' : 'Portfolio Inquiry'));
+                      const bodyText = formData.message.trim();
+                      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(targetEmail)}&su=${encodeURIComponent(subjectLine)}&body=${encodeURIComponent(bodyText)}`;
+                      window.open(gmailUrl, '_blank');
+                    }}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold transition-colors cursor-pointer text-[10px] uppercase tracking-wider"
+                  >
+                    {lang === 'id' ? "Buka Gmail" : "Open Gmail"}
+                  </button>
+                </div>
               </motion.div>
             )}
 
@@ -228,7 +247,11 @@ export default function ContactForm({
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                  className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
+                      : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                  }`}
                   placeholder={lang === 'id' ? "Nama Anda" : "Your Name"}
                   disabled={loading}
                 />
@@ -243,7 +266,11 @@ export default function ContactForm({
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                  className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
+                      : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                  }`}
                   placeholder={lang === 'id' ? "emailAnda@perusahaan.com" : "youremail@company.com"}
                   disabled={loading}
                 />
@@ -259,7 +286,11 @@ export default function ContactForm({
                 name="inquiryType"
                 value={formData.inquiryType}
                 onChange={handleInputChange}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
+                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                }`}
                 placeholder={lang === 'id' ? "Subjek Pesan" : "Your Subject"}
                 disabled={loading}
               />
@@ -274,7 +305,11 @@ export default function ContactForm({
                 value={formData.message}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600 text-slate-800 dark:text-slate-100"
+                className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
+                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                }`}
                 placeholder={lang === 'id' ? "Tulis pesan Anda di sini..." : "Write us a message"}
                 disabled={loading}
               ></textarea>

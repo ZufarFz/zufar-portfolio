@@ -163,10 +163,10 @@ export default function AboutMeSubPages({
       let w = 484;
       if (window.innerWidth < 640) {
         setThumbWidth(80);
-        w = 176;
+        w = Math.max(160, window.innerWidth - 136);
       } else if (window.innerWidth < 768) {
         setThumbWidth(80);
-        w = 266;
+        w = Math.max(240, window.innerWidth - 152);
       } else if (window.innerWidth < 1024) {
         setThumbWidth(90);
         w = 296;
@@ -1175,27 +1175,27 @@ export default function AboutMeSubPages({
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="relative h-[480px] sm:h-[540px] md:h-[600px] lg:h-[650px] xl:h-[700px] flex flex-col justify-end py-6 md:py-8"
+              className="relative h-auto md:h-[600px] lg:h-[650px] xl:h-[700px] flex flex-col justify-end py-4 md:py-8"
             >
               {/* Foreground content wrapper */}
-              <div className="relative z-10 w-full h-full flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4 md:gap-6 lg:gap-8 xl:gap-12 my-auto">
+              <div className="relative z-10 w-full h-full flex flex-col md:flex-row items-stretch md:items-end justify-between gap-6 md:gap-6 lg:gap-8 xl:gap-12 my-auto">
                 {/* Left Side: Selected Project Details */}
                 <div className="w-full md:flex-1 md:min-w-0 flex flex-col justify-end items-start text-left gap-4 md:self-end">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeProject.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.35 }}
-                      className={`space-y-4 p-6 sm:p-8 md:p-10 rounded-3xl backdrop-blur-lg border w-full h-[420px] sm:h-[480px] md:h-[540px] lg:h-[590px] xl:h-[640px] flex flex-col justify-between overflow-y-auto scrollbar-none ${
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.35, ease: "easeOut" }}
+                      className={`space-y-5 p-5 sm:p-8 md:p-10 rounded-3xl backdrop-blur-lg border w-full h-[480px] sm:h-[520px] md:h-[540px] lg:h-[590px] xl:h-[640px] flex flex-col justify-between overflow-y-auto scrollbar-none shadow-2xl ${
                         isDark 
-                          ? 'bg-slate-950/40 border-white/10 shadow-2xl shadow-slate-950/60' 
-                          : 'bg-white/45 border-slate-200/60 shadow-2xl shadow-slate-200/40'
+                          ? 'bg-slate-950/40 border-white/10 shadow-slate-950/60' 
+                          : 'bg-white/45 border-slate-200/60 shadow-slate-200/40'
                       }`}
                     >
                       <div className="space-y-4">
-                        <h2 className={`text-3xl sm:text-4xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-sans font-black tracking-tight leading-none ${
+                        <h2 className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-sans font-black tracking-tight leading-tight ${
                           isDark ? 'text-white' : 'text-slate-900'
                         }`}>
                           {activeProject.title}
@@ -1252,10 +1252,10 @@ export default function AboutMeSubPages({
                 </div>
 
                 {/* Right Side: Thumbnail Slider Gallery ("kotak2 kecil gambar project") */}
-                <div className="w-full md:w-auto flex flex-col justify-end items-stretch md:items-end gap-3 z-30 md:self-end shrink-0">
+                <div className="w-full md:w-auto flex flex-col justify-end items-stretch md:items-end gap-3 z-30 md:self-end shrink-0 pt-4 md:pt-0">
                   {N > 1 && (
                     <>
-                      <div className="flex items-center gap-2 w-full md:justify-end md:items-end">
+                      <div className="flex items-center justify-between md:justify-end gap-2 w-full md:items-end">
                         {/* Left Arrow Button (Sebelumnya) */}
                         <button
                           onClick={() => {

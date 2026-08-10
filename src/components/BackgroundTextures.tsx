@@ -6,8 +6,21 @@ interface BackgroundTexturesProps {
 }
 
 export default function BackgroundTextures({ type, theme }: BackgroundTexturesProps) {
+  // Dynamically detect mobile view to disable heavy real-time SVG turbulence/pulse animations
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Common container with smooth transition
-  const baseClass = "absolute inset-0 pointer-events-none overflow-hidden transition-all duration-500 select-none z-0";
+  const baseClass = `absolute inset-0 pointer-events-none overflow-hidden select-none z-0 ${
+    isMobile ? 'transition-opacity duration-200' : 'transition-all duration-500'
+  }`;
 
   const isDark = theme === 'dark';
 
@@ -18,12 +31,14 @@ export default function BackgroundTextures({ type, theme }: BackgroundTexturesPr
     case 'watercolor_blush':
       return (
         <div className={`${baseClass} ${opacityMultiplier}`}>
-          {/* Paper texture overlay simulation using SVG turbulence */}
-          <div className="absolute inset-0 opacity-[0.035] mix-blend-overlay bg-repeat" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
+          {/* Paper texture overlay simulation using SVG turbulence - Completely skipped on mobile */}
+          {!isMobile && (
+            <div className="absolute inset-0 opacity-[0.035] mix-blend-overlay bg-repeat" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
+          )}
           
           {/* Soft watercolor blob 1 */}
           <div 
-            className="absolute w-[45%] h-[55%] rounded-full blur-[90px] -left-[10%] -top-[10%] animate-pulse"
+            className={`absolute w-[45%] h-[55%] rounded-full blur-[90px] -left-[10%] -top-[10%] ${isMobile ? '' : 'animate-pulse'}`}
             style={{
               background: isDark 
                 ? 'radial-gradient(circle, rgba(136, 19, 55, 0.28) 0%, rgba(136, 19, 55, 0) 70%)' 
@@ -93,8 +108,10 @@ export default function BackgroundTextures({ type, theme }: BackgroundTexturesPr
     case 'watercolor_gold':
       return (
         <div className={`${baseClass} ${opacityMultiplier}`}>
-          {/* Fine paper canvas grain */}
-          <div className="absolute inset-0 opacity-[0.045] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 150 150\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'grain\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23grain)\'/%3E%3C/svg%3E")' }} />
+          {/* Fine paper canvas grain - Completely skipped on mobile */}
+          {!isMobile && (
+            <div className="absolute inset-0 opacity-[0.045] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 150 150\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'grain\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23grain)\'/%3E%3C/svg%3E")' }} />
+          )}
 
           {/* Earthy Red Beige background watercolor layer */}
           <div 
@@ -165,8 +182,10 @@ export default function BackgroundTextures({ type, theme }: BackgroundTexturesPr
     case 'watercolor_pastel':
       return (
         <div className={`${baseClass} ${opacityMultiplier}`}>
-          {/* Subtle Canvas Grain */}
-          <div className="absolute inset-0 opacity-[0.035] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.95\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23paper)\'/%3E%3C/svg%3E")' }} />
+          {/* Subtle Canvas Grain - Completely skipped on mobile */}
+          {!isMobile && (
+            <div className="absolute inset-0 opacity-[0.035] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'paper\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.95\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23paper)\'/%3E%3C/svg%3E")' }} />
+          )}
 
           {/* Lavender/Pink pastel orb */}
           <div 
@@ -209,8 +228,10 @@ export default function BackgroundTextures({ type, theme }: BackgroundTexturesPr
     case 'watercolor_sunset':
       return (
         <div className={`${baseClass} ${opacityMultiplier}`}>
-          {/* Heavy watercolor paper texture simulation */}
-          <div className="absolute inset-0 opacity-[0.055] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'rough\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23rough)\'/%3E%3C/svg%3E")' }} />
+          {/* Heavy watercolor paper texture simulation - Completely skipped on mobile */}
+          {!isMobile && (
+            <div className="absolute inset-0 opacity-[0.055] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 250 250\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'rough\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23rough)\'/%3E%3C/svg%3E")' }} />
+          )}
 
           {/* Coral red watercolor bleed top */}
           <div 

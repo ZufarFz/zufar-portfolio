@@ -1989,6 +1989,122 @@ export default function AdminPage({ cvData, onUpdate, onClose, theme, setTheme }
                           <li>Selesai! Database dan Storage Bucket Supabase Anda kini siap 100% untuk menyimpan data teks, kustomisasi layout, dan berkas gambar.</li>
                         </ol>
                       </div>
+
+                      {/* CARD KEEP ALIVE / CRON JOB */}
+                      <div className={`p-5 border text-xs leading-relaxed space-y-3 rounded-xl shadow-lg ${
+                        theme === 'dark' 
+                          ? 'bg-slate-900/60 border-blue-500/20 text-blue-300' 
+                          : 'bg-blue-50 border-blue-200 text-blue-800'
+                      }`}>
+                        <p className={`font-bold flex items-center gap-1.5 uppercase tracking-wide ${theme === 'dark' ? 'text-blue-450' : 'text-blue-700'}`}>
+                          <Sparkles className="w-4 h-4 text-blue-400" /> INTEGRASI KEEP-ALIVE SUPABASE (CRON-JOB.ORG):
+                        </p>
+                        <p className="font-sans">
+                          Akun Supabase gratis (free tier) akan otomatis <strong>"tidur" (inactive)</strong> jika tidak diakses dalam beberapa hari. Untuk menjaga agar database Supabase Anda tetap aktif selamanya tanpa mati, ikuti panduan berikut menggunakan layanan cron gratis seperti <a href="https://cron-job.org" target="_blank" rel="noreferrer" className="underline font-bold hover:opacity-80 text-blue-400">cron-job.org</a>:
+                        </p>
+                        
+                        <div className="space-y-3 pl-1 font-mono text-[11px]">
+                          <div>
+                            <span className="block font-bold">1. KONFIGURASI CRON JOB:</span>
+                            <ul className="list-disc list-inside space-y-1 pl-2">
+                              <li>Buat akun gratis di <a href="https://cron-job.org" target="_blank" rel="noreferrer" className="underline font-bold text-blue-400">cron-job.org</a>.</li>
+                              <li>Buat Cronjob Baru, beri nama misalnya: <strong className="font-bold">Portfolio Keep Alive</strong>.</li>
+                              <li>Atur URL target GET ke URL Rest API berikut:</li>
+                            </ul>
+                            
+                            {/* URL Box */}
+                            <div className={`mt-1.5 p-2 rounded-lg border flex items-center justify-between font-mono text-[10px] sm:text-xs overflow-x-auto ${
+                              theme === 'dark' ? 'bg-slate-950 border-slate-800 text-blue-400' : 'bg-white border-slate-200 text-blue-900'
+                            }`}>
+                              <span className="break-all select-all pr-2">
+                                {isSupabaseConfigured 
+                                  ? `${((import.meta as any).env.VITE_SUPABASE_URL || '').trim()}/rest/v1/supabase_keep_alive?select=*`
+                                  : 'https://[YOUR_SUPABASE_PROJECT].supabase.co/rest/v1/supabase_keep_alive?select=*'
+                                }
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = isSupabaseConfigured 
+                                    ? `${((import.meta as any).env.VITE_SUPABASE_URL || '').trim()}/rest/v1/supabase_keep_alive?select=*`
+                                    : 'https://[YOUR_SUPABASE_PROJECT].supabase.co/rest/v1/supabase_keep_alive?select=*';
+                                  navigator.clipboard.writeText(url);
+                                  alert("URL Rest API disalin ke papan klip!");
+                                }}
+                                className={`px-2 py-0.5 text-[9px] rounded border hover:opacity-80 font-bold shrink-0 cursor-pointer ${
+                                  theme === 'dark' ? 'bg-slate-800 border-slate-700 text-blue-400' : 'bg-slate-100 border-slate-300 text-blue-800'
+                                }`}
+                              >
+                                SALIN
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="pt-1.5">
+                            <span className="block font-bold">2. TAMBAHKAN HEADER CUSTOM (PENTING):</span>
+                            <p className="font-sans text-[10.5px] leading-relaxed mb-1">
+                              Pada pengaturan Cronjob di bagian <strong className="font-bold">Request Headers</strong>, Anda wajib menambahkan dua baris header agar dapat melewati keamanan RLS Supabase:
+                            </p>
+                            
+                            <div className={`p-2.5 rounded-lg border space-y-2.5 font-mono text-[10px] sm:text-xs overflow-x-auto ${
+                              theme === 'dark' ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+                            }`}>
+                              <div className="flex justify-between items-start border-b border-dashed border-slate-800/80 pb-2">
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <span className="text-emerald-500 font-bold">Key:</span> <code className="bg-slate-800/50 px-1 py-0.5 rounded text-blue-400">apikey</code>
+                                  <br />
+                                  <span className="text-emerald-500 font-bold">Value:</span> <code className="bg-slate-800/50 px-1 py-0.5 rounded text-yellow-500 break-all">{isSupabaseConfigured ? ((import.meta as any).env.VITE_SUPABASE_ANON_KEY || '') : '[YOUR_ANON_KEY]'}</code>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const key = isSupabaseConfigured ? ((import.meta as any).env.VITE_SUPABASE_ANON_KEY || '') : '[YOUR_ANON_KEY]';
+                                    navigator.clipboard.writeText(key);
+                                    alert("Anon Key Supabase disalin!");
+                                  }}
+                                  className={`px-2 py-0.5 text-[9px] rounded border hover:opacity-80 font-bold cursor-pointer shrink-0 ${
+                                    theme === 'dark' ? 'bg-slate-800 border-slate-700 text-blue-400' : 'bg-slate-100 border-slate-300 text-blue-800'
+                                  }`}
+                                >
+                                  SALIN
+                                </button>
+                              </div>
+                              <div className="flex justify-between items-start">
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <span className="text-emerald-500 font-bold">Key:</span> <code className="bg-slate-800/50 px-1 py-0.5 rounded text-blue-400">Authorization</code>
+                                  <br />
+                                  <span className="text-emerald-500 font-bold">Value:</span> <code className="bg-slate-800/50 px-1 py-0.5 rounded text-yellow-500 break-all">{isSupabaseConfigured ? `Bearer ${((import.meta as any).env.VITE_SUPABASE_ANON_KEY || '')}` : 'Bearer [YOUR_ANON_KEY]'}</code>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const key = isSupabaseConfigured ? `Bearer ${((import.meta as any).env.VITE_SUPABASE_ANON_KEY || '')}` : 'Bearer [YOUR_ANON_KEY]';
+                                    navigator.clipboard.writeText(key);
+                                    alert("Bearer Token Authorization disalin!");
+                                  }}
+                                  className={`px-2 py-0.5 text-[9px] rounded border hover:opacity-80 font-bold cursor-pointer shrink-0 ${
+                                    theme === 'dark' ? 'bg-slate-800 border-slate-700 text-blue-400' : 'bg-slate-100 border-slate-300 text-blue-800'
+                                  }`}
+                                >
+                                  SALIN
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-1.5">
+                            <span className="block font-bold">3. JADWAL (SCHEDULE):</span>
+                            <ul className="list-disc list-inside space-y-1 pl-2 font-sans text-slate-400">
+                              <li>Setel jadwal eksekusi cron ke <strong className="font-bold text-slate-300">Setiap Hari (Every Day)</strong> atau <strong className="font-bold text-slate-300">Setiap 12 Jam (Every 12 Hours)</strong>.</li>
+                              <li>Simpan dan aktifkan cron job di cron-job.org.</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        <p className="font-sans text-[11px] text-blue-400/95 italic">
+                          Catatan keamanan: RLS pada tabel <strong className="font-bold font-mono text-[10.5px]">supabase_keep_alive</strong> diatur hanya untuk SELECT (read-only), sehingga data Anda aman dari perubahan luar.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -8594,37 +8710,339 @@ INSERT INTO portfolio_texts (key, value) VALUES
 ('experience_subtitle', 'Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries.')
 ON CONFLICT (key) DO NOTHING;
 
--- 6. Aktifkan kebijakan RLS (Row Level Security) agar aman
+-- 6. Aktifkan kebijakan RLS (Row Level Security) agar aman untuk semua tabel
+ALTER TABLE portfolio_profile ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_skill_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_experiences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_education ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_socials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_texts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_about_story ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_layout ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_about_story ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_personality ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_hobbies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_career_goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_page_section ENABLE ROW LEVEL SECURITY;
+ALTER TABLE supabase_keep_alive ENABLE ROW LEVEL SECURITY;
 
--- 7. Buat kebijakan akses publik (Dapat Dibaca Oleh Semua Orang)
+-- 7. Bersihkan semua rls kebijakan lama & buat baru (hanya 2 rls per tabel: GET untuk public, ALL untuk authenticated)
+
+-- HAPUS SEMUA KEBIJAKAN LAMA SECARA DINAMIS TERLEBIH DAHULU
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT policyname, tablename 
+        FROM pg_policies 
+        WHERE schemaname = 'public' 
+          AND (tablename LIKE 'portfolio_%' OR tablename = 'supabase_keep_alive')
+    ) LOOP
+        EXECUTE 'DROP POLICY IF EXISTS ' || quote_ident(r.policyname) || ' ON ' || quote_ident(r.tablename);
+    END LOOP;
+END $$;
+
+-- Tabel portfolio_profile
+DROP POLICY IF EXISTS "Allow public select on profile" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow public select on portfolio_profile" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow public reads on profile" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_profile" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow admin writes on profile" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_profile" ON portfolio_profile;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_profile;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_profile;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_profile;
+CREATE POLICY "Allow public select" ON portfolio_profile FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_profile FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_skills
+DROP POLICY IF EXISTS "Allow public select on skills" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow public select on portfolio_skills" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow public reads on skills" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_skills" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow admin writes on skills" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_skills" ON portfolio_skills;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_skills;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_skills;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_skills;
+CREATE POLICY "Allow public select" ON portfolio_skills FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_skills FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_skill_categories
+DROP POLICY IF EXISTS "Allow public select on skill_categories" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow public select on portfolio_skill_categories" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow public reads on skill_categories" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_skill_categories" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow admin writes on skill_categories" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_skill_categories" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_skill_categories;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_skill_categories;
+CREATE POLICY "Allow public select" ON portfolio_skill_categories FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_skill_categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_projects
+DROP POLICY IF EXISTS "Allow public select on projects" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow public select on portfolio_projects" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow public reads on projects" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_projects" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow admin writes on projects" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_projects" ON portfolio_projects;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_projects;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_projects;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_projects;
+CREATE POLICY "Allow public select" ON portfolio_projects FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_projects FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_experiences
+DROP POLICY IF EXISTS "Allow public select on experiences" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow public select on portfolio_experiences" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow public reads on experiences" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_experiences" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow admin writes on experiences" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_experiences" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_experiences;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_experiences;
+CREATE POLICY "Allow public select" ON portfolio_experiences FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_experiences FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_education
+DROP POLICY IF EXISTS "Allow public select on education" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow public select on portfolio_education" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow public reads on education" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_education" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow admin writes on education" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_education" ON portfolio_education;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_education;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_education;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_education;
+CREATE POLICY "Allow public select" ON portfolio_education FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_education FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_socials
+DROP POLICY IF EXISTS "Allow public select on socials" ON portfolio_socials;
+DROP POLICY IF EXISTS "Allow public select on portfolio_socials" ON portfolio_socials;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_socials;
 DROP POLICY IF EXISTS "Allow public reads on socials" ON portfolio_socials;
-CREATE POLICY "Allow public reads on socials" ON portfolio_socials FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public reads on texts" ON portfolio_texts;
-CREATE POLICY "Allow public reads on texts" ON portfolio_texts FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public reads on about_story" ON portfolio_about_story;
-CREATE POLICY "Allow public reads on about_story" ON portfolio_about_story FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public reads on layout" ON portfolio_layout;
-CREATE POLICY "Allow public reads on layout" ON portfolio_layout FOR SELECT USING (true);
-
--- 8. Buat kebijakan akses admin (Dapat Dimodifikasi Oleh Pengguna yang Terotentikasi)
+DROP POLICY IF EXISTS "Allow public reads on portfolio_socials" ON portfolio_socials;
 DROP POLICY IF EXISTS "Allow admin writes on socials" ON portfolio_socials;
-CREATE POLICY "Allow admin writes on socials" ON portfolio_socials FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_socials" ON portfolio_socials;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_socials;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_socials;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_socials;
+CREATE POLICY "Allow public select" ON portfolio_socials FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_socials FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
+-- Tabel portfolio_texts
+DROP POLICY IF EXISTS "Allow public select on texts" ON portfolio_texts;
+DROP POLICY IF EXISTS "Allow public select on portfolio_texts" ON portfolio_texts;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_texts;
+DROP POLICY IF EXISTS "Allow public reads on texts" ON portfolio_texts;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_texts" ON portfolio_texts;
 DROP POLICY IF EXISTS "Allow admin writes on texts" ON portfolio_texts;
-CREATE POLICY "Allow admin writes on texts" ON portfolio_texts FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_texts" ON portfolio_texts;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_texts;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_texts;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_texts;
+CREATE POLICY "Allow public select" ON portfolio_texts FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_texts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Allow admin writes on about_story" ON portfolio_about_story;
-CREATE POLICY "Allow admin writes on about_story" ON portfolio_about_story FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-
+-- Tabel portfolio_layout
+DROP POLICY IF EXISTS "Allow public select on layout" ON portfolio_layout;
+DROP POLICY IF EXISTS "Allow public select on portfolio_layout" ON portfolio_layout;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_layout;
+DROP POLICY IF EXISTS "Allow public reads on layout" ON portfolio_layout;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_layout" ON portfolio_layout;
 DROP POLICY IF EXISTS "Allow admin writes on layout" ON portfolio_layout;
-CREATE POLICY "Allow admin writes on layout" ON portfolio_layout FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_layout" ON portfolio_layout;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_layout;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_layout;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_layout;
+CREATE POLICY "Allow public select" ON portfolio_layout FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_layout FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_about_story
+DROP POLICY IF EXISTS "Allow public select on about_story" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow public select on portfolio_about_story" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow public reads on about_story" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_about_story" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow admin writes on about_story" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_about_story" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_about_story;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_about_story;
+CREATE POLICY "Allow public select" ON portfolio_about_story FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_about_story FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_personality
+DROP POLICY IF EXISTS "Allow public select on personality" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow public select on portfolio_personality" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow public reads on personality" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_personality" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow admin writes on personality" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_personality" ON portfolio_personality;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_personality;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_personality;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_personality;
+CREATE POLICY "Allow public select" ON portfolio_personality FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_personality FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_hobbies
+DROP POLICY IF EXISTS "Allow public select on hobbies" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow public select on portfolio_hobbies" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow public reads on hobbies" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_hobbies" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow admin writes on hobbies" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_hobbies" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_hobbies;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_hobbies;
+CREATE POLICY "Allow public select" ON portfolio_hobbies FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_hobbies FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_career_goals
+DROP POLICY IF EXISTS "Allow public select on career_goals" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow public select on portfolio_career_goals" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow public reads on career_goals" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_career_goals" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow admin writes on career_goals" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_career_goals" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_career_goals;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_career_goals;
+CREATE POLICY "Allow public select" ON portfolio_career_goals FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_career_goals FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel portfolio_page_section
+DROP POLICY IF EXISTS "Allow public select on page_sections" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow public select on portfolio_page_section" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow public select" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow public reads on page_sections" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow public reads on portfolio_page_section" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow admin writes on page_sections" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow admin writes on portfolio_page_section" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Allow admin writes" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable read access for all users" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON portfolio_page_section;
+DROP POLICY IF EXISTS "Enable read access for all" ON portfolio_page_section;
+CREATE POLICY "Allow public select" ON portfolio_page_section FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON portfolio_page_section FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Tabel supabase_keep_alive
+DROP POLICY IF EXISTS "Allow public select on keep_alive" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow public select on supabase_keep_alive" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow public select" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow public reads on keep_alive" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow public reads on supabase_keep_alive" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow admin writes on keep_alive" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow admin writes on supabase_keep_alive" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Allow admin writes" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable read access for all users" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable delete for users based on email" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Admin Modifiers Only" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable Read Access For All" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable Read Access for All" ON supabase_keep_alive;
+DROP POLICY IF EXISTS "Enable read access for all" ON supabase_keep_alive;
+CREATE POLICY "Allow public select" ON supabase_keep_alive FOR SELECT TO public USING (true);
+CREATE POLICY "Allow admin writes" ON supabase_keep_alive FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 9. Tambahkan kolom description ke portfolio_education (jika belum ada) dan ubah tipe ID ke VARCHAR
 ALTER TABLE portfolio_education ADD COLUMN IF NOT EXISTS description TEXT;
@@ -8675,38 +9093,6 @@ ALTER TABLE portfolio_page_section ADD COLUMN IF NOT EXISTS image_orientation VA
 ALTER TABLE portfolio_page_section ADD COLUMN IF NOT EXISTS image_size VARCHAR DEFAULT 'medium';
 ALTER TABLE portfolio_page_section ADD COLUMN IF NOT EXISTS text_align VARCHAR DEFAULT 'left';
 
--- Aktifkan RLS untuk tabel-tabel baru ini agar aman
-ALTER TABLE portfolio_personality ENABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_hobbies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_career_goals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE portfolio_page_section ENABLE ROW LEVEL SECURITY;
-
--- Buat kebijakan akses publik (Dapat Dibaca Oleh Semua Orang)
-DROP POLICY IF EXISTS "Allow public reads on personality" ON portfolio_personality;
-CREATE POLICY "Allow public reads on personality" ON portfolio_personality FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public reads on hobbies" ON portfolio_hobbies;
-CREATE POLICY "Allow public reads on hobbies" ON portfolio_hobbies FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public reads on career_goals" ON portfolio_career_goals;
-CREATE POLICY "Allow public reads on career_goals" ON portfolio_career_goals FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public reads on page_sections" ON portfolio_page_section;
-CREATE POLICY "Allow public reads on page_sections" ON portfolio_page_section FOR SELECT USING (true);
-
--- Buat kebijakan akses admin (Dapat Dimodifikasi Oleh Pengguna yang Terotentikasi)
-DROP POLICY IF EXISTS "Allow admin writes on personality" ON portfolio_personality;
-CREATE POLICY "Allow admin writes on personality" ON portfolio_personality FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-
-DROP POLICY IF EXISTS "Allow admin writes on hobbies" ON portfolio_hobbies;
-CREATE POLICY "Allow admin writes on hobbies" ON portfolio_hobbies FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-
-DROP POLICY IF EXISTS "Allow admin writes on career_goals" ON portfolio_career_goals;
-CREATE POLICY "Allow admin writes on career_goals" ON portfolio_career_goals FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-
-DROP POLICY IF EXISTS "Allow admin writes on page_sections" ON portfolio_page_section;
-CREATE POLICY "Allow admin writes on page_sections" ON portfolio_page_section FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
-
 -- 11. Buat / Sesuaikan tabel portfolio_projects
 CREATE TABLE IF NOT EXISTS portfolio_projects (
   id VARCHAR PRIMARY KEY,
@@ -8725,14 +9111,16 @@ ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS impact_metric;
 ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS tools;
 ALTER TABLE portfolio_projects DROP COLUMN IF EXISTS slides;
 
--- Aktifkan RLS untuk portfolio_projects agar aman
-ALTER TABLE portfolio_projects ENABLE ROW LEVEL SECURITY;
+-- 12. Buat tabel supabase_keep_alive untuk menjaga database agar tetap aktif (tidak tidur)
+CREATE TABLE IF NOT EXISTS supabase_keep_alive (
+  id VARCHAR PRIMARY KEY DEFAULT 'primary',
+  last_ping TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  status VARCHAR DEFAULT 'active'
+);
 
--- Kebijakan akses publik (Dapat Dibaca Oleh Semua Orang)
-DROP POLICY IF EXISTS "Allow public reads on projects" ON portfolio_projects;
-CREATE POLICY "Allow public reads on projects" ON portfolio_projects FOR SELECT USING (true);
+-- Seed data default untuk tabel supabase_keep_alive
+INSERT INTO supabase_keep_alive (id, status) 
+VALUES ('primary', 'active') 
+ON CONFLICT (id) DO NOTHING;
 
--- Kebijakan akses admin (Dapat Dimodifikasi Oleh Pengguna yang Terotentikasi)
-DROP POLICY IF EXISTS "Allow admin writes on projects" ON portfolio_projects;
-CREATE POLICY "Allow admin writes on projects" ON portfolio_projects FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 `;

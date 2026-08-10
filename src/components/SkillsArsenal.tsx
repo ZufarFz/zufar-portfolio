@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Database, 
   Terminal, 
@@ -54,6 +54,8 @@ export default function SkillsArsenal({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeSkill, setActiveSkill] = useState<SkillItem | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [direction, setDirection] = useState<number>(1); // 1 = right/forward, -1 = left/backward
+  const activeSkillRef = useRef<SkillItem | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,42 +102,114 @@ export default function SkillsArsenal({
     return matchesSearch && matchesCategory;
   });
 
-  const handleScroll = () => {
-    if (!isMobile || !scrollContainerRef.current) return;
+  // Helper to change active skill with directional tracking
+  const changeActiveSkill = useCallback((newSkill: SkillItem | null) => {
+    if (newSkill && activeSkillRef.current && newSkill.id !== activeSkillRef.current.id) {
+      const prevIdx = filteredSkills.findIndex(s => s.id === activeSkillRef.current?.id);
+      const newIdx = filteredSkills.findIndex(s => s.id === newSkill.id);
+      if (prevIdx !== -1 && newIdx !== -1) {
+        if (newIdx > prevIdx) {
+          setDirection(1); // moving right to higher index
+        } else if (newIdx < prevIdx) {
+          setDirection(-1); // moving left to lower index
+        }
+      }
+    }
+    activeSkillRef.current = newSkill;
+    setActiveSkill(newSkill);
+  }, [filteredSkills]);
+
+  // Track if scroll is caused by clicking a card to avoid intermediate state flickering
+  const isClickScrollingRef = useRef<boolean>(false);
+  const clickScrollTimeoutRef = useRef<number | null>(null);
+
+  // Throttled scroll handler using requestAnimationFrame
+  const scrollRafRef = useRef<number | null>(null);
+
+  // Smoothly update scale, opacity, and zIndex for each card based on distance to center
+  const updateCardScales = useCallback(() => {
+    if (!isMobile || !scrollContainerRef.current) return null;
     const container = scrollContainerRef.current;
     const containerCenter = container.scrollLeft + container.clientWidth / 2;
-    
+    const radius = 160; // px distance for full scale/opacity drop-off
+
     const children = Array.from(container.children) as HTMLElement[];
     let closestSkill: SkillItem | null = null;
     let minDistance = Infinity;
-    
+
     children.forEach((child) => {
       const skillId = child.getAttribute('data-skill-id');
       if (!skillId) return;
-      
+
       const childCenter = child.offsetLeft + child.clientWidth / 2;
       const distance = Math.abs(containerCenter - childCenter);
-      
+
+      // normDist: 0 at exact center, 1 at >= 160px away
+      const normDist = Math.min(distance / radius, 1);
+
+      // Continuous scale: 1.08 at center -> 0.88 at edge
+      const scale = 1.08 - (normDist * 0.20);
+      // Continuous opacity: 1.0 at center -> 0.45 at edge
+      const opacity = 1.0 - (normDist * 0.55);
+
+      child.style.transform = `scale(${scale.toFixed(3)})`;
+      child.style.opacity = opacity.toFixed(3);
+      child.style.zIndex = distance < 60 ? '10' : '1';
+
       if (distance < minDistance) {
         minDistance = distance;
         const found = filteredSkills.find(s => s.id === skillId);
         if (found) closestSkill = found;
       }
     });
-    
-    if (closestSkill && activeSkill?.id !== (closestSkill as SkillItem).id) {
-      setActiveSkill(closestSkill);
-    }
+
+    return closestSkill;
+  }, [isMobile, filteredSkills]);
+
+  const handleScroll = () => {
+    if (!isMobile || !scrollContainerRef.current) return;
+    if (scrollRafRef.current !== null) return;
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      
+      // Continuously update card scale & opacity on every scroll frame
+      const closestSkill = updateCardScales();
+
+      if (!isClickScrollingRef.current && closestSkill && activeSkillRef.current?.id !== closestSkill.id) {
+        changeActiveSkill(closestSkill);
+      }
+    });
   };
+
+  useEffect(() => {
+    if (isMobile) {
+      const raf = requestAnimationFrame(() => {
+        updateCardScales();
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [isMobile, filteredSkills, activeSkill, updateCardScales]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+      if (clickScrollTimeoutRef.current !== null) {
+        clearTimeout(clickScrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Auto-select first skill of the tab on mobile so explanation is directly visible below
   useEffect(() => {
     if (isMobile && filteredSkills.length > 0) {
       if (!activeSkill || !filteredSkills.some(s => s.id === activeSkill.id)) {
-        setActiveSkill(filteredSkills[0]);
+        changeActiveSkill(filteredSkills[0]);
       }
     }
-  }, [isMobile, selectedCategory, filteredSkills, activeSkill]);
+  }, [isMobile, selectedCategory, filteredSkills, activeSkill, changeActiveSkill]);
 
   const categories = [
     { id: 'all', label: 'All Fields' },
@@ -214,7 +288,7 @@ export default function SkillsArsenal({
         </div>
 
         {/* Categories Tab Pill Controls with elegant mobile swipe */}
-        <div className={`flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-1 p-1 sm:p-1.5 rounded-lg w-full md:w-auto transition-colors ${
+        <div className={`flex overflow-x-auto no-scrollbar snap-x snap-proximity gap-1 p-1 sm:p-1.5 rounded-lg w-full md:w-auto transition-colors ${
           isDark ? 'bg-slate-800' : 'bg-slate-100 border border-slate-200'
         }`}>
           {categories.map((cat) => (
@@ -266,58 +340,76 @@ export default function SkillsArsenal({
         <motion.div 
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          layout
-          className={isMobile ? "flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-3 w-full pt-3 pb-3 px-1 scroll-smooth" : "lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4"}
+          onTouchStart={() => {
+            isClickScrollingRef.current = false;
+          }}
+          layout={!isMobile}
+          className={
+            isMobile 
+              ? "flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-3 w-full pt-3 pb-3 px-[calc(50vw-72.5px)] items-center" 
+              : "lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4"
+          }
         >
-          {isMobile && <div className="w-[calc(50vw-70px)] shrink-0" />}
-          <AnimatePresence mode="popLayout">
+          <AnimatePresence mode={isMobile ? "sync" : "popLayout"}>
             {filteredSkills.map((skill) => {
                const isActive = activeSkill?.id === skill.id;
                return (
                 <motion.button
                   key={skill.id}
-                  layout
+                  layout={!isMobile}
                   data-skill-id={skill.id}
-                  initial={{ opacity: 0, scale: 0.92 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.92 }}
-                  transition={{ duration: 0.3 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
                   whileHover={isMobile ? undefined : { scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={isMobile ? undefined : { scale: 0.96 }}
                   onClick={() => {
-                    // Toggle active skill card for showing detailed linkage
-                    setActiveSkill(isActive ? null : skill);
+                    // Set active skill card with directional tracking
+                    changeActiveSkill(skill);
                     if (isMobile && scrollContainerRef.current) {
                       const container = scrollContainerRef.current;
                       const child = container.querySelector(`[data-skill-id="${skill.id}"]`) as HTMLElement;
                       if (child) {
+                        isClickScrollingRef.current = true;
+                        if (clickScrollTimeoutRef.current !== null) {
+                          clearTimeout(clickScrollTimeoutRef.current);
+                        }
                         const targetScrollLeft = child.offsetLeft - (container.clientWidth / 2) + (child.clientWidth / 2);
                         container.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
+
+                        clickScrollTimeoutRef.current = window.setTimeout(() => {
+                          isClickScrollingRef.current = false;
+                        }, 350);
                       }
                     }
                   }}
-                  className={`bento-card text-left rounded-xl flex flex-col justify-center cursor-pointer transition-all duration-300 ease-out ${
+                  className={`bento-card text-left rounded-xl flex flex-col justify-center cursor-pointer transition-colors duration-200 ease-out shrink-0 snap-center shadow-none [box-shadow:none] ${
                     isMobile 
-                      ? `${isActive ? 'w-[145px] h-[44px] scale-100 shadow-md ring-2 ring-slate-800 dark:ring-slate-200 px-3 py-1.5' : 'w-[95px] h-[34px] scale-85 opacity-50 px-1.5 py-1'} shrink-0 snap-center` 
-                      : `p-4 h-[110px] sm:h-[155px] justify-between ${isActive ? 'ring-2 ring-emerald-500 border-none shadow-md bg-emerald-500/5' : ''}`
-                  } ${
-                    !isMobile && (isDark ? 'border-none bg-slate-800 hover:bg-slate-700/80 text-white' : 'border border-slate-200 bg-white hover:border-slate-350')
-                  } ${
-                    isMobile && !isActive && (isDark ? 'bg-slate-800 text-slate-400 border-none' : 'bg-white text-slate-500 border border-slate-200')
-                  } ${
-                    isMobile && isActive && (isDark ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-900')
+                      ? `w-[145px] h-[48px] px-3 py-2 ${
+                          isActive 
+                            ? 'ring-2 ring-emerald-500 border-transparent ' + 
+                              (isDark ? 'bg-slate-800 text-white' : 'bg-white text-slate-900') 
+                            : 'border-transparent ' + 
+                              (isDark ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-100/80 text-slate-500')
+                        }`
+                      : `p-4 h-[110px] sm:h-[155px] justify-between ${
+                          isActive ? 'ring-2 ring-emerald-500 border-none shadow-md bg-emerald-500/5' : ''
+                        } ${
+                          isDark ? 'border-none bg-slate-800 hover:bg-slate-700/80 text-white' : 'border border-slate-200 bg-white hover:border-slate-350'
+                        }`
                   }`}
                 >
                   {isMobile ? (
-                    <div className="flex items-center gap-2 w-full h-full">
-                      <div className={`p-1 rounded-lg shrink-0 transition-colors ${
+                    <div className="flex items-center gap-2.5 w-full h-full min-w-0">
+                      <div className={`rounded-lg shrink-0 transition-colors duration-200 p-1.5 ${
                         isActive 
-                          ? (isDark ? 'bg-slate-600 text-white' : 'bg-slate-200 text-slate-800') 
-                          : (isDark ? 'bg-slate-900 text-slate-400' : 'bg-slate-50 text-slate-700')
+                          ? (isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700') 
+                          : (isDark ? 'bg-slate-900/80 text-slate-400' : 'bg-slate-200/70 text-slate-600')
                       }`}>
-                        <IconMapper iconName={skill.icon} className="w-3.5 h-3.5 shrink-0" />
+                        <IconMapper iconName={skill.icon} className="w-4 h-4 shrink-0" />
                       </div>
-                      <h4 className={`font-display font-bold text-[10px] truncate leading-none ${
+                      <h4 className={`font-display font-bold text-xs truncate leading-none transition-colors duration-200 ${
                         isActive 
                           ? (isDark ? 'text-white font-extrabold' : 'text-slate-900 font-extrabold') 
                           : (isDark ? 'text-slate-400' : 'text-slate-600')
@@ -361,7 +453,6 @@ export default function SkillsArsenal({
               );
             })}
           </AnimatePresence>
-          {isMobile && <div className="w-[calc(50vw-70px)] shrink-0" />}
 
           {filteredSkills.length === 0 && (
             <motion.div 
@@ -392,14 +483,29 @@ export default function SkillsArsenal({
           }`}
         >
           <div ref={sidebarContentRef} className="p-5 sm:p-6 flex flex-col justify-between">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" custom={direction}>
                 {activeSkill ? (
                   <motion.div 
                     key={activeSkill.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.25 }}
+                    custom={direction}
+                    variants={{
+                      enter: (dir: number) => ({
+                        opacity: 0,
+                        x: dir > 0 ? 30 : -30,
+                      }),
+                      center: {
+                        opacity: 1,
+                        x: 0,
+                      },
+                      exit: (dir: number) => ({
+                        opacity: 0,
+                        x: dir > 0 ? -30 : 30,
+                      }),
+                    }}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
                     className="flex flex-col justify-between"
                   >
                     <div>

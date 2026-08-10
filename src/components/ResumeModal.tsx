@@ -37,6 +37,7 @@ interface ResumeModalProps {
   onUpdate?: (updatedData: CVData) => void;
   theme?: 'light' | 'dark';
   inlinePreview?: boolean;
+  directDownload?: boolean;
 }
 
 interface LayoutSettings {
@@ -157,7 +158,7 @@ const DEFAULT_SETTINGS: LayoutSettings = {
   marginLeftRight: 'sedang'
 };
 
-export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light', inlinePreview = false }: ResumeModalProps) {
+export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light', inlinePreview = false, directDownload = false }: ResumeModalProps) {
   const resumeRef = useRef<HTMLDivElement>(null);
   
   // Custom states
@@ -168,6 +169,16 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
   const [isSyncing, setIsSyncing] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
+  
+  // Auto trigger download for direct mobile resume download
+  useEffect(() => {
+    if (directDownload) {
+      const timer = setTimeout(() => {
+        handleDownloadPDF();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [directDownload]);
   
   // Settings initialized with fallback to defaults
   const [settings, setSettings] = useState<LayoutSettings>(() => {
@@ -277,6 +288,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
         document.title = originalTitle;
         window.removeEventListener('afterprint', cleanup);
         setIsDownloadingPdf(false);
+        if (directDownload) {
+          onClose();
+        }
       };
 
       window.addEventListener('afterprint', cleanup);
@@ -289,6 +303,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       window.print();
       document.title = originalTitle;
       setIsDownloadingPdf(false);
+      if (directDownload) {
+        onClose();
+      }
     }
   };
 
@@ -1254,14 +1271,30 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      onClick={onClose}
-      className="fixed inset-0 z-100 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
-    >
+    <>
+      {directDownload && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-5 shadow-2xl flex items-center gap-3 max-w-sm w-full mx-auto">
+            <svg className="animate-spin h-5 w-5 text-emerald-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-sm font-medium">Menyiapkan berkas PDF...</span>
+          </div>
+        </div>
+      )}
+
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        onClick={onClose}
+        className={directDownload 
+          ? "fixed -top-[9999px] -left-[9999px] opacity-0 pointer-events-none w-[800px] overflow-hidden"
+          : "fixed inset-0 z-100 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+        }
+      >
       <motion.div 
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1983,5 +2016,6 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
 
       </motion.div>
     </motion.div>
+    </>
   );
 }
