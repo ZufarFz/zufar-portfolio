@@ -26,18 +26,23 @@ import {
   LayoutGrid,
   ExternalLink,
   Menu,
-  X
+  X,
+  Eye,
+  Download,
+  Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CASE_STUDIES } from './data/portfolioData';
 import SkillsArsenal from './components/SkillsArsenal';
 import ContactForm from './components/ContactForm';
 import ResumeModal from './components/ResumeModal';
-import AdminPage from './components/AdminPage';
+import AdminLoginPage from './components/AdminLoginPage';
 import CaseStudyPresentationPage from './components/CaseStudyPresentationPage';
 import AboutMeStoryPage from './components/AboutMeStoryPage';
 import AboutMeSubPages from './components/AboutMeSubPages';
-import { fetchCVData, DEFAULT_CV_DATA, EMPTY_CV_DATA, CVData, isSupabaseConfigured, DEFAULT_WEB_TEXTS } from './lib/supabaseClient';
+import { QuickEditorDrawer } from './components/QuickEditorDrawer';
+import { fetchCVData, downloadCVDataAsTypeScript, DEFAULT_CV_DATA, EMPTY_CV_DATA, DEFAULT_WEB_TEXTS, STORAGE_KEY } from './lib/storage';
+import { CVData } from './types';
 import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 import BackgroundTextures from './components/BackgroundTextures';
 
@@ -418,9 +423,32 @@ function getLocalizedCVData(cvData: CVData, lang: 'id' | 'en'): CVData {
 }
 
 export default function App() {
+  const checkIsAdminAuthenticated = () => {
+    try {
+      return sessionStorage.getItem('admin_session_auth') === 'true';
+    } catch {
+      return false;
+    }
+  };
+
+  const isCurrentUrlPreview = () => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'prev') return true;
+    if ((parts[0] === 'id' || parts[0] === 'en') && parts[1] === 'admin' && parts[2] === 'prev') return true;
+    if (parts[0] === 'admin' && parts[1] === 'prev') return true;
+    return false;
+  };
+
+  const [isPreviewMode, setIsPreviewMode] = useState<boolean>(() => {
+    return isCurrentUrlPreview() && checkIsAdminAuthenticated();
+  });
+
   const [lang, setLang] = useState<'id' | 'en'>(() => {
     // 1. Check current URL path prefix first
     const parts = window.location.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'prev') {
+      parts.shift();
+    }
     if (parts[0] === 'id' || parts[0] === 'en') {
       try {
         localStorage.setItem('bi-portfolio-lang', parts[0]);
@@ -443,11 +471,27 @@ export default function App() {
       localStorage.setItem('bi-portfolio-lang', lang);
     } catch (_) {}
 
-    // Ensure URL has the language prefix
+    // Ensure URL has the language prefix and respects isPreviewMode / admin structure
     const parts = window.location.pathname.split('/').filter(Boolean);
+    let isPrev = false;
+    if (parts[0] === 'prev') {
+      isPrev = true;
+      parts.shift();
+    }
+
     if (parts[0] !== 'id' && parts[0] !== 'en') {
-      const newPathname = '/' + lang + (parts.length > 0 ? '/' + parts.join('/') : '');
-      window.history.replaceState(null, '', newPathname + window.location.search + window.location.hash);
+      if (parts[0] === 'admin' && parts[1] === 'prev') {
+        parts.splice(0, 2);
+        const newPathname = `/${lang}/admin/prev` + (parts.length > 0 ? '/' + parts.join('/') : '');
+        window.history.replaceState(null, '', newPathname + window.location.search + window.location.hash);
+      } else if (parts[0] === 'admin') {
+        parts.shift();
+        const newPathname = `/${lang}/admin` + (parts.length > 0 ? '/' + parts.join('/') : '');
+        window.history.replaceState(null, '', newPathname + window.location.search + window.location.hash);
+      } else {
+        const newPathname = (isPrev ? `/${lang}/admin/prev` : `/${lang}`) + (parts.length > 0 ? '/' + parts.join('/') : '');
+        window.history.replaceState(null, '', newPathname + window.location.search + window.location.hash);
+      }
     }
   }, [lang]);
 
@@ -503,29 +547,56 @@ export default function App() {
       localStorage.setItem('bi-portfolio-lang', targetLang);
     } catch (_) {}
 
-    // Ensure URL has the target language prefix
-    const parts = window.location.pathname.split('/').filter(Boolean);
-    if (parts[0] === 'id' || parts[0] === 'en') {
-      parts[0] = targetLang;
-    } else {
-      parts.unshift(targetLang);
+    const parsed = parseRoute();
+    let prefix = `/${targetLang}`;
+    if (parsed.isPreview && checkIsAdminAuthenticated()) {
+      prefix = `/${targetLang}/admin/prev`;
+    } else if (parsed.isAdmin) {
+      prefix = `/${targetLang}/admin`;
     }
-    const newPathname = '/' + parts.join('/');
+    
+    let suffix = '';
+    if (parsed.projectId) {
+      suffix = `/project/${parsed.projectId}`;
+    } else if (parsed.aboutSubPage) {
+      suffix = `/${parsed.aboutSubPage}`;
+    } else if (parsed.isStoryView) {
+      suffix = `/about-me`;
+    } else if (parsed.activeSection && parsed.activeSection !== 'home') {
+      suffix = `/${parsed.activeSection}`;
+    }
+
+    const newPathname = prefix + suffix;
     window.location.href = newPathname + window.location.search + window.location.hash;
   };
 
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [cvModalDirectDownload, setCvModalDirectDownload] = useState(false);
+  const [isQuickEditorOpen, setIsQuickEditorOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [cvData, setCvData] = useState<CVData>(() => {
-    try {
-      const cached = localStorage.getItem('bi-portfolio-cv-data');
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch (_) {}
-    return isSupabaseConfigured ? DEFAULT_CV_DATA : EMPTY_CV_DATA;
+    // Only load from localStorage in protected admin preview mode (/admin/prev)
+    if (isCurrentUrlPreview() && checkIsAdminAuthenticated()) {
+      try {
+        const cached = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('bi-portfolio-cv-data');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') {
+            return {
+              ...DEFAULT_CV_DATA,
+              ...parsed,
+              webTexts: {
+                ...DEFAULT_WEB_TEXTS,
+                ...(parsed.webTexts || {})
+              }
+            };
+          }
+        }
+      } catch (_) {}
+    }
+    // Public / Non-preview pages strictly use pristine DEFAULT_CV_DATA from portfolioData.ts
+    return DEFAULT_CV_DATA;
   });
 
   const activeCVData = getLocalizedCVData(cvData, lang);
@@ -546,15 +617,11 @@ export default function App() {
   const [canFinishLoading, setCanFinishLoading] = useState(false);
   const [isNavVisible, setIsNavVisible] = useState(true);
 
-  // Dynamically update document title based on profile nickname/name
+  // Dynamically update document title immediately based on profile nickname/name
   useEffect(() => {
     const displayName = activeCVData.nickname || activeCVData.name;
-    if (loadingProgress < 100 || !displayName) {
-      document.title = 'Portfolio';
-    } else {
-      document.title = `Portfolio ${displayName}`;
-    }
-  }, [activeCVData.nickname, activeCVData.name, loadingProgress]);
+    document.title = displayName ? `Portfolio ${displayName}` : 'Portfolio';
+  }, [activeCVData.nickname, activeCVData.name]);
   const lastScrollY = useRef(0);
   const navbarRef = useRef<HTMLDivElement>(null);
   const [navbarWidth, setNavbarWidth] = useState(0);
@@ -824,18 +891,20 @@ export default function App() {
     });
   };
 
-  // Load CV data from Supabase/localStorage and preload all assets on mount
+  // Load CV data and preload all assets on mount
   useEffect(() => {
     async function loadData() {
-      let activeData = cvData;
+      const parsed = parseRoute();
+      const isPrev = (parsed.isPreview || isCurrentUrlPreview()) && checkIsAdminAuthenticated();
+      let activeData = DEFAULT_CV_DATA;
       
-      // 1. Fetch from database (very fast)
+      // 1. Fetch from storage/file based on route mode
       try {
-        const data = await fetchCVData();
+        const data = await fetchCVData(isPrev ? 'preview' : 'live');
         setCvData(data);
         activeData = data;
       } catch (err) {
-        console.error('Failed to load CV data from database:', err);
+        console.error('Failed to load CV data:', err);
       }
 
       // 2. Gather and filter all images to preload
@@ -930,11 +999,19 @@ export default function App() {
     const pathname = window.location.pathname;
     const parts = pathname.split('/').filter(Boolean);
     
-    // Skip language prefix
+    let isLegacyPrev = false;
+    if (parts[0] === 'prev') {
+      isLegacyPrev = true;
+      parts.shift();
+    }
+
+    let routeLang: 'id' | 'en' = lang;
     if (parts[0] === 'id' || parts[0] === 'en') {
+      routeLang = parts[0] as 'id' | 'en';
       parts.shift();
     }
     
+    let isPrev = isLegacyPrev;
     let isSubpageAdmin = false;
     let projId: string | null = null;
     let isStory = false;
@@ -942,10 +1019,22 @@ export default function App() {
     let currentSec = 'home';
 
     if (parts.length > 0) {
+      const first = parts[0];
+      if (first === 'admin') {
+        parts.shift();
+        const next = parts[0];
+        if (next === 'prev') {
+          isPrev = true;
+          parts.shift();
+        } else {
+          isSubpageAdmin = true;
+        }
+      }
+    }
+
+    if (parts.length > 0 && !isSubpageAdmin) {
       const action = parts[0];
-      if (action === 'admin') {
-        isSubpageAdmin = true;
-      } else if (action === 'project' && parts[1]) {
+      if (action === 'project' && parts[1]) {
         projId = parts[1];
       } else if (action === 'about-me') {
         isStory = true;
@@ -953,11 +1042,13 @@ export default function App() {
           subPage = parts[1];
         }
       } else {
+        const customSubIds = (activeCVData.customSubPages || []).map(p => p.id);
         const allowedSubs = [
           'education', 'educational', 'personality', 'hobbies', 
-          'career-journey', 'skills', 'projects', 'career-goals'
+          'career-journey', 'skills', 'projects', 'career-goals',
+          ...customSubIds
         ];
-        if (allowedSubs.includes(action)) {
+        if (allowedSubs.includes(action) || action.startsWith('page-') || action.startsWith('custom-')) {
           isStory = true;
           let mapped = action;
           if (mapped === 'educational') {
@@ -973,16 +1064,35 @@ export default function App() {
     }
 
     return {
+      lang: routeLang,
+      isPreview: isPrev,
       isAdmin: isSubpageAdmin,
       projectId: projId,
       isStoryView: isStory,
       aboutSubPage: subPage,
-      activeSection: currentSec
+      activeSection: currentSec,
+      isLegacyPrev
     };
   };
 
-  const navigateToPath = (sub: string | null) => {
-    const prefix = `/${lang}`;
+  const navigateToPath = (sub: string | null, targetPreview?: boolean) => {
+    const usePrev = targetPreview !== undefined ? targetPreview : isPreviewMode;
+    
+    // If targetPreview is requested but user is not logged in as admin, redirect to admin login
+    if (usePrev && !checkIsAdminAuthenticated()) {
+      const adminPath = `/${lang}/admin`;
+      if (window.location.pathname !== adminPath) {
+        window.history.pushState(null, '', adminPath);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+      return;
+    }
+
+    let prefix = `/${lang}`;
+    if (usePrev) {
+      prefix = `/${lang}/admin/prev`;
+    }
+    
     let suffix = '';
     if (sub) {
       if (sub === 'about-me') {
@@ -991,7 +1101,12 @@ export default function App() {
         const subSub = sub.replace(/^about-me\//, '');
         suffix = '/' + subSub;
       } else if (sub === 'admin') {
-        suffix = '/admin';
+        const adminPath = `/${lang}/admin`;
+        if (window.location.pathname !== adminPath) {
+          window.history.pushState(null, '', adminPath);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+        return;
       } else if (sub.startsWith('project/')) {
         suffix = '/' + sub;
       } else {
@@ -1015,17 +1130,64 @@ export default function App() {
       window.location.hash = ''; // Clear hash
       
       const parts = clean.split('/').filter(Boolean);
-      const newPathname = '/' + lang + (parts.length > 0 ? '/' + parts.join('/') : '');
+      const isPrev = parts[0] === 'prev';
+      if (isPrev) parts.shift();
+      const newPathname = (isPrev ? `/${lang}/admin/prev` : `/${lang}`) + (parts.length > 0 ? '/' + parts.join('/') : '');
       window.history.replaceState(null, '', newPathname + window.location.search);
     }
 
     const checkRoute = () => {
       const parsed = parseRoute();
+
+      // Normalize legacy /prev route
+      if (parsed.isLegacyPrev) {
+        const remaining: string[] = [];
+        if (parsed.projectId) remaining.push('project', parsed.projectId);
+        else if (parsed.aboutSubPage) remaining.push(parsed.aboutSubPage);
+        else if (parsed.isStoryView) remaining.push('about-me');
+        else if (parsed.activeSection && parsed.activeSection !== 'home') remaining.push(parsed.activeSection);
+        
+        const newPath = `/${parsed.lang}/admin/prev` + (remaining.length > 0 ? '/' + remaining.join('/') : '');
+        window.history.replaceState(null, '', newPath + window.location.search);
+      }
+
+      // Authentication Guard for Preview Mode (/admin/prev)
+      if (parsed.isPreview) {
+        const isAuthed = checkIsAdminAuthenticated();
+        if (!isAuthed) {
+          // If not authenticated as admin, redirect to admin login page
+          setIsPreviewMode(false);
+          setIsAdminView(true);
+          const adminPath = `/${parsed.lang}/admin`;
+          window.history.replaceState(null, '', adminPath + window.location.search);
+          return;
+        }
+      }
+
+      // If user navigates to /admin but is already authenticated, immediately redirect to /admin/prev
+      if (parsed.isAdmin) {
+        const isAuthed = checkIsAdminAuthenticated();
+        if (isAuthed) {
+          setIsAdminView(false);
+          setIsPreviewMode(true);
+          const prevPath = `/${parsed.lang}/admin/prev`;
+          window.history.replaceState(null, '', prevPath + window.location.search);
+          return;
+        }
+      }
+
+      setIsPreviewMode(parsed.isPreview);
       setIsAdminView(parsed.isAdmin);
       setActiveProjectPresentationId(parsed.projectId);
       setIsStoryView(parsed.isStoryView);
       setAboutSubPage(parsed.aboutSubPage);
       
+      // Refresh CV Data: preview mode uses localStorage, public/live mode strictly uses pristine TS (DEFAULT_CV_DATA)
+      const isPrev = parsed.isPreview && checkIsAdminAuthenticated();
+      fetchCVData(isPrev ? 'preview' : 'live').then(data => {
+        setCvData(data);
+      });
+
       if (parsed.isStoryView) {
         setActiveSection('profil');
       } else {
@@ -1120,7 +1282,7 @@ export default function App() {
 
   const hasCachedData = (() => {
     try {
-      const cached = localStorage.getItem('bi-portfolio-cv-data');
+      const cached = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('bi-portfolio-cv-data');
       return !!cached;
     } catch (_) {
       return false;
@@ -1226,10 +1388,14 @@ export default function App() {
             authorTitle={activeCVData.title}
           />
         ) : isAdminView ? (
-          <AdminPage 
-            cvData={cvData} 
-            onUpdate={(updated) => setCvData(updated)} 
+          <AdminLoginPage 
+            onSuccess={() => {
+              setIsAdminView(false);
+              setIsPreviewMode(true);
+              navigateToPath(null, true);
+            }}
             onClose={closeAdminView} 
+            lang={lang}
             theme={theme}
             setTheme={toggleThemeWithAnimation}
           />
@@ -1242,6 +1408,71 @@ export default function App() {
               theme === 'dark' ? 'bg-[#0f172a] text-slate-100' : 'bg-[#f7f9fb] text-slate-800'
             }`}
           >
+            {/* TOP PREVIEW BANNER BAR */}
+            {isPreviewMode && !isAdminView && !matchedProject && (
+              <div className="fixed top-0 inset-x-0 z-[60] bg-slate-950/95 text-white border-b border-emerald-500/40 backdrop-blur-md px-3 sm:px-6 py-2 shadow-xl shadow-black/40 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-2.5 w-2.5 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-[11px] tracking-wider text-emerald-400 bg-emerald-950/90 px-2 py-0.5 rounded border border-emerald-500/30">
+                      /{lang}/admin/prev
+                    </span>
+                    <span className="hidden sm:inline text-[11px] text-slate-300">
+                      {lang === 'id' ? 'Mode Pratinjau Terproteksi Admin (Data Draft Lokal)' : 'Admin Protected Preview Mode (Local Draft Data)'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        sessionStorage.removeItem('admin_session_auth');
+                      } catch (_) {}
+                      setIsPreviewMode(false);
+                      const currentSub = aboutSubPage 
+                        ? (aboutSubPage === 'about-me' ? 'about-me' : `about-me/${aboutSubPage}`) 
+                        : (activeSection !== 'home' ? activeSection : null);
+                      navigateToPath(currentSub, false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 text-red-200 hover:text-white border border-red-800/60 font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer select-none active:scale-97"
+                    title={lang === 'id' ? 'Keluar sesi admin dan kembali ke website publik' : 'Logout admin session and return to public website'}
+                  >
+                    <span>🔒 Logout</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => downloadCVDataAsTypeScript(cvData)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer shadow-sm select-none active:scale-97"
+                    title="Unduh file portfolioData.ts siap pakai untuk langsung replace file lama di project"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden xs:inline">Unduh</span>
+                    <span>portfolioData.ts</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentSub = aboutSubPage 
+                        ? (aboutSubPage === 'about-me' ? 'about-me' : `about-me/${aboutSubPage}`) 
+                        : (activeSection !== 'home' ? activeSection : null);
+                      navigateToPath(currentSub, false);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-850 text-slate-400 hover:text-white border border-slate-800 font-medium text-[11px] flex items-center gap-1 transition-all cursor-pointer select-none active:scale-97"
+                    title="Buka versi web asli (data portfolioData.ts)"
+                  >
+                    <Globe className="w-3 h-3 text-slate-400" />
+                    <span className="hidden xs:inline">Web</span> Asli
+                  </button>
+                </div>
+              </div>
+            )}
       
       {/* 1. TOP TRANSPARENT NAVIGATION BAR - FIXED ON HOME, HIDDEN ELSEWHERE */}
       {!isStoryView && (
@@ -1254,14 +1485,22 @@ export default function App() {
               pointerEvents: isNavVisible ? 'auto' : 'none'
             }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="hidden md:block fixed top-0 left-0 right-0 w-full z-50 bg-transparent border-none shadow-none"
+            className={`hidden md:block fixed left-0 right-0 w-full z-50 bg-transparent border-none shadow-none ${
+              isPreviewMode ? 'top-10' : 'top-0'
+            }`}
           >
             <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
               <nav ref={navbarRef} className={`w-full md:w-fit ml-0 md:ml-auto flex items-center h-auto md:h-11 mt-2 md:mt-3 px-3 md:px-4 py-0 rounded-xl md:rounded-2xl backdrop-blur-md transition-all duration-250 ${
                 theme === 'dark' 
                   ? 'bg-slate-800/85 border-none shadow-lg shadow-black/30 text-white' 
                   : 'bg-white/85 border border-slate-200/85 shadow-md shadow-slate-100 text-slate-800'
-              }`}>
+              }`}
+              style={
+                theme === 'dark' 
+                  ? (activeCVData.webTexts?.navbar_bg_color_dark ? { backgroundColor: activeCVData.webTexts.navbar_bg_color_dark } : undefined)
+                  : (activeCVData.webTexts?.navbar_bg_color ? { backgroundColor: activeCVData.webTexts.navbar_bg_color } : undefined)
+              }
+              >
                 {/* Responsive Navigation container */}
                 <div className="w-full">
                   {/* DESKTOP VIEW */}
@@ -1555,13 +1794,21 @@ export default function App() {
           </div>
 
           {/* MOBILE VIEW NAVIGATION - FULL-WIDTH HEADER BAR */}
-          <div className="md:hidden fixed top-0 left-0 right-0 w-full z-50">
+          <div className={`md:hidden fixed left-0 right-0 w-full z-50 ${
+            isPreviewMode ? 'top-10' : 'top-0'
+          }`}>
             {/* Header Box Container - White Container with shadow */}
             <div className={`relative z-10 flex items-center justify-between px-4 h-14 border-b shadow-sm transition-colors duration-250 ${
               theme === 'dark' 
                 ? 'bg-slate-900 border-slate-800 text-slate-100' 
                 : 'bg-white border-slate-200 text-slate-800'
-            }`}>
+            }`}
+            style={
+              theme === 'dark' 
+                ? (activeCVData.webTexts?.navbar_bg_color_dark ? { backgroundColor: activeCVData.webTexts.navbar_bg_color_dark } : undefined)
+                : (activeCVData.webTexts?.navbar_bg_color ? { backgroundColor: activeCVData.webTexts.navbar_bg_color } : undefined)
+            }
+            >
               {/* Left Section: Menu icon on the far left, followed by the static "Portfolio" text */}
               <div className="flex items-center gap-2">
                 {/* Hamburger Menu Toggle Button */}
@@ -1685,6 +1932,11 @@ export default function App() {
                         ? 'bg-slate-950/98 border-slate-800 text-white'
                         : 'bg-white/98 border-slate-200 text-slate-800'
                     }`}
+                    style={
+                      theme === 'dark'
+                        ? (activeCVData.webTexts?.navbar_bg_color_dark ? { backgroundColor: activeCVData.webTexts.navbar_bg_color_dark } : undefined)
+                        : (activeCVData.webTexts?.navbar_bg_color ? { backgroundColor: activeCVData.webTexts.navbar_bg_color } : undefined)
+                    }
                   >
                     <div>
                       {/* Drawer Header */}
@@ -1761,7 +2013,7 @@ export default function App() {
       )}
 
       {/* 2. MAIN GRID LAYOUT CONTENT */}
-      <main className="flex-grow pt-0">
+      <main className={`flex-grow ${isPreviewMode ? 'pt-10' : 'pt-0'}`}>
         <AnimatePresence mode="wait">
           {aboutSubPage ? (
             <AboutMeSubPages 
@@ -1769,6 +2021,7 @@ export default function App() {
               subPage={aboutSubPage}
               cvData={activeCVData}
               theme={theme}
+              lang={lang}
               onBackToStory={() => {
                 navigateToPath('about-me');
               }}
@@ -1804,106 +2057,23 @@ export default function App() {
             {/* HERO HERO SECTION */}
         <section id="home" className={`relative min-h-[90vh] flex items-center overflow-hidden border-b transition-colors duration-250 ${
           theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
+        }`}
+        style={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.hero_bg_color_dark ? { backgroundColor: activeCVData.webTexts.hero_bg_color_dark } : undefined)
+            : (activeCVData.webTexts?.hero_bg_color ? { backgroundColor: activeCVData.webTexts.hero_bg_color } : undefined)
+        }
+        >
           {/* BACKGROUND CUSTOMIZER OVERLAYS */}
-          {(() => {
-            const bgStyle = activeCVData.webTexts?.home_bg_style || 'dots';
-            const customBgUrl = activeCVData.webTexts?.home_bg_custom_url || '';
-            const customBgOpacity = parseFloat(activeCVData.webTexts?.home_bg_custom_opacity || '0.15');
-
-            if (bgStyle === 'dots') {
-              return (
-                <div 
-                  className="absolute inset-0 pointer-events-none opacity-[0.25] transition-opacity duration-500" 
-                  style={{
-                    backgroundImage: `radial-gradient(circle, ${theme === 'dark' ? '#475569' : '#94a3b8'} 1.5px, transparent 1.5px)`,
-                    backgroundSize: '24px 24px'
-                  }}
-                />
-              );
-            }
-            if (bgStyle === 'grid') {
-              return (
-                <div 
-                  className="absolute inset-0 pointer-events-none opacity-[0.15] transition-opacity duration-500" 
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(to right, ${theme === 'dark' ? '#475569' : '#cbd5e1'} 1px, transparent 1px),
-                      linear-gradient(to bottom, ${theme === 'dark' ? '#475569' : '#cbd5e1'} 1px, transparent 1px)
-                    `,
-                    backgroundSize: '40px 40px'
-                  }}
-                />
-              );
-            }
-            if (bgStyle === 'ambient') {
-              return (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-                  <div 
-                    className={`absolute rounded-full transition-colors duration-500 ${
-                      isMobile 
-                        ? 'w-[280px] h-[280px] blur-[60px] -right-10 -top-20 opacity-[0.22]' 
-                        : 'w-[600px] h-[600px] blur-[140px] -right-20 -top-40 opacity-[0.25]'
-                    } ${
-                      theme === 'dark' ? 'bg-emerald-500/30' : 'bg-emerald-300/40'
-                    }`}
-                  />
-                  <div 
-                    className={`absolute rounded-full transition-colors duration-500 ${
-                      isMobile 
-                        ? 'w-[240px] h-[240px] blur-[50px] -left-10 bottom-[-50px] opacity-[0.15]' 
-                        : 'w-[500px] h-[500px] blur-[120px] -left-20 bottom-[-100px] opacity-[0.18]'
-                    } ${
-                      theme === 'dark' ? 'bg-blue-600/20' : 'bg-blue-300/30'
-                    }`}
-                  />
-                </div>
-              );
-            }
-            if (bgStyle === 'abstract') {
-              return (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-                  <div 
-                    className="absolute inset-0 opacity-[0.06] dark:opacity-[0.12] transition-opacity duration-300" 
-                    style={{
-                      backgroundImage: `
-                        repeating-linear-gradient(45deg, ${theme === 'dark' ? '#cbd5e1' : '#1e293b'} 0px, ${theme === 'dark' ? '#cbd5e1' : '#1e293b'} 1px, transparent 0, transparent 50%),
-                        repeating-linear-gradient(-45deg, ${theme === 'dark' ? '#cbd5e1' : '#1e293b'} 0px, ${theme === 'dark' ? '#cbd5e1' : '#1e293b'} 1px, transparent 0, transparent 50%)
-                      `,
-                      backgroundSize: '60px 60px'
-                    }}
-                  />
-                  <div 
-                    className={`absolute w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-transparent via-transparent to-transparent opacity-[0.25] transition-colors duration-500 ${
-                      theme === 'dark' ? 'from-emerald-950/20 to-slate-900' : 'from-emerald-100/30 to-white'
-                    }`}
-                  />
-                </div>
-              );
-            }
-            if (bgStyle === 'watercolor_blush' || bgStyle === 'watercolor_gold' || bgStyle === 'watercolor_pastel' || bgStyle === 'watercolor_sunset') {
-              return <BackgroundTextures type={bgStyle} theme={theme} />;
-            }
-            if (bgStyle === 'custom_upload' && customBgUrl) {
-              return (
-                <div 
-                  className="absolute inset-0 pointer-events-none overflow-hidden select-none"
-                  style={{ 
-                    opacity: customBgOpacity,
-                    maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)',
-                    WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)'
-                  }}
-                >
-                  <img 
-                    src={customBgUrl} 
-                    alt="Custom Background Watermark" 
-                    className="w-full h-full object-cover grayscale brightness-110 contrast-125 select-none pointer-events-none"
-                  />
-                </div>
-              );
-            }
-            return null;
-          })()}
+          <BackgroundTextures 
+            type={activeCVData.webTexts?.home_bg_style || 'dots'} 
+            theme={theme} 
+            opacity={activeCVData.webTexts?.home_bg_pattern_opacity ? parseFloat(activeCVData.webTexts.home_bg_pattern_opacity) : (activeCVData.webTexts?.home_bg_custom_opacity ? parseFloat(activeCVData.webTexts.home_bg_custom_opacity) : undefined)}
+            scale={activeCVData.webTexts?.home_bg_pattern_scale ? parseFloat(activeCVData.webTexts.home_bg_pattern_scale) : undefined}
+            color={activeCVData.webTexts?.home_bg_pattern_color || undefined}
+            customSvg={activeCVData.webTexts?.home_bg_custom_svg || activeCVData.webTexts?.home_custom_svg || activeCVData.webTexts?.hero_bg_custom_svg || undefined}
+            customBgUrl={activeCVData.webTexts?.home_bg_custom_url || activeCVData.webTexts?.home_custom_url || undefined}
+          />
           
           <div 
             className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 md:py-20 lg:py-24 grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-16 xl:gap-x-24 gap-y-4 items-center justify-items-center md:justify-items-start text-center md:text-left relative z-10 w-full"
@@ -1929,17 +2099,9 @@ export default function App() {
                 theme === 'dark' ? 'text-white' : 'text-slate-900'
               }`}
             >
-              {(activeCVData.webTexts?.hero_title || (isSupabaseConfigured ? "Masukkan Judul Portofolio Anda\ndi Panel Admin" : "Instalasi Database Supabase\npada Google AI Studio")).split('\n').map((line, i) => {
-                if (line.includes("Supabase")) {
-                  return (
-                    <span key={i} className="block">
-                      {line.replace("Supabase", "")}
-                      <span className="text-emerald-600">Supabase</span>
-                    </span>
-                  );
-                }
-                return <span key={i} className="block">{line}</span>;
-              })}
+              {(activeCVData.webTexts?.hero_title || "Transforming Raw Data\ninto Business Decisions").split('\n').map((line, i) => (
+                <span key={i} className="block">{line}</span>
+              ))}
             </motion.h1>
 
             {/* 2. Image/Gambar in the center */}
@@ -2038,7 +2200,7 @@ export default function App() {
               }`}
             >
               <span>
-                {activeCVData.webTexts?.hero_subtitle || (isSupabaseConfigured ? "Silakan isi profil singkat, visi karir, dan keahlian di panel admin database untuk mulai menampilkan detail professional Anda." : "Portofolio dinamis berkinerja tinggi dengan visualisasi bagan interaktif, slide PPT kustom, dan panel admin internal. Hubungkan ke database Supabase Anda untuk memuat CV secara dinamis.")}
+                {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
               </span>{" "}
               <button
                 onClick={() => {
@@ -2060,10 +2222,28 @@ export default function App() {
 
 
         {/* CASE STUDIES VIEW SECTION */}
-        <section id="projects" className={`py-20 border-b transition-colors duration-250 ${
+        <section id="projects" className={`py-20 border-b transition-colors duration-250 relative overflow-hidden ${
           theme === 'dark' ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-50 border-slate-200'
-        }`}>
-          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
+        }`}
+        style={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.projects_bg_color_dark ? { backgroundColor: activeCVData.webTexts.projects_bg_color_dark } : undefined)
+            : (activeCVData.webTexts?.projects_bg_color ? { backgroundColor: activeCVData.webTexts.projects_bg_color } : undefined)
+        }
+        >
+          {/* SECTION BACKGROUND OVERLAY */}
+          {activeCVData.webTexts?.projects_bg_style && activeCVData.webTexts.projects_bg_style !== 'none' && (
+            <BackgroundTextures 
+              type={activeCVData.webTexts.projects_bg_style} 
+              theme={theme} 
+              opacity={activeCVData.webTexts.projects_bg_pattern_opacity ? parseFloat(activeCVData.webTexts.projects_bg_pattern_opacity) : undefined}
+              scale={activeCVData.webTexts.projects_bg_pattern_scale ? parseFloat(activeCVData.webTexts.projects_bg_pattern_scale) : undefined}
+              color={activeCVData.webTexts.projects_bg_pattern_color || undefined}
+              customSvg={activeCVData.webTexts.projects_bg_custom_svg || undefined}
+              customBgUrl={activeCVData.webTexts.projects_bg_custom_url || undefined}
+            />
+          )}
+          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="mb-12">
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
@@ -2089,31 +2269,21 @@ export default function App() {
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
               <div className="flex-1 min-w-0">
                 {/* Case Studies Cards Grid */}
-                <div className={`${(!isSupabaseConfigured || !activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid grid-cols-1' : 'flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-proximity no-scrollbar pb-4 md:pb-0'} gap-6 sm:gap-8`}>
-              {!isSupabaseConfigured ? (
+                <div className={`${(!activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid grid-cols-1' : 'flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-proximity no-scrollbar pb-4 md:pb-0'} gap-6 sm:gap-8`}>
+              {!activeCVData.caseStudies || activeCVData.caseStudies.length === 0 ? (
                 <div className={`p-8 rounded-xl text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
-                }`}>
-                  <Database className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-pulse shrink-0" />
-                  <h3 className="font-sans font-bold text-lg mb-2">Supabase Belum Terhubung</h3>
-                  <p className="text-sm max-w-lg mx-auto leading-relaxed mb-6">
-                    Portofolio web ini dirancang penuh untuk mengambil data dan gambar secara dinamis dari database Supabase Anda. Konfigurasikan credentials berikut di Secrets panel Google AI Studio:
-                  </p>
-                  <div className="inline-flex flex-col sm:flex-row gap-3 font-mono text-xs mb-6 text-emerald-500 bg-emerald-500/10 px-4 py-2.5 rounded-lg border border-emerald-500/20 w-fit mx-auto">
-                    <span>VITE_SUPABASE_URL</span>
-                    <span className="hidden sm:inline text-slate-400">|</span>
-                    <span>VITE_SUPABASE_ANON_KEY</span>
-                  </div>
-                  <p className="text-xs text-slate-400 block">Setelah secrets dipasang, data asli, deskripsi, dan gambar proyek Anda akan otomatis dirender di sini.</p>
-                </div>
-              ) : !activeCVData.caseStudies || activeCVData.caseStudies.length === 0 ? (
-                <div className={`p-8 rounded-xl text-center transition-all ${
-                  theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
-                }`}>
+                }`}
+                style={
+                  theme === 'dark'
+                    ? (activeCVData.webTexts?.projects_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color_dark } : undefined)
+                    : (activeCVData.webTexts?.projects_card_bg_color ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color } : undefined)
+                }
+                >
                   <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
                   <h3 className="font-sans font-bold text-lg mb-2">Belum ada Proyek</h3>
                   <p className="text-sm max-w-md mx-auto leading-relaxed mb-4">
-                    Koneksi database berhasil, namun belum ada proyek/case studies yang tersimpan. Klik ikon database hijau (Admin Panel) di pojok kanan atas untuk login dan membuat proyek pertama Anda!
+                    Belum ada proyek/case studies yang tersimpan. Klik ikon database hijau (Admin Panel) di pojok kanan atas untuk login dan membuat proyek pertama Anda!
                   </p>
                 </div>
               ) : (
@@ -2147,6 +2317,11 @@ export default function App() {
                     className={`bento-card rounded-xl overflow-hidden p-5 flex flex-col justify-between group transition-all cursor-pointer relative shrink-0 w-[82vw] sm:w-[380px] md:w-auto snap-center md:snap-align-none ${
                       theme === 'dark' ? 'bg-slate-800 border-none hover:border-emerald-500/40' : 'bg-white border border-slate-200/80 hover:border-emerald-500/30 hover:shadow-lg'
                     }`}
+                    style={
+                      theme === 'dark'
+                        ? (activeCVData.webTexts?.projects_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color_dark } : undefined)
+                        : (activeCVData.webTexts?.projects_card_bg_color ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color } : undefined)
+                    }
                     title="Click to open project link"
                   >
                     <div className={`absolute top-2.5 right-2.5 z-40 opacity-0 group-hover:opacity-100 transition-opacity font-mono text-[9px] font-bold tracking-wider px-2.5 py-1 rounded-lg leading-none flex items-center gap-1 border shadow-xs backdrop-blur-xs transition-all duration-200 ${
@@ -2215,7 +2390,7 @@ export default function App() {
                   return (
                     <>
                       {mappedCards}
-                      {isSupabaseConfigured && activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
+                      {activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
                         <div className="md:hidden flex items-center justify-center shrink-0 pr-4 snap-center pl-2">
                           <button
                             onClick={() => {
@@ -2246,7 +2421,7 @@ export default function App() {
               </div>
 
               {/* The elegant view all projects button beside the project cards container */}
-              {isSupabaseConfigured && activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
+              {activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
                 <div className="hidden md:flex justify-center items-center shrink-0 w-full lg:w-auto">
                   <motion.button
                     onMouseEnter={() => setIsAllProjectsHovered(true)}
@@ -2292,10 +2467,28 @@ export default function App() {
 
 
         {/* TECHNICAL ARSENAL SECTION */}
-        <section id="skills" className={`py-20 border-b transition-colors duration-250 ${
+        <section id="skills" className={`py-20 border-b transition-colors duration-250 relative overflow-hidden ${
           theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
-          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
+        }`}
+        style={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.skills_bg_color_dark ? { backgroundColor: activeCVData.webTexts.skills_bg_color_dark } : undefined)
+            : (activeCVData.webTexts?.skills_bg_color ? { backgroundColor: activeCVData.webTexts.skills_bg_color } : undefined)
+        }
+        >
+          {/* SECTION BACKGROUND OVERLAY */}
+          {activeCVData.webTexts?.skills_bg_style && activeCVData.webTexts.skills_bg_style !== 'none' && (
+            <BackgroundTextures 
+              type={activeCVData.webTexts.skills_bg_style} 
+              theme={theme} 
+              opacity={activeCVData.webTexts.skills_bg_pattern_opacity ? parseFloat(activeCVData.webTexts.skills_bg_pattern_opacity) : undefined}
+              scale={activeCVData.webTexts.skills_bg_pattern_scale ? parseFloat(activeCVData.webTexts.skills_bg_pattern_scale) : undefined}
+              color={activeCVData.webTexts.skills_bg_pattern_color || undefined}
+              customSvg={activeCVData.webTexts.skills_bg_custom_svg || activeCVData.webTexts.skills_custom_svg || undefined}
+              customBgUrl={activeCVData.webTexts.skills_bg_custom_url || activeCVData.webTexts.skills_custom_url || undefined}
+            />
+          )}
+          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -2315,15 +2508,41 @@ export default function App() {
               </p>
             </motion.div>
 
-            <SkillsArsenal skills={activeCVData.skills} theme={theme} customCategories={activeCVData.skillCategories} />
+            <SkillsArsenal 
+              skills={activeCVData.skills} 
+              theme={theme} 
+              customCategories={activeCVData.skillCategories}
+              lang={lang}
+              badgeText={activeCVData.webTexts?.skills_badge}
+              groupDesc={activeCVData.webTexts?.skills_home_group_desc}
+              onNavigateToAboutMe={() => navigateToPath('skills')}
+            />
           </div>
         </section>
 
         {/* CHRONOLOGY timeline SECTION */}
-        <section id="experience" className={`py-12 sm:py-20 border-b transition-colors duration-250 ${
+        <section id="experience" className={`py-12 sm:py-20 border-b transition-colors duration-250 relative overflow-hidden ${
           theme === 'dark' ? 'bg-[#0f172a] border-slate-800' : 'bg-slate-50 border-slate-200'
-        }`}>
-          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
+        }`}
+        style={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.experience_bg_color_dark ? { backgroundColor: activeCVData.webTexts.experience_bg_color_dark } : undefined)
+            : (activeCVData.webTexts?.experience_bg_color ? { backgroundColor: activeCVData.webTexts.experience_bg_color } : undefined)
+        }
+        >
+          {/* SECTION BACKGROUND OVERLAY */}
+          {activeCVData.webTexts?.experience_bg_style && activeCVData.webTexts.experience_bg_style !== 'none' && (
+            <BackgroundTextures 
+              type={activeCVData.webTexts.experience_bg_style} 
+              theme={theme} 
+              opacity={activeCVData.webTexts.experience_bg_pattern_opacity ? parseFloat(activeCVData.webTexts.experience_bg_pattern_opacity) : undefined}
+              scale={activeCVData.webTexts.experience_bg_pattern_scale ? parseFloat(activeCVData.webTexts.experience_bg_pattern_scale) : undefined}
+              color={activeCVData.webTexts.experience_bg_pattern_color || undefined}
+              customSvg={activeCVData.webTexts.experience_bg_custom_svg || activeCVData.webTexts.experience_custom_svg || undefined}
+              customBgUrl={activeCVData.webTexts.experience_bg_custom_url || activeCVData.webTexts.experience_custom_url || undefined}
+            />
+          )}
+          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -2345,24 +2564,20 @@ export default function App() {
 
             {/* Timeline Cards */}
             <div className="space-y-3 sm:space-y-6 max-w-4xl xl:max-w-5xl">
-              {!isSupabaseConfigured ? (
+              {!activeCVData.experiences || activeCVData.experiences.length === 0 ? (
                 <div className={`p-8 rounded-xl border text-center transition-all ${
                   theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
-                }`}>
-                  <Database className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-pulse shrink-0" />
-                  <h3 className="font-sans font-bold text-base mb-2">Supabase Belum Terhubung</h3>
-                  <p className="text-sm max-w-lg mx-auto leading-relaxed text-slate-400">
-                    Konfigurasikan database Supabase Anda untuk menampilkan riwayat pengalaman kerja professional Anda secara dinamis dari tabel database.
-                  </p>
-                </div>
-              ) : !activeCVData.experiences || activeCVData.experiences.length === 0 ? (
-                <div className={`p-8 rounded-xl border text-center transition-all ${
-                  theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
-                }`}>
+                }`}
+                style={
+                  theme === 'dark'
+                    ? (activeCVData.webTexts?.experience_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color_dark } : undefined)
+                    : (activeCVData.webTexts?.experience_card_bg_color ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color } : undefined)
+                }
+                >
                   <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
                   <h3 className="font-sans font-bold text-base mb-2">Belum ada Pengalaman Kerja</h3>
                   <p className="text-sm max-w-md mx-auto leading-relaxed text-slate-400">
-                    Koneksi sukses! Tambahkan riwayat pengalaman kerja baru Anda melalui Admin Panel di pojok kanan atas.
+                    Tambahkan riwayat pengalaman kerja baru Anda melalui Admin Panel di pojok kanan atas.
                   </p>
                 </div>
               ) : (
@@ -2382,6 +2597,11 @@ export default function App() {
                         ? 'border-emerald-500/45 shadow-sm bg-emerald-500/5' 
                         : (theme === 'dark' ? 'border-slate-800 bg-slate-900/60 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300')
                     }`}
+                    style={
+                      theme === 'dark'
+                        ? (activeCVData.webTexts?.experience_card_bg_color_dark && !isExpanded ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color_dark } : undefined)
+                        : (activeCVData.webTexts?.experience_card_bg_color && !isExpanded ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color } : undefined)
+                    }
                   >
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-2">
                       <div className="flex gap-3 sm:gap-4 items-center">
@@ -2471,10 +2691,28 @@ export default function App() {
 
 
         {/* DYNAMIC CONTACT MATRIX SECTION */}
-        <section id="contact" className={`min-h-[85vh] flex items-center pt-32 pb-44 transition-colors relative ${
+        <section id="contact" className={`min-h-[85vh] flex items-center pt-32 pb-44 transition-colors relative overflow-hidden ${
           theme === 'dark' ? 'bg-[#111827] border-t border-slate-850' : 'bg-white'
-        }`}>
-          <div className="w-full max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
+        }`}
+        style={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.contact_bg_color_dark ? { backgroundColor: activeCVData.webTexts.contact_bg_color_dark } : undefined)
+            : (activeCVData.webTexts?.contact_bg_color ? { backgroundColor: activeCVData.webTexts.contact_bg_color } : undefined)
+        }
+        >
+          {/* SECTION BACKGROUND OVERLAY */}
+          {activeCVData.webTexts?.contact_bg_style && activeCVData.webTexts.contact_bg_style !== 'none' && (
+            <BackgroundTextures 
+              type={activeCVData.webTexts.contact_bg_style} 
+              theme={theme} 
+              opacity={activeCVData.webTexts.contact_bg_pattern_opacity ? parseFloat(activeCVData.webTexts.contact_bg_pattern_opacity) : undefined}
+              scale={activeCVData.webTexts.contact_bg_pattern_scale ? parseFloat(activeCVData.webTexts.contact_bg_pattern_scale) : undefined}
+              color={activeCVData.webTexts.contact_bg_pattern_color || undefined}
+              customSvg={activeCVData.webTexts.contact_bg_custom_svg || activeCVData.webTexts.contact_custom_svg || undefined}
+              customBgUrl={activeCVData.webTexts.contact_bg_custom_url || activeCVData.webTexts.contact_custom_url || undefined}
+            />
+          )}
+          <div className="w-full max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <ContactForm 
               email={activeCVData.email} 
               location={activeCVData.location} 
@@ -2495,11 +2733,19 @@ export default function App() {
         theme === 'dark' 
           ? 'bg-slate-900 border-slate-800 text-slate-400' 
           : 'bg-white border-slate-200 text-slate-500'
-      }`}>
+      }`}
+      style={
+        theme === 'dark'
+          ? (activeCVData.webTexts?.footer_bg_color_dark ? { backgroundColor: activeCVData.webTexts.footer_bg_color_dark } : undefined)
+          : (activeCVData.webTexts?.footer_bg_color ? { backgroundColor: activeCVData.webTexts.footer_bg_color } : undefined)
+      }
+      >
         <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-6">
-          <p className="font-mono text-[9px] sm:text-[10px] text-slate-500 text-center sm:text-left select-none">
-            © 2026 {activeCVData.name || 'Portfolio'}. Released under MIT License.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-center sm:justify-start">
+            <p className="font-mono text-[9px] sm:text-[10px] text-slate-500 text-center sm:text-left select-none">
+              © 2026 {activeCVData.name || 'Portfolio'}. Released under MIT License.
+            </p>
+          </div>
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Unified Social Media Icon Controls */}
             {(() => {
@@ -2527,6 +2773,57 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* 5. FLOATING PENCIL ACTION BUTTON & QUICK EDITOR DRAWER (PREVIEW MODE ONLY) */}
+      {isPreviewMode && !isAdminView && (
+        <>
+          {/* Floating Pencil Button at Bottom-Right */}
+          <div className="fixed bottom-6 right-6 z-[90] flex items-center gap-2">
+            {!isQuickEditorOpen && (
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.93 }}
+                type="button"
+                onClick={() => setIsQuickEditorOpen(true)}
+                className="group relative flex items-center justify-center w-13 h-13 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl shadow-emerald-950/60 border-2 border-emerald-400/40 backdrop-blur-md cursor-pointer transition-all"
+                title="Buka Visual Quick Editor (Edit tulisan halaman aktif langsung di sini)"
+              >
+                <Pencil className="w-5 h-5 transition-transform group-hover:rotate-12" />
+                
+                {/* Ping animation indicator */}
+                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-slate-900"></span>
+                </span>
+
+                {/* Floating tooltip label on hover */}
+                <span className="absolute right-full mr-3 px-2.5 py-1 rounded-lg bg-slate-900/95 text-white text-[11px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-slate-800">
+                  ✏️ Quick Edit Halaman Aktif
+                </span>
+              </motion.button>
+            )}
+          </div>
+
+          {/* Quick Editor Sidebar Drawer */}
+          <QuickEditorDrawer
+            isOpen={isQuickEditorOpen}
+            onClose={() => setIsQuickEditorOpen(false)}
+            cvData={cvData}
+            onUpdateCV={(updated) => {
+              setCvData(updated);
+            }}
+            currentLang={lang}
+            activeSection={activeSection}
+            aboutSubPage={aboutSubPage || undefined}
+            isStoryView={isStoryView}
+            activeProjectPresentationId={activeProjectPresentationId}
+            theme={theme}
+          />
+        </>
+      )}
 
 
 

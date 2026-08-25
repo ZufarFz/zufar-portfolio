@@ -1,6 +1,6 @@
 # 🚀 Web Portfolio
 
-An interactive, high-performance, futuristic portfolio application built for Data Analytics and Software Engineering professionals. Designed with a sleek, responsive aesthetic, dark/light theme switcher, multi-language support (English & Indonesian), interactive case study presentations, dynamic resume generator, and real-time backend integration via Supabase.
+An interactive, high-performance, futuristic portfolio application built for Data Analytics and Software Engineering professionals. Designed with a sleek, responsive aesthetic, dark/light theme switcher, multi-language support (English & Indonesian), interactive case study presentations, dynamic resume generator, and local persistence with `portfolioData.ts`.
 
 ---
 
@@ -13,7 +13,7 @@ An interactive, high-performance, futuristic portfolio application built for Dat
 - **📄 Live Resume (CV) Generator & PDF Export**: Interactive CV modal with instant PDF downloading powered by `html2pdf.js`.
 - **🛠️ Tech Skills Arsenal**: Categorized skills showcase with filter tabs, proficiency indicators, and detailed tool breakdowns.
 - **✉️ Direct Gmail Contact Integration**: Streamlined contact form that opens pre-filled messages directly in Gmail web composer with customized subject lines and message body.
-- **⚡ Admin Panel & Supabase Backend**: Integrated CMS capabilities for dynamic content management and real-time data persistence.
+- **⚡ Admin Panel & Local Data Management**: Integrated CMS capabilities for dynamic content management and local data persistence via `portfolioData.ts`.
 - **📱 Responsive Smart Navigation**: Header navigation bar that automatically auto-hides when scrolling down and reappears when scrolling up.
 
 ---
@@ -25,7 +25,7 @@ An interactive, high-performance, futuristic portfolio application built for Dat
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
 - **Animations**: [Motion](https://motion.dev/) (Framer Motion API)
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **Backend & Database**: [Supabase JS Client](https://supabase.com/) (`@supabase/supabase-js`)
+- **Data Source**: `portfolioData.ts` & LocalStorage
 - **PDF Generation**: `html2pdf.js`
 - **Server Environment**: Express (Node.js)
 
@@ -39,7 +39,7 @@ An interactive, high-performance, futuristic portfolio application built for Dat
 │   ├── components/          # Reusable UI Components
 │   │   ├── AboutMeStoryPage.tsx         # Personal story & timeline
 │   │   ├── AboutMeSubPages.tsx          # Detailed bio sub-pages
-│   │   ├── AdminPage.tsx                # Supabase content management panel
+│   │   ├── AdminPage.tsx                # Content management panel
 │   │   ├── BackgroundTextures.tsx       # Decorative canvas backgrounds
 │   │   ├── CaseStudyPresentationPage.tsx# Interactive case study deck
 │   │   ├── ContactForm.tsx              # Pre-filled Gmail contact form
@@ -48,14 +48,12 @@ An interactive, high-performance, futuristic portfolio application built for Dat
 │   │   ├── ResumeModal.tsx              # Interactive CV preview & PDF exporter
 │   │   ├── SkillsArsenal.tsx            # Categorized skills matrix
 │   │   └── SocialIcon.tsx               # Brand & social media icons
-│   ├── data/                # Static data & configuration files
-│   ├── lib/                 # Utility libraries (Supabase client init)
-│   │   └── supabaseClient.ts
+│   ├── data/                # Static data & configuration files (portfolioData.ts)
+│   ├── lib/                 # Utility libraries (storage helpers)
 │   ├── App.tsx              # Main Application Container & Router
 │   ├── index.css            # Global CSS, Tailwind import & Autofill styling
 │   ├── main.tsx             # Application Entry Point
 │   └── types.ts             # Shared TypeScript Interfaces
-├── .env.example             # Environment variable template
 ├── metadata.json            # Application metadata
 ├── package.json             # NPM dependencies & scripts
 └── tsconfig.json            # TypeScript configuration
@@ -84,14 +82,7 @@ Ensure you have the following installed on your machine:
    npm install
    ```
 
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory based on `.env.example`:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-4. **Run the Development Server**:
+3. **Run the Development Server**:
    ```bash
    npm run dev
    ```
@@ -116,3 +107,4 @@ In the project directory, you can run:
 ## 📄 License
 
 This project is licensed under the MIT License.
+

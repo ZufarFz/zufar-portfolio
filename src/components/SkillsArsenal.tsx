@@ -1,604 +1,511 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { 
-  Database, 
-  Terminal, 
-  LayoutGrid, 
-  TrendingUp, 
-  Calculator, 
-  Grid, 
-  Cpu, 
-  Search, 
+  ArrowRight, 
   Layers, 
-  Award,
-  BookOpen
+  ExternalLink,
+  Search,
+  BookOpen,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { SKILLS } from '../data/portfolioData';
 import { SkillItem, SkillCategory } from '../types';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import TechLogo from './TechLogo';
 
-// Safe component mapper for Lucide icons
-const IconMapper = ({ iconName, className }: { iconName: string, className?: string }) => {
-  switch (iconName) {
-    case 'Database':
-      return <Database className={className} />;
-    case 'Terminal':
-      return <Terminal className={className} />;
-    case 'LayoutGrid':
-      return <LayoutGrid className={className} />;
-    case 'TrendingUp':
-      return <TrendingUp className={className} />;
-    case 'Calculator':
-      return <Calculator className={className} />;
-    case 'Grid':
-      return <Grid className={className} />;
-    case 'Cpu':
-      return <Cpu className={className} />;
-    case 'Layers':
-      return <Layers className={className} />;
-    default:
-      return <Database className={className} />;
+interface SkillsArsenalProps {
+  skills?: SkillItem[];
+  theme?: 'light' | 'dark';
+  customCategories?: SkillCategory[];
+  lang?: 'id' | 'en';
+  badgeText?: string;
+  groupDesc?: string;
+  viewMode?: 'home' | 'detailed';
+  onNavigateToAboutMe?: () => void;
+}
+
+// Map known category IDs or slugs to standard display labels and Japanese sub-tags
+const CATEGORY_MAP: Record<string, { labelId: string; labelEn: string; jp: string }> = {
+  frontend: {
+    labelId: 'FRONTEND',
+    labelEn: 'FRONTEND',
+    jp: 'フロントエンド'
+  },
+  backend: {
+    labelId: 'BACKEND & DATABASE',
+    labelEn: 'BACKEND & DATABASE',
+    jp: 'バックエンド'
+  },
+  dbms: {
+    labelId: 'DBMS & QUERY',
+    labelEn: 'DBMS & QUERY',
+    jp: 'データベース'
+  },
+  scientific: {
+    labelId: 'PROGRAMMING & SCRIPT',
+    labelEn: 'PROGRAMMING & SCRIPT',
+    jp: 'プログラミング'
+  },
+  visualization: {
+    labelId: 'BUSINESS INTELLIGENCE & VISUALIZATION',
+    labelEn: 'BUSINESS INTELLIGENCE & VISUALIZATION',
+    jp: '視覚化 & BI'
+  },
+  analytical: {
+    labelId: 'ANALYTICS & STATS',
+    labelEn: 'ANALYTICS & STATS',
+    jp: '分析ツール'
+  },
+  tools: {
+    labelId: 'DEV TOOLS & INFRA',
+    labelEn: 'DEV TOOLS & INFRA',
+    jp: 'ツール'
+  },
+  core: {
+    labelId: 'CORE TECHNOLOGIES',
+    labelEn: 'CORE TECHNOLOGIES',
+    jp: '基幹技術'
   }
 };
 
-export default function SkillsArsenal({ 
-  skills = [], 
+export default function SkillsArsenal({
+  skills = [],
   theme = 'light',
-  customCategories = []
-}: { 
-  skills?: SkillItem[], 
-  theme?: 'light' | 'dark',
-  customCategories?: SkillCategory[]
-}) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [activeSkill, setActiveSkill] = useState<SkillItem | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-  const [direction, setDirection] = useState<number>(1); // 1 = right/forward, -1 = left/backward
-  const activeSkillRef = useRef<SkillItem | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Smooth height transition references
-  const sidebarContentRef = useRef<HTMLDivElement>(null);
-  const [sidebarHeight, setSidebarHeight] = useState<number | 'auto'>('auto');
-
-  useEffect(() => {
-    const element = sidebarContentRef.current;
-    if (!element) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setSidebarHeight((entry.target as HTMLElement).offsetHeight);
-      }
-    });
-
-    resizeObserver.observe(element);
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  const skillsList = (skills && skills.length > 0 ? skills : (isSupabaseConfigured ? SKILLS : [])).filter(s => s.showOnWeb !== false);
-
-  // Dynamic filter lists
-  const filteredSkills = skillsList.filter(skill => {
-    const matchesSearch = skill.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          skill.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Normalize older categories dynamically for filtering compatibility
-    let normalizedCategory = skill.category;
-    if (normalizedCategory === 'core') {
-      normalizedCategory = (skill.icon === 'Database' || skill.name.toLowerCase().includes('sql')) ? 'dbms' : 'scientific';
-    }
-
-    const matchesCategory = selectedCategory === 'all' || normalizedCategory === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  // Helper to change active skill with directional tracking
-  const changeActiveSkill = useCallback((newSkill: SkillItem | null) => {
-    if (newSkill && activeSkillRef.current && newSkill.id !== activeSkillRef.current.id) {
-      const prevIdx = filteredSkills.findIndex(s => s.id === activeSkillRef.current?.id);
-      const newIdx = filteredSkills.findIndex(s => s.id === newSkill.id);
-      if (prevIdx !== -1 && newIdx !== -1) {
-        if (newIdx > prevIdx) {
-          setDirection(1); // moving right to higher index
-        } else if (newIdx < prevIdx) {
-          setDirection(-1); // moving left to lower index
-        }
-      }
-    }
-    activeSkillRef.current = newSkill;
-    setActiveSkill(newSkill);
-  }, [filteredSkills]);
-
-  // Track if scroll is caused by clicking a card to avoid intermediate state flickering
-  const isClickScrollingRef = useRef<boolean>(false);
-  const clickScrollTimeoutRef = useRef<number | null>(null);
-
-  // Throttled scroll handler using requestAnimationFrame
-  const scrollRafRef = useRef<number | null>(null);
-
-  // Smoothly update scale, opacity, and zIndex for each card based on distance to center
-  const updateCardScales = useCallback(() => {
-    if (!isMobile || !scrollContainerRef.current) return null;
-    const container = scrollContainerRef.current;
-    const containerCenter = container.scrollLeft + container.clientWidth / 2;
-    const radius = 160; // px distance for full scale/opacity drop-off
-
-    const children = Array.from(container.children) as HTMLElement[];
-    let closestSkill: SkillItem | null = null;
-    let minDistance = Infinity;
-
-    children.forEach((child) => {
-      const skillId = child.getAttribute('data-skill-id');
-      if (!skillId) return;
-
-      const childCenter = child.offsetLeft + child.clientWidth / 2;
-      const distance = Math.abs(containerCenter - childCenter);
-
-      // normDist: 0 at exact center, 1 at >= 160px away
-      const normDist = Math.min(distance / radius, 1);
-
-      // Continuous scale: 1.08 at center -> 0.88 at edge
-      const scale = 1.08 - (normDist * 0.20);
-      // Continuous opacity: 1.0 at center -> 0.45 at edge
-      const opacity = 1.0 - (normDist * 0.55);
-
-      child.style.transform = `scale(${scale.toFixed(3)})`;
-      child.style.opacity = opacity.toFixed(3);
-      child.style.zIndex = distance < 60 ? '10' : '1';
-
-      if (distance < minDistance) {
-        minDistance = distance;
-        const found = filteredSkills.find(s => s.id === skillId);
-        if (found) closestSkill = found;
-      }
-    });
-
-    return closestSkill;
-  }, [isMobile, filteredSkills]);
-
-  const handleScroll = () => {
-    if (!isMobile || !scrollContainerRef.current) return;
-    if (scrollRafRef.current !== null) return;
-
-    scrollRafRef.current = requestAnimationFrame(() => {
-      scrollRafRef.current = null;
-      
-      // Continuously update card scale & opacity on every scroll frame
-      const closestSkill = updateCardScales();
-
-      if (!isClickScrollingRef.current && closestSkill && activeSkillRef.current?.id !== closestSkill.id) {
-        changeActiveSkill(closestSkill);
-      }
-    });
-  };
-
-  useEffect(() => {
-    if (isMobile) {
-      const raf = requestAnimationFrame(() => {
-        updateCardScales();
-      });
-      return () => cancelAnimationFrame(raf);
-    }
-  }, [isMobile, filteredSkills, activeSkill, updateCardScales]);
-
-  useEffect(() => {
-    return () => {
-      if (scrollRafRef.current !== null) {
-        cancelAnimationFrame(scrollRafRef.current);
-      }
-      if (clickScrollTimeoutRef.current !== null) {
-        clearTimeout(clickScrollTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Auto-select first skill of the tab on mobile so explanation is directly visible below
-  useEffect(() => {
-    if (isMobile && filteredSkills.length > 0) {
-      if (!activeSkill || !filteredSkills.some(s => s.id === activeSkill.id)) {
-        changeActiveSkill(filteredSkills[0]);
-      }
-    }
-  }, [isMobile, selectedCategory, filteredSkills, activeSkill, changeActiveSkill]);
-
-  const categories = [
-    { id: 'all', label: 'All Fields' },
-    ...(customCategories || []).map(c => ({ id: c.id, label: c.label }))
-  ];
-
-  // Map skill ID to business implementations to demonstrate synergy
-  const getSkillSynergies = (skillId: string) => {
-    switch (skillId) {
-      case 'sql':
-        return {
-          roles: ['Senior Analyst @ Global Tech Corp'],
-          cases: ['Customer Segmentation Analysis', 'Sales Forecasting Model', 'Supply Chain Optimization'],
-          projectsCount: 'All Cases'
-        };
-      case 'python':
-        return {
-          roles: ['Senior Analyst @ Global Tech Corp', 'Data Scientist @ Insight Solutions'],
-          cases: ['Customer Segmentation Analysis', 'Sales Forecasting Model'],
-          projectsCount: 'Core Pipelines'
-        };
-      case 'power-query':
-        return {
-          roles: ['Senior Analyst @ Global Tech Corp', 'Data Scientist @ Insight Solutions'],
-          cases: ['Customer Segmentation Analysis', 'Supply Chain Optimization'],
-          projectsCount: 'ETL Pipelines'
-        };
-      case 'powerbi':
-        return {
-          roles: ['Senior Analyst @ Global Tech Corp', 'Data Scientist @ Insight Solutions'],
-          cases: ['Supply Chain Optimization', 'Sales Forecasting Model'],
-          projectsCount: 'LPs & Dashboards'
-        };
-      case 'excel':
-        return {
-          roles: ['Data Scientist @ Insight Solutions', 'Senior Analyst @ Global Tech Corp'],
-          cases: ['Supply Chain Optimization', 'Sales Forecasting Model'],
-          projectsCount: 'Financial Models'
-        };
-      default:
-        return {
-          roles: [],
-          cases: [],
-          projectsCount: 'Ad-hoc tasks'
-        };
-    }
-  };
-
+  customCategories = [],
+  lang = 'id',
+  badgeText,
+  groupDesc,
+  viewMode = 'home',
+  onNavigateToAboutMe
+}: SkillsArsenalProps) {
   const isDark = theme === 'dark';
+
+  // Filter skills to only visible ones
+  const visibleSkills = useMemo(() => {
+    return skills.filter(s => s.showOnWeb !== false);
+  }, [skills]);
+
+  // Group skills by category
+  const groupedCategories = useMemo(() => {
+    const groups: Array<{
+      id: string;
+      label: string;
+      jpTag: string;
+      items: SkillItem[];
+    }> = [];
+
+    // Map custom categories if defined
+    const customList = customCategories || [];
+
+    // Group skills
+    const categoryBucket = new Map<string, SkillItem[]>();
+
+    visibleSkills.forEach(skill => {
+      const catKey = (skill.category || 'tools').toLowerCase().trim();
+      if (!categoryBucket.has(catKey)) {
+        categoryBucket.set(catKey, []);
+      }
+      categoryBucket.get(catKey)!.push(skill);
+    });
+
+    // Desired category ordering
+    const preferredOrder = ['frontend', 'backend', 'dbms', 'scientific', 'visualization', 'analytical', 'tools', 'core'];
+
+    // Sort category keys: preferred order first, then others
+    const sortedKeys = Array.from(categoryBucket.keys()).sort((a, b) => {
+      const idxA = preferredOrder.indexOf(a);
+      const idxB = preferredOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    sortedKeys.forEach(catKey => {
+      const items = categoryBucket.get(catKey) || [];
+      if (items.length === 0) return;
+
+      const mapping = CATEGORY_MAP[catKey];
+      const customCatObj = customList.find(c => c.id.toLowerCase() === catKey);
+      const customLabel = customCatObj ? ((lang === 'id' ? customCatObj.labelId : customCatObj.labelEn) || customCatObj.label) : undefined;
+
+      let label = customLabel || (mapping ? (lang === 'id' ? mapping.labelId : mapping.labelEn) : catKey.toUpperCase());
+      let jpTag = mapping?.jp || (catKey === 'tools' ? 'ツール' : '技術');
+
+      groups.push({
+        id: catKey,
+        label,
+        jpTag,
+        items
+      });
+    });
+
+    return groups;
+  }, [visibleSkills, customCategories, lang]);
+
+  // Detailed mode states (for About Me deep dive)
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState('all');
+  const [activeSkill, setActiveSkill] = React.useState<SkillItem | null>(visibleSkills[0] || null);
+
+  const filteredSkillsForDetailed = useMemo(() => {
+    return visibleSkills.filter(s => {
+      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            s.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCat = selectedCategory === 'all' || s.category.toLowerCase() === selectedCategory.toLowerCase();
+      return matchesSearch && matchesCat;
+    });
+  }, [visibleSkills, searchTerm, selectedCategory]);
+
+  // If detailed view mode requested (e.g. for About Me sub-page)
+  if (viewMode === 'detailed') {
+    return (
+      <div className="w-full space-y-8">
+        {/* Search and Category Filter Tabs */}
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center w-full">
+          <div className={`flex items-center gap-2 w-full md:w-80 px-3.5 py-2.5 rounded-xl transition-colors ${
+            isDark ? 'bg-slate-800/90 border border-slate-700' : 'bg-white border border-slate-200 shadow-xs'
+          }`}>
+            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder={lang === 'id' ? 'Cari teknologi, kueri, script...' : 'Search tools, queries, scripts...'}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full bg-transparent text-xs sm:text-sm focus:outline-none border-none p-0 inline-block focus:ring-0 ${
+                isDark ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'
+              }`}
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')} 
+                className="text-xs text-slate-400 hover:text-slate-600 font-medium px-1 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className={`flex overflow-x-auto no-scrollbar snap-x gap-1.5 p-1.5 rounded-xl w-full md:w-auto transition-colors ${
+            isDark ? 'bg-slate-800/80 border border-slate-700/60' : 'bg-slate-100 border border-slate-200'
+          }`}>
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                selectedCategory === 'all'
+                  ? (isDark ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs')
+                  : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
+              }`}
+            >
+              {lang === 'id' ? 'Semua Bidang' : 'All Fields'}
+            </button>
+            {groupedCategories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                  selectedCategory === cat.id
+                    ? (isDark ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs')
+                    : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Detailed Grid + Inspector Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filteredSkillsForDetailed.map(skill => {
+              const isSelected = activeSkill?.id === skill.id;
+              return (
+                <motion.div
+                  key={skill.id}
+                  whileHover={{ y: -4, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setActiveSkill(skill)}
+                  className={`p-5 rounded-2xl border cursor-pointer transition-colors duration-250 flex flex-col justify-between transform-gpu ${
+                    isSelected
+                      ? (isDark ? 'bg-emerald-950/40 border-emerald-500 ring-2 ring-emerald-500/30 shadow-md' : 'bg-emerald-50/80 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md')
+                      : (isDark ? 'bg-slate-800/80 border-slate-700/80 hover:border-slate-600 hover:bg-slate-750' : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-xs hover:shadow-md')
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-900/90 shrink-0">
+                        <TechLogo name={skill.name} iconName={skill.icon} customSvg={skill.customSvg} svgUrl={skill.svgUrl} size={28} />
+                      </div>
+                      <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-md">
+                        {skill.category}
+                      </span>
+                    </div>
+                    <h4 className="font-sans font-black text-sm sm:text-base text-slate-900 dark:text-white mb-1.5">
+                      {skill.name}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {skill.description}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Active Detail Showcase Panel */}
+          <div className="lg:col-span-5 sticky top-24">
+            <AnimatePresence mode="wait">
+              {activeSkill ? (
+                <motion.div
+                  key={activeSkill.id}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className={`p-6 sm:p-7 rounded-3xl border ${
+                    isDark ? 'bg-slate-800/90 border-slate-700 shadow-xl' : 'bg-white border-slate-200 shadow-lg'
+                  }`}
+                >
+                  <div className="flex items-center gap-4 pb-5 border-b border-slate-200 dark:border-slate-700">
+                    <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 shadow-xs shrink-0">
+                      <TechLogo name={activeSkill.name} iconName={activeSkill.icon} customSvg={activeSkill.customSvg} svgUrl={activeSkill.svgUrl} size={40} />
+                    </div>
+                    <div>
+                      <span className="font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                        {activeSkill.category}
+                      </span>
+                      <h3 className="font-sans font-black text-xl text-slate-900 dark:text-white leading-tight">
+                        {activeSkill.name}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="py-5 space-y-4">
+                    <div>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 block mb-1">
+                        {lang === 'id' ? 'Deskripsi Lengkap' : 'Full Architecture & Usage'}
+                      </span>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                        {activeSkill.description}
+                      </p>
+                    </div>
+
+                    <div className={`p-4 rounded-xl ${isDark ? 'bg-slate-900/80' : 'bg-slate-50'}`}>
+                      <div className="flex items-start gap-2.5">
+                        <Award className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                            {lang === 'id' ? 'Penerapan Praktis' : 'Practical Proof of Work'}
+                          </span>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                            {lang === 'id' 
+                              ? `Diaplikasikan langsung pada pemodelan kueri, otomatisasi skrip, dan dashboard analitika produksi.`
+                              : `Deployed across production pipelines, automated batching, and executive KPI dashboards.`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // HOME MODE: Clean Layout (Counter Emblem on Left + Category Groups with SVG + Name on Right)
+  // =========================================================================
+
+  const defaultGroupDesc = lang === 'id'
+    ? 'Dikelompokkan ke dalam beberapa bidang utama: pengelolaan basis data & kueri, pemrograman skrip & otomatisasi, hingga pemodelan visual analitika bisnis.'
+    : 'Organized into core disciplines: database architecture & querying, algorithmic scripting & automation, and business intelligence modeling.';
+
+  const displayGroupDesc = groupDesc || defaultGroupDesc;
+  const totalCount = visibleSkills.length;
 
   return (
     <div className="w-full">
-      {/* Category Toggles and Search */}
-      <div className="hidden md:flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-8 w-full">
-        <div className={`flex items-center gap-1.5 w-full md:w-80 px-3 py-2 rounded-lg shadow-sm transition-colors ${
-          isDark ? 'bg-slate-800' : 'bg-white border border-slate-200'
+      {visibleSkills.length === 0 ? (
+        <div className={`p-8 rounded-2xl text-center transition-all ${
+          isDark ? 'bg-slate-800 text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-xs'
         }`}>
-          <Search className="w-4 h-4 text-slate-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search queries, languages, models..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full bg-transparent text-xs sm:text-sm focus:outline-none border-none p-0 inline-block focus:ring-0 ${
-              isDark ? 'text-slate-150 placeholder-slate-500' : 'text-slate-800 placeholder-slate-400'
-            }`}
-          />
-          {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')} 
-              className="text-xs text-slate-400 hover:text-slate-600 font-medium px-1 cursor-pointer animate-fade-in"
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {/* Categories Tab Pill Controls with elegant mobile swipe */}
-        <div className={`flex overflow-x-auto no-scrollbar snap-x snap-proximity gap-1 p-1 sm:p-1.5 rounded-lg w-full md:w-auto transition-colors ${
-          isDark ? 'bg-slate-800' : 'bg-slate-100 border border-slate-200'
-        }`}>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => {
-                setSelectedCategory(cat.id);
-              }}
-              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md font-sans text-[10px] sm:text-xs font-semibold cursor-pointer transition-all relative shrink-0 snap-center ${
-                selectedCategory === cat.id
-                  ? (isDark ? 'text-white z-10 font-bold' : 'text-slate-900 z-10 font-bold')
-                  : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900')
-              }`}
-            >
-              {selectedCategory === cat.id && (
-                <motion.span
-                  layoutId="activeCategoryBg"
-                  className={`absolute inset-0 rounded-md shadow-sm z-[-1] ${
-                    isDark ? 'bg-slate-700' : 'bg-white'
-                  }`}
-                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                />
-              )}
-              {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Grid of badges and side linkages display */}
-      {skillsList.length === 0 ? (
-        <div className={`p-8 rounded-xl text-center transition-all ${
-          isDark ? 'bg-slate-800 text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
-        }`}>
-          <Database className="w-12 h-12 text-emerald-500 mx-auto mb-4 animate-pulse shrink-0" />
-          <h3 className="font-sans font-bold text-base mb-2">
-            {!isSupabaseConfigured ? "Supabase Belum Terhubung" : "Belum ada Keahlian"}
+          <Layers className="w-10 h-10 text-emerald-500 mx-auto mb-3 animate-pulse" />
+          <h3 className="font-sans font-bold text-base mb-1">
+            {lang === 'id' ? 'Belum Ada Keahlian' : 'No Skills Registered'}
           </h3>
-          <p className="text-sm max-w-lg mx-auto leading-relaxed text-slate-400">
-            {!isSupabaseConfigured 
-              ? "Hubungkan database Supabase Anda di Google AI Studio secrets untuk menampilkan keahlian teknis Anda." 
-              : "Koneksi berhasil! Silakan isi keahlian Anda melalui Admin Panel di pojok kanan atas."}
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            {lang === 'id' ? 'Daftar keahlian dapat dikonfigurasi melalui panel editor.' : 'Skills list can be managed through the admin panel.'}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-        
-        {/* Dynamic Skill Badges Grid */}
-        <motion.div 
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          onTouchStart={() => {
-            isClickScrollingRef.current = false;
-          }}
-          layout={!isMobile}
-          className={
-            isMobile 
-              ? "flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-3 w-full pt-3 pb-3 px-[calc(50vw-72.5px)] items-center" 
-              : "lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4"
-          }
-        >
-          <AnimatePresence mode={isMobile ? "sync" : "popLayout"}>
-            {filteredSkills.map((skill) => {
-               const isActive = activeSkill?.id === skill.id;
-               return (
-                <motion.button
-                  key={skill.id}
-                  layout={!isMobile}
-                  data-skill-id={skill.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  whileHover={isMobile ? undefined : { scale: 1.03, y: -2 }}
-                  whileTap={isMobile ? undefined : { scale: 0.96 }}
-                  onClick={() => {
-                    // Set active skill card with directional tracking
-                    changeActiveSkill(skill);
-                    if (isMobile && scrollContainerRef.current) {
-                      const container = scrollContainerRef.current;
-                      const child = container.querySelector(`[data-skill-id="${skill.id}"]`) as HTMLElement;
-                      if (child) {
-                        isClickScrollingRef.current = true;
-                        if (clickScrollTimeoutRef.current !== null) {
-                          clearTimeout(clickScrollTimeoutRef.current);
-                        }
-                        const targetScrollLeft = child.offsetLeft - (container.clientWidth / 2) + (child.clientWidth / 2);
-                        container.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
-
-                        clickScrollTimeoutRef.current = window.setTimeout(() => {
-                          isClickScrollingRef.current = false;
-                        }, 350);
-                      }
-                    }
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          
+          {/* ================================================================ */}
+          {/* LEFT COLUMN: Modern Tech Counter Emblem + Summary Narrative */}
+          {/* ================================================================ */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:col-span-4 xl:col-span-3.5 flex flex-col items-center justify-center text-center my-auto py-2"
+          >
+            {/* Circular Medallion Emblem */}
+            <div className="relative group mb-5 flex items-center justify-center">
+              {/* Outer Glow Halo */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-700 pointer-events-none" />
+              
+              {/* Circle Body with Radial Texture */}
+              <div className="relative w-44 h-44 sm:w-48 sm:h-48 rounded-full bg-gradient-to-b from-[#1e40af] via-[#1e3a8a] to-[#0f172a] p-1.5 shadow-2xl flex items-center justify-center border border-blue-400/40 overflow-hidden shrink-0">
+                {/* Japanese Wave Pattern Overlay */}
+                <div 
+                  className="absolute inset-0 opacity-15 pointer-events-none"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4) 1px, transparent 1px)`,
+                    backgroundSize: '12px 12px'
                   }}
-                  className={`bento-card text-left rounded-xl flex flex-col justify-center cursor-pointer transition-colors duration-200 ease-out shrink-0 snap-center shadow-none [box-shadow:none] ${
-                    isMobile 
-                      ? `w-[145px] h-[48px] px-3 py-2 ${
-                          isActive 
-                            ? 'ring-2 ring-emerald-500 border-transparent ' + 
-                              (isDark ? 'bg-slate-800 text-white' : 'bg-white text-slate-900') 
-                            : 'border-transparent ' + 
-                              (isDark ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-100/80 text-slate-500')
-                        }`
-                      : `p-4 h-[110px] sm:h-[155px] justify-between ${
-                          isActive ? 'ring-2 ring-emerald-500 border-none shadow-md bg-emerald-500/5' : ''
-                        } ${
-                          isDark ? 'border-none bg-slate-800 hover:bg-slate-700/80 text-white' : 'border border-slate-200 bg-white hover:border-slate-350'
-                        }`
-                  }`}
-                >
-                  {isMobile ? (
-                    <div className="flex items-center gap-2.5 w-full h-full min-w-0">
-                      <div className={`rounded-lg shrink-0 transition-colors duration-200 p-1.5 ${
-                        isActive 
-                          ? (isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700') 
-                          : (isDark ? 'bg-slate-900/80 text-slate-400' : 'bg-slate-200/70 text-slate-600')
-                      }`}>
-                        <IconMapper iconName={skill.icon} className="w-4 h-4 shrink-0" />
-                      </div>
-                      <h4 className={`font-display font-bold text-xs truncate leading-none transition-colors duration-200 ${
-                        isActive 
-                          ? (isDark ? 'text-white font-extrabold' : 'text-slate-900 font-extrabold') 
-                          : (isDark ? 'text-slate-400' : 'text-slate-600')
-                      }`}>
-                        {skill.name}
-                      </h4>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex justify-between items-center w-full">
-                        <div className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-                          isActive 
-                            ? (isDark ? 'bg-emerald-950/80 text-emerald-400' : 'bg-emerald-100 text-emerald-800') 
-                            : (isDark ? 'bg-slate-900 text-slate-400' : 'bg-slate-50 text-slate-700')
-                        }`}>
-                          <IconMapper iconName={skill.icon} className="w-4 h-4 sm:w-5 h-5 shrink-0" />
-                        </div>
-                        <span className="hidden sm:inline-block font-mono text-[9px] uppercase tracking-wider text-slate-400">
-                          {skill.category === 'dbms' || (skill.category === 'core' && (skill.icon === 'Database' || skill.name.toLowerCase().includes('sql'))) ? 'Database & Query' :
-                           skill.category === 'scientific' || (skill.category === 'core') ? 'Languages & Script' :
-                           skill.category === 'visualization' ? 'Business Intelligence' :
-                           skill.category === 'analytical' ? 'Analytics & Stats' : skill.category}
-                        </span>
-                      </div>
+                />
 
-                      <div className="mt-2 sm:mt-4">
-                        <h4 className={`font-display font-bold text-xs sm:text-sm transition-colors leading-tight ${
-                          isDark ? 'text-white' : 'text-slate-900'
-                        }`}>
-                          {skill.name}
-                        </h4>
-                        <p className={`text-[10px] sm:text-xs line-clamp-2 mt-0.5 sm:mt-1 leading-snug transition-colors ${
-                          isDark ? 'text-slate-400' : 'text-slate-500'
-                        }`}>
-                          {skill.description}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </motion.button>
-              );
-            })}
-          </AnimatePresence>
+                {/* Inner Content Stack */}
+                <div className="flex flex-col items-center justify-center text-center relative z-10 select-none px-3">
+                  <span className="font-mono text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md leading-none">
+                    {totalCount}
+                  </span>
+                  
+                  <span className="font-sans font-black text-[11px] sm:text-xs tracking-[0.18em] uppercase text-white/95 mt-2 leading-tight">
+                    {lang === 'id' ? 'SKILL UTAMA' : 'CORE SKILLS'}
+                  </span>
 
-          {filteredSkills.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`col-span-full py-12 text-center rounded-xl flex flex-col items-center justify-center w-full transition-colors ${
-                isDark ? 'text-slate-400 bg-slate-800 border-none' : 'text-slate-400 bg-white border border-dashed border-slate-200'
-              }`}
-            >
-              <BookOpen className="w-8 h-8 text-slate-300 mb-2" />
-              <p className={`text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>No tools matching query</p>
-              <button 
-                onClick={() => { setSearchTerm(''); setSelectedCategory('all'); }} 
-                className="mt-3 text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
-              >
-                Reset Search Filters
-              </button>
-            </motion.div>
-          )}
-        </motion.div>
+                  <span className="font-sans text-[9.5px] text-blue-200/90 tracking-wide font-medium mt-0.5">
+                    {lang === 'id' ? 'Keahlian Andalan' : 'Mastered Stack'}
+                  </span>
 
-        {/* Skill Synergy Details Sidebar Panel */}
-        <motion.div 
-          animate={isMobile ? { height: sidebarHeight } : { height: 'auto' }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className={`rounded-xl overflow-hidden no-scrollbar relative lg:col-span-4 transition-colors w-full ${
-            isDark ? 'bg-slate-800 border-none' : 'bg-slate-50 border border-slate-200'
-          }`}
-        >
-          <div ref={sidebarContentRef} className="p-5 sm:p-6 flex flex-col justify-between">
-              <AnimatePresence mode="wait" custom={direction}>
-                {activeSkill ? (
-                  <motion.div 
-                    key={activeSkill.id}
-                    custom={direction}
-                    variants={{
-                      enter: (dir: number) => ({
-                        opacity: 0,
-                        x: dir > 0 ? 30 : -30,
-                      }),
-                      center: {
-                        opacity: 1,
-                        x: 0,
-                      },
-                      exit: (dir: number) => ({
-                        opacity: 0,
-                        x: dir > 0 ? -30 : 30,
-                      }),
-                    }}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-                    className="flex flex-col justify-between"
-                  >
-                    <div>
-                      <span className="text-[10px] tracking-widest font-mono text-emerald-700 font-bold uppercase bg-emerald-100 px-2 py-0.5 rounded">
-                        Active Synergy Guide
-                      </span>
-                      <h4 className={`font-display font-extrabold text-base sm:text-lg mt-3 flex items-center gap-2 transition-colors ${
-                        isDark ? 'text-white' : 'text-slate-900'
-                      }`}>
-                        <IconMapper iconName={activeSkill.icon} className="w-5 h-5 text-emerald-600" />
-                        {activeSkill.name} Stack Integration
-                      </h4>
-                      <p className={`text-xs mt-2 leading-relaxed pb-4 border-b animate-pulse-once transition-colors ${
-                        isDark ? 'text-slate-400 border-slate-750' : 'text-slate-600 border-slate-200'
-                      }`}>
-                        {activeSkill.description}
-                      </p>
-
-                      {/* Integrations checklist */}
-                      <div className="space-y-4 mt-4">
-                        <div>
-                          <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">
-                            Business Timeline Integration
-                          </span>
-                          <ul className="mt-2 space-y-1">
-                            {getSkillSynergies(activeSkill.id).roles.map((r, i) => (
-                              <li key={i} className={`text-xs flex items-center gap-1.5 transition-colors ${
-                                isDark ? 'text-slate-300' : 'text-slate-700'
-                              }`}>
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                <span>{r}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-mono text-slate-400 block uppercase font-bold">
-                            Case Study Proof Points
-                          </span>
-                          <ul className="mt-2 space-y-1">
-                            {getSkillSynergies(activeSkill.id).cases.map((c, i) => (
-                              <li key={i} className={`text-xs flex items-center gap-1.5 transition-colors ${
-                                isDark ? 'text-slate-300' : 'text-slate-700'
-                              }`}>
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                                <span className="italic">{c}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={`p-3 rounded-lg mt-5 shadow-sm transition-colors ${
-                      isDark ? 'bg-slate-900 border-none' : 'border border-slate-200/60 bg-white'
-                    }`}>
-                      <div className="flex gap-2">
-                        <Award className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <div>
-                          <span className={`text-xs font-bold block transition-colors ${
-                            isDark ? 'text-slate-200' : 'text-slate-800'
-                          }`}>Deploy Velocity Index</span>
-                          <span className="text-[10px] font-mono text-slate-500 mt-0.5 block leading-tight">
-                            Standard level: Production Lead Strategist • Classifiers built for {getSkillSynergies(activeSkill.id).projectsCount}.
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="empty-state"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center text-center min-h-[260px] sm:min-h-[312px] py-12 w-full"
-                  >
-                    <Layers className="w-10 h-10 text-slate-300 animate-pulse mb-3" />
-                    <p className={`font-semibold text-sm transition-colors ${
-                      isDark ? 'text-slate-200' : 'text-slate-800'
-                    }`}>Select any Stack badge</p>
-                    <p className="text-slate-400 text-xs max-w-[200px] mt-1.5 leading-relaxed">
-                      Click on any of the technology tools in the grid to view their dynamic career linkage mapping and proof points.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  <div className="mt-2 px-2.5 py-0.5 rounded-full bg-blue-500/25 border border-blue-300/30 backdrop-blur-xs">
+                    <span className="font-sans text-[8.5px] font-semibold text-blue-200 tracking-wider">
+                      主力スキル
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Narrative description */}
+            <p className={`font-sans text-xs sm:text-sm leading-relaxed max-w-sm text-center transition-colors ${
+              isDark ? 'text-slate-300/90' : 'text-slate-600'
+            }`}>
+              {displayGroupDesc}
+            </p>
+
+            {/* Jump to About Me Details Link */}
+            {onNavigateToAboutMe && (
+              <button
+                onClick={onNavigateToAboutMe}
+                className={`mt-5 inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl border transition-all duration-200 cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-emerald-400 hover:text-emerald-300 shadow-sm'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-emerald-600 hover:text-emerald-700 shadow-xs'
+                }`}
+              >
+                <span>{lang === 'id' ? 'Lihat Penjelasan di About Me' : 'Explore Details in About Me'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </motion.div>
 
-      </div>
-    )}
+          {/* ================================================================ */}
+          {/* RIGHT COLUMN: Categorized Sections with Clean SVG Logo + Name */}
+          {/* ================================================================ */}
+          <div className="lg:col-span-8 xl:col-span-8.5 space-y-8 sm:space-y-10 w-full">
+            {groupedCategories.map((group, groupIdx) => {
+              const formattedNumber = String(groupIdx + 1).padStart(2, '0');
+
+              return (
+                <motion.div
+                  key={group.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.1 }}
+                  transition={{ duration: 0.6, delay: groupIdx * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-3 sm:space-y-4"
+                >
+                  {/* Category Header Bar */}
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-black tracking-wider text-emerald-600 dark:text-emerald-400">
+                        {formattedNumber}
+                      </span>
+                      <h3 className={`font-sans font-extrabold text-xs sm:text-sm tracking-wider uppercase ${
+                        isDark ? 'text-white' : 'text-slate-900'
+                      }`}>
+                        {group.label}
+                      </h3>
+                    </div>
+
+                    <span className="font-sans text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-wider">
+                      {group.jpTag}
+                    </span>
+                  </div>
+
+                  {/* Technology Grid Cards with Buttery Smooth Hardware-Accelerated Hover */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-3.5">
+                    {group.items.map((skill) => (
+                      <motion.div
+                        key={skill.id}
+                        whileHover="hover"
+                        initial="rest"
+                        variants={{
+                          rest: { y: 0 },
+                          hover: { 
+                            y: -5,
+                            transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } 
+                          }
+                        }}
+                        className={`group rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 cursor-default relative overflow-hidden transition-colors duration-300 transform-gpu ${
+                          isDark
+                            ? 'bg-slate-800/80 border border-slate-700/60 hover:border-emerald-500/50 hover:bg-slate-800 shadow-xs hover:shadow-xl hover:shadow-emerald-950/20'
+                            : 'bg-white/95 border border-slate-200/80 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-500/10 shadow-xs'
+                        }`}
+                        title={skill.name}
+                      >
+                        {/* Authentic Vector Logo with Super Smooth Zoom */}
+                        <motion.div 
+                          variants={{
+                            rest: { scale: 1 },
+                            hover: { 
+                              scale: 1.15,
+                              transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } 
+                            }
+                          }}
+                          className="flex items-center justify-center will-change-transform transform-gpu"
+                        >
+                          <TechLogo
+                            name={skill.name}
+                            iconName={skill.icon}
+                            customSvg={skill.customSvg}
+                            svgUrl={skill.svgUrl}
+                            size={36}
+                            className="w-9 h-9 sm:w-10 sm:h-10"
+                          />
+                        </motion.div>
+
+                        {/* Skill Name */}
+                        <span className={`font-sans font-bold text-xs sm:text-[13px] tracking-tight text-center leading-tight truncate w-full transition-colors duration-200 ${
+                          isDark ? 'text-slate-100 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'
+                        }`}>
+                          {skill.name}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }

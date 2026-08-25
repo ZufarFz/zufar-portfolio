@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Portfolio</title>
     <script>
+      (function() {
+        try {
+          var raw = localStorage.getItem('bi-portfolio-local-data-v2') || localStorage.getItem('bi-portfolio-cv-data');
+          if (raw) {
+            var d = JSON.parse(raw);
+            var n = d && (d.nickname || d.name);
+            if (n && typeof n === 'string' && n.trim()) {
+              document.title = 'Portfolio ' + n.trim();
+              return;
+            }
+          }
+          document.title = 'Portfolio';
+        } catch (e) {
+          document.title = 'Portfolio';
+        }
+      })();
+    </script>
+    <script>
       // Silence benign cross-origin iframe browser extension script errors or Vite HMR ws connection drops
       window.addEventListener('error', function (event) {
         if (event.message === 'Script error.' || !event.filename) {
@@ -19,6 +37,23 @@
           event.preventDefault();
         }
       }, true);
+
+      // Filter out third-party Three.js Clock and Rapier deprecation warnings
+      (function() {
+        var _warn = console.warn;
+        console.warn = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var msg = args.map(function(a) { return (typeof a === 'object' ? JSON.stringify(a) : String(a)); }).join(' ');
+          if (
+            msg.indexOf('THREE.Clock: This module has been deprecated') !== -1 ||
+            msg.indexOf('deprecated parameters for the initialization function') !== -1 ||
+            msg.indexOf('THREE.Clock') !== -1
+          ) {
+            return;
+          }
+          return _warn.apply(console, args);
+        };
+      })();
     </script>
   </head>
   <body>

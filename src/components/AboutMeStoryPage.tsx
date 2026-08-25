@@ -18,10 +18,12 @@ import {
   GraduationCap,
   Briefcase,
   Target,
-  LayoutGrid
+  LayoutGrid,
+  BookOpen
 } from 'lucide-react';
-import { CVData } from '../lib/supabaseClient';
-import InteractiveIDCard from './InteractiveIDCard';
+import { CVData } from '../types';
+import Lanyard from './Lanyard';
+import BackgroundTextures from './BackgroundTextures';
 
 interface AboutMeStoryPageProps {
   key?: React.Key;
@@ -63,6 +65,29 @@ export default function AboutMeStoryPage({
   const right3Title = texts.about_story_right_3_title || 'Projects & Case Studies';
   const right3Desc = texts.about_story_right_3_desc || 'Explore my portfolio of data analysis, visual reports, and data engineering case studies.';
 
+  // Custom added sub-pages
+  const customSubPages = (cvData.customSubPages || []).filter(p => p.showOnStoryPage !== false);
+  const isIndo = (texts.about_story_title || '').includes('Tentang') || (!texts.about_story_title && window.location.pathname.startsWith('/id'));
+
+  const getCustomIcon = (iconName?: string) => {
+    switch (iconName) {
+      case 'GraduationCap': return <GraduationCap className="w-5 h-5" />;
+      case 'Briefcase': return <Briefcase className="w-5 h-5" />;
+      case 'Cpu': return <Cpu className="w-5 h-5" />;
+      case 'Sparkles': return <Sparkles className="w-5 h-5" />;
+      case 'Heart': return <Heart className="w-5 h-5" />;
+      case 'LayoutGrid': return <LayoutGrid className="w-5 h-5" />;
+      case 'Award': return <Award className="w-5 h-5" />;
+      case 'BookOpen': return <BookOpen className="w-5 h-5" />;
+      case 'Target': return <Target className="w-5 h-5" />;
+      case 'Terminal': return <Terminal className="w-5 h-5" />;
+      case 'Flame': return <Flame className="w-5 h-5" />;
+      case 'Compass': return <Compass className="w-5 h-5" />;
+      case 'Smile': return <Smile className="w-5 h-5" />;
+      default: return <Sparkles className="w-5 h-5" />;
+    }
+  };
+
   // Parse about_story_image_url as JSON or fallback to legacy plain URL
   const rawAboutStoryImg = texts.about_story_image_url || '';
   let aboutStoryImgObj = {
@@ -81,21 +106,31 @@ export default function AboutMeStoryPage({
     } catch (e) {
       console.warn("Error parsing about_story_image_url as JSON in AboutMeStoryPage", e);
     }
-  } else {
+  } else if (rawAboutStoryImg) {
     aboutStoryImgObj = {
-      backgroundImageUrl: '',
+      backgroundImageUrl: rawAboutStoryImg,
       lanyardLightUrl: rawAboutStoryImg,
       lanyardDarkUrl: rawAboutStoryImg
     };
   }
 
   // Determine central lanyard portrait picture URL based on current theme light/dark
-  const portraitUrl = (isDark ? aboutStoryImgObj.lanyardDarkUrl : aboutStoryImgObj.lanyardLightUrl) ||
-                     aboutStoryImgObj.lanyardLightUrl ||
+  const portraitUrl = (isDark ? (cvData.idCardSvgDark || aboutStoryImgObj.lanyardDarkUrl) : (cvData.idCardSvgLight || aboutStoryImgObj.lanyardLightUrl)) ||
+                     (isDark ? aboutStoryImgObj.lanyardDarkUrl : aboutStoryImgObj.lanyardLightUrl) ||
                      (isDark && cvData.homeImageUrlDark ? cvData.homeImageUrlDark : cvData.homeImageUrl) || 
-                     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop';
+                     '/id_card.webp';
 
-  const backgroundImageUrl = aboutStoryImgObj.backgroundImageUrl || '';
+  const backgroundImageUrl = 
+    texts.about_story_header_bg || 
+    texts.about_header_bg || 
+    texts.aboutme_header_bg || 
+    aboutStoryImgObj.backgroundImageUrl || 
+    '/aboutme_header.webp';
+
+  const bgScale = parseFloat(texts.about_story_header_bg_scale || texts.about_header_bg_scale || '1');
+  const bgX = parseInt(texts.about_story_header_bg_x || texts.about_header_bg_x || '0', 10);
+  const bgY = parseInt(texts.about_story_header_bg_y || texts.about_header_bg_y || '0', 10);
+  const bgOpacity = texts.about_story_header_bg_opacity || texts.about_header_bg_opacity;
 
   // Scroll to top on mount so entry transition starts cleanly from top of viewport
   React.useEffect(() => {
@@ -127,14 +162,19 @@ export default function AboutMeStoryPage({
     >
       {/* Absolute Header Background Image Band */}
       {backgroundImageUrl && (
-        <div className="absolute top-0 left-0 right-0 h-[450px] pointer-events-none overflow-hidden z-15">
+        <div className="absolute top-0 left-0 right-0 h-[480px] pointer-events-none overflow-hidden z-0">
           <img 
             src={backgroundImageUrl} 
             alt="About Background" 
+            referrerPolicy="no-referrer"
             className={`w-full h-full object-cover select-none pointer-events-none ${
-              isDark ? 'opacity-25' : 'opacity-[0.38]'
+              isDark ? 'opacity-30' : 'opacity-40'
             }`}
-            style={{ referrerPolicy: "no-referrer" }}
+            style={{ 
+              transform: `scale(${bgScale}) translate(${bgX / 5}%, ${bgY / 5}%)`,
+              transformOrigin: 'center center',
+              opacity: bgOpacity ? parseFloat(bgOpacity) : undefined
+            }}
           />
           {/* Subtle fade-out to page background at the bottom edge */}
           <div className={`absolute inset-0 bg-gradient-to-b ${
@@ -145,15 +185,49 @@ export default function AboutMeStoryPage({
         </div>
       )}
 
-      {/* Absolute Decorative Tech/Grid Overlay for Designer feel */}
-      <div className={`absolute inset-0 opacity-[0.03] select-none pointer-events-none z-10 ${
-        isDark ? 'bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]' : 'bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)]'
-      }`} style={{ backgroundSize: '24px 24px' }} />
+      {/* Absolute Decorative SVG / Texture Background Overlay */}
+      {texts.about_story_bg_style && texts.about_story_bg_style !== 'none' ? (
+        <BackgroundTextures
+          type={texts.about_story_bg_style}
+          theme={theme}
+          opacity={texts.about_story_bg_pattern_opacity ? parseFloat(texts.about_story_bg_pattern_opacity) : undefined}
+          scale={texts.about_story_bg_pattern_scale ? parseFloat(texts.about_story_bg_pattern_scale) : undefined}
+          color={texts.about_story_bg_pattern_color || undefined}
+          customSvg={texts.about_story_bg_custom_svg || texts.about_story_custom_svg || undefined}
+          customBgUrl={texts.about_story_bg_custom_url || texts.about_story_custom_url || undefined}
+        />
+      ) : (
+        <div className={`absolute inset-0 opacity-[0.03] select-none pointer-events-none z-10 ${
+          isDark ? 'bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]' : 'bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)]'
+        }`} style={{ backgroundSize: '24px 24px' }} />
+      )}
 
-      <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto relative z-20">
+      {/* FULL-PAGE 3D PHYSICS LANYARD CANVAS (Layered ABOVE feature points, but BELOW header/title) */}
+      <div className="absolute inset-0 w-full h-full z-20 pointer-events-auto overflow-hidden">
+        <Lanyard 
+          position={[0, 0, 19]} 
+          gravity={[0, -40, 0]} 
+          fov={20}
+          cardScale={1.85}
+          lanyardWidth={0.38}
+          lanyardText={(() => {
+            if (cvData.nickname && cvData.nickname.trim()) return `Portfolio ${cvData.nickname.trim()}`;
+            if (!cvData.name || !cvData.name.trim()) return 'Portfolio Zufar';
+            const parts = cvData.name.trim().split(/\s+/);
+            const shortName = parts.length > 1 && parts[0].replace('.', '').length <= 2 ? parts[1] : parts[0];
+            return `Portfolio ${shortName}`;
+          })()}
+          frontImage={portraitUrl}
+          backImage={portraitUrl}
+          imageFit="cover"
+          className="w-full h-full"
+        />
+      </div>
+
+      <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto relative z-30 pointer-events-none">
         
-        {/* Symmetrical Header without background container for a clean, integrated look */}
-        <div className="text-center pt-8 pb-3 sm:pb-12 max-w-3xl mx-auto relative z-30 px-6">
+        {/* Symmetrical Header without background container for a clean, integrated look - Topmost layer (z-50) */}
+        <div className="text-center pt-8 pb-3 sm:pb-12 max-w-3xl mx-auto relative z-50 px-6 pointer-events-auto">
           <motion.h1 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -179,160 +253,135 @@ export default function AboutMeStoryPage({
           </motion.p>
         </div>
 
-        {/* Core Symmetrical 3-Column Bento/Architectural Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-14 2xl:gap-18 items-stretch mt-4">
-          
-          {/* LEFT SIDE: Text Right Aligned on Desktop */}
-          <div className="hidden lg:flex lg:col-span-4 flex-col justify-between gap-8 order-2 lg:order-1 text-left lg:text-right relative z-0">
+        {/* Core Symmetrical 3-Column Bento/Architectural Grid with Center Spacer - Layered under Lanyard (z-10) */}
+        <div className="relative min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] flex items-center justify-center mt-4">
+
+          {/* 3-Column Grid overlay with left & right feature cards and center spacer */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-14 2xl:gap-18 items-stretch w-full relative z-0 pointer-events-none">
             
-            {/* Left Feature 1: Education Background */}
-            <div className="w-full lg:translate-x-8">
-              <motion.div 
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                onClick={() => handlePointClick('#/educational')}
-                className={`group p-6 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] active:scale-[0.98] will-change-transform ${
-                  isDark 
-                    ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
-                    : 'bg-white/40 border-black/[0.03] hover:bg-white/85 hover:border-emerald-500/20 shadow-xs hover:shadow-md'
-                }`}
-              >
-                <div className="flex items-center lg:justify-end gap-3 mb-3">
-                  <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
-                    isDark ? 'bg-slate-800 text-amber-400 group-hover:text-amber-300' : 'bg-white border border-slate-200 text-amber-600 shadow-sm group-hover:bg-amber-50'
-                  }`}>
-                    <GraduationCap className="w-5 h-5" />
+            {/* LEFT SIDE: Text Right Aligned on Desktop */}
+            <div className="hidden lg:flex lg:col-span-4 flex-col justify-between gap-8 order-2 lg:order-1 text-left lg:text-right relative z-0 pointer-events-auto">
+              
+              {/* Left Feature 1: Education Background */}
+              <div className="w-full lg:translate-x-8">
+                <motion.div 
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                  onClick={() => handlePointClick('#/educational')}
+                  className={`group p-6 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] active:scale-[0.98] will-change-transform ${
+                    isDark 
+                      ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
+                      : 'bg-white/40 border-black/[0.03] hover:bg-white/85 hover:border-emerald-500/20 shadow-xs hover:shadow-md'
+                  }`}
+                >
+                  <div className="flex items-center lg:justify-end gap-3 mb-3">
+                    <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
+                      isDark ? 'bg-slate-800 text-amber-400 group-hover:text-amber-300' : 'bg-white border border-slate-200 text-amber-600 shadow-sm group-hover:bg-amber-50'
+                    }`}>
+                      <GraduationCap className="w-5 h-5" />
+                    </div>
+                    <h3 className={`font-sans font-extrabold text-sm uppercase tracking-wider ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      {left1Title}
+                    </h3>
                   </div>
-                  <h3 className={`font-sans font-extrabold text-sm uppercase tracking-wider ${
-                    isDark ? 'text-white' : 'text-slate-900'
+                  <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
+                    isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                   }`}>
-                    {left1Title}
-                  </h3>
-                </div>
-                <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
-                  isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
-                }`}>
-                  {left1Desc}
-                </p>
-              </motion.div>
-            </div>
-
-            {/* Left Feature 2: Personality & Values */}
-            <div className="w-full lg:-translate-x-8">
-              <motion.div 
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                onClick={() => handlePointClick('#/personality')}
-                className={`group p-6 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] active:scale-[0.98] will-change-transform ${
-                  isDark 
-                    ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
-                    : 'bg-white/40 border-black/[0.03] hover:bg-white/85 hover:border-emerald-500/20 shadow-xs hover:shadow-md'
-                }`}
-              >
-                <div className="flex items-center lg:justify-end gap-3 mb-3">
-                  <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
-                    isDark ? 'bg-slate-800 text-emerald-400 group-hover:text-emerald-300' : 'bg-white border border-slate-200 text-emerald-655 shadow-sm group-hover:bg-emerald-50'
-                  }`}>
-                    <Cpu className="w-5 h-5" />
-                  </div>
-                  <h3 className={`font-sans font-extrabold text-sm uppercase tracking-wider ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}>
-                    {left2Title}
-                  </h3>
-                </div>
-                <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
-                  isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
-                }`}>
-                  {left2Desc}
-                </p>
-              </motion.div>
-            </div>
-
-            {/* Left Feature 3: Hobbies & Interests */}
-            <div className="w-full lg:translate-x-8">
-              <motion.div 
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-                onClick={() => handlePointClick('#/hobbies')}
-                className={`group p-6 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] active:scale-[0.98] will-change-transform ${
-                  isDark 
-                    ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
-                    : 'bg-white/40 border-black/[0.03] hover:bg-white/85 hover:border-emerald-500/20 shadow-xs hover:shadow-md'
-                }`}
-              >
-                <div className="flex items-center lg:justify-end gap-3 mb-3">
-                  <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
-                    isDark ? 'bg-slate-800 text-rose-400 group-hover:text-rose-300' : 'bg-white border border-slate-200 text-rose-655 shadow-sm group-hover:bg-rose-50'
-                  }`}>
-                    <Heart className="w-5 h-5" />
-                  </div>
-                  <h3 className={`font-sans font-extrabold text-sm uppercase tracking-wider ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}>
-                    {left3Title}
-                  </h3>
-                </div>
-                <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
-                  isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
-                }`}>
-                  {left3Desc}
-                </p>
-              </motion.div>
-            </div>
-
-          </div>
-
-          {/* MIDDLE COLUMN: Portrait holding frames and CTA */}
-          <div className="lg:col-span-4 flex flex-col items-center justify-center order-1 lg:order-2 relative z-20">
-            
-            {/* Interactive Physics-driven Lanyard ID Card */}
-            <div className="w-full overflow-visible flex flex-col items-center">
-              <div className="w-full overflow-visible flex justify-center">
-                <InteractiveIDCard 
-                  portraitUrl={portraitUrl}
-                  name={cvData.name || 'Professional User'}
-                  title={cvData.title || 'BI & Analytics Consultant'}
-                  theme={theme}
-                  nickname={cvData.nickname}
-                  useNicknameOnCard={cvData.useNicknameOnCard}
-                  cardSocials={cvData.cardSocials}
-                  idCardGroup={cvData.idCardGroup}
-                  idCardSubText={cvData.idCardSubText}
-                  customSocials={cvData.customSocials}
-                  imageScale={cvData.aboutStoryImageScale}
-                  imageX={cvData.aboutStoryImageX}
-                  imageY={cvData.aboutStoryImageY}
-                  idCardText3={cvData.idCardText3}
-                  idCardBgTextSize={cvData.idCardBgTextSize}
-                  idCardSvgLight={cvData.idCardSvgLight}
-                  idCardSvgDark={cvData.idCardSvgDark}
-                  idCardSvgScale={cvData.idCardSvgScale}
-                  idCardSvgX={cvData.idCardSvgX}
-                  idCardSvgY={cvData.idCardSvgY}
-                  idCardTextX={cvData.idCardTextX}
-                  idCardTextY={cvData.idCardTextY}
-                  idCardBadgeX={cvData.idCardBadgeX}
-                  idCardBadgeY={cvData.idCardBadgeY}
-                  idCardSvgs={cvData.idCardSvgs}
-                  idCardPortraitFadeEnabled={cvData.idCardPortraitFadeEnabled}
-                  idCardPortraitFadeStart={cvData.idCardPortraitFadeStart}
-                  idCardPortraitFadeEnd={cvData.idCardPortraitFadeEnd}
-                />
+                    {left1Desc}
+                  </p>
+                </motion.div>
               </div>
 
+              {/* Left Feature 2: Personality & Values */}
+              <div className="w-full lg:-translate-x-8">
+                <motion.div 
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  onClick={() => handlePointClick('#/personality')}
+                  className={`group p-6 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] active:scale-[0.98] will-change-transform ${
+                    isDark 
+                      ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
+                      : 'bg-white/40 border-black/[0.03] hover:bg-white/85 hover:border-emerald-500/20 shadow-xs hover:shadow-md'
+                  }`}
+                >
+                  <div className="flex items-center lg:justify-end gap-3 mb-3">
+                    <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
+                      isDark ? 'bg-slate-800 text-emerald-400 group-hover:text-emerald-300' : 'bg-white border border-slate-200 text-emerald-655 shadow-sm group-hover:bg-emerald-50'
+                    }`}>
+                      <Cpu className="w-5 h-5" />
+                    </div>
+                    <h3 className={`font-sans font-extrabold text-sm uppercase tracking-wider ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      {left2Title}
+                    </h3>
+                  </div>
+                  <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
+                    isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
+                  }`}>
+                    {left2Desc}
+                  </p>
+                </motion.div>
+              </div>
+
+              {/* Left Feature 3: Hobbies & Interests */}
+              <div className="w-full lg:translate-x-8">
+                <motion.div 
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5, duration: 0.5 }}
+                  onClick={() => handlePointClick('#/hobbies')}
+                  className={`group p-6 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1.5 hover:scale-[1.015] active:scale-[0.98] will-change-transform ${
+                    isDark 
+                      ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
+                      : 'bg-white/40 border-black/[0.03] hover:bg-white/85 hover:border-emerald-500/20 shadow-xs hover:shadow-md'
+                  }`}
+                >
+                  <div className="flex items-center lg:justify-end gap-3 mb-3">
+                    <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
+                      isDark ? 'bg-slate-800 text-rose-400 group-hover:text-rose-300' : 'bg-white border border-slate-200 text-rose-655 shadow-sm group-hover:bg-rose-50'
+                    }`}>
+                      <Heart className="w-5 h-5" />
+                    </div>
+                    <h3 className={`font-sans font-extrabold text-sm uppercase tracking-wider ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      {left3Title}
+                    </h3>
+                  </div>
+                  <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
+                    isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
+                  }`}>
+                    {left3Desc}
+                  </p>
+                </motion.div>
+              </div>
+
+            </div>
+
+            {/* MIDDLE COLUMN: Spacer for desktop, mobile points grid for small screens */}
+            <div className="lg:col-span-4 flex flex-col items-center justify-between order-1 lg:order-2 relative z-10 min-h-[460px] sm:min-h-[520px] lg:min-h-0 pointer-events-none">
+              
               {/* Mobile Only Points Grid: 2 columns, 3 rows, only title & icon, no description */}
-              <div className="lg:hidden grid grid-cols-2 gap-3 mt-12 w-full max-w-[340px] px-2">
+              <div className="lg:hidden grid grid-cols-2 gap-3 mt-auto mb-2 w-full max-w-[340px] px-2 pointer-events-auto z-40">
                 {[
                   { title: left1Title, icon: <GraduationCap className="w-4 h-4" />, path: '#/educational', colorClass: isDark ? 'text-amber-400' : 'text-amber-600', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
                   { title: right1Title, icon: <Briefcase className="w-4 h-4" />, path: '#/career-journey', colorClass: isDark ? 'text-sky-400' : 'text-sky-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
                   { title: left2Title, icon: <Cpu className="w-4 h-4" />, path: '#/personality', colorClass: isDark ? 'text-emerald-400' : 'text-emerald-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
                   { title: right2Title, icon: <Sparkles className="w-4 h-4" />, path: '#/skills', colorClass: isDark ? 'text-pink-400' : 'text-pink-600', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
                   { title: left3Title, icon: <Heart className="w-4 h-4" />, path: '#/hobbies', colorClass: isDark ? 'text-rose-400' : 'text-rose-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
-                  { title: right3Title, icon: <LayoutGrid className="w-4 h-4" />, path: '#/projects', colorClass: isDark ? 'text-orange-400' : 'text-orange-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' }
+                  { title: right3Title, icon: <LayoutGrid className="w-4 h-4" />, path: '#/projects', colorClass: isDark ? 'text-orange-400' : 'text-orange-655', bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100' },
+                  ...customSubPages.map(page => ({
+                    title: isIndo ? (page.title || page.titleEn || page.id) : (page.titleEn || page.title || page.id),
+                    icon: getCustomIcon(page.iconName),
+                    path: `#/${page.id}`,
+                    colorClass: isDark ? 'text-teal-400' : 'text-teal-600',
+                    bgClass: isDark ? 'bg-slate-800' : 'bg-slate-100'
+                  }))
                 ].map((item, idx) => (
                   <motion.div
                     key={idx}
@@ -359,10 +408,8 @@ export default function AboutMeStoryPage({
               </div>
             </div>
 
-          </div>
-
-          {/* RIGHT SIDE: Text Left Aligned */}
-          <div className="hidden lg:flex lg:col-span-4 flex-col justify-between gap-8 order-3 lg:order-3 text-left relative z-0">
+            {/* RIGHT SIDE: Text Left Aligned */}
+            <div className="hidden lg:flex lg:col-span-4 flex-col justify-between gap-8 order-3 lg:order-3 text-left relative z-0 pointer-events-auto">
             
             {/* Right Feature 1: Career Journey */}
             <div className="w-full lg:-translate-x-8">
@@ -467,7 +514,57 @@ export default function AboutMeStoryPage({
 
         </div>
 
+        {/* Dynamic Custom Sub-Pages & Extra Chapters */}
+        {customSubPages.length > 0 && (
+          <div className="hidden lg:block mt-16 pt-8 border-t border-slate-700/30 max-w-5xl mx-auto relative z-10">
+            <div className="text-center mb-6">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-emerald-500 font-bold">
+                {isIndo ? '✦ HALAMAN & BAB TAMBAHAN' : '✦ ADDITIONAL CHAPTERS'}
+              </span>
+              <h3 className={`text-lg font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {isIndo ? 'Eksplorasi Halaman Lainnya' : 'Explore More Sub-Pages'}
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customSubPages.map((page, idx) => (
+                <motion.div
+                  key={page.id || idx}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * idx, duration: 0.4 }}
+                  onClick={() => handlePointClick(`#/${page.id}`)}
+                  className={`group p-5 rounded-2xl border cursor-pointer transform transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.015] active:scale-[0.98] ${
+                    isDark 
+                      ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.07] hover:border-emerald-500/25 shadow-xs hover:shadow-lg hover:shadow-emerald-500/5' 
+                      : 'bg-white/60 border-black/[0.04] hover:bg-white hover:border-emerald-500/20 shadow-xs hover:shadow-md'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2.5">
+                    <div className={`p-2 rounded-lg transition-all duration-300 group-hover:scale-110 shrink-0 ${
+                      isDark ? 'bg-slate-800 text-teal-400 group-hover:text-teal-300' : 'bg-white border border-slate-200 text-teal-600 shadow-sm group-hover:bg-teal-50'
+                    }`}>
+                      {getCustomIcon(page.iconName)}
+                    </div>
+                    <h4 className={`font-sans font-extrabold text-sm tracking-tight ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      {isIndo ? (page.title || page.titleEn || page.id) : (page.titleEn || page.title || page.id)}
+                    </h4>
+                  </div>
+                  <p className={`font-sans text-xs leading-relaxed line-clamp-2 ${
+                    isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
+                  }`}>
+                    {isIndo ? (page.subtitle || page.subtitleEn || '') : (page.subtitleEn || page.subtitle || '')}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
-    </motion.div>
+
+    </div>
+  </motion.div>
   );
 }

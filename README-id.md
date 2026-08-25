@@ -1,6 +1,6 @@
 # 🚀 Web Portfolio
 
-Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untuk profesional di bidang Data Analytics dan Software Engineering. Dilengkapi dengan tampilan responsif, pengubah tema gelap/terang (dark/light mode), dukungan dua bahasa (Bahasa Indonesia & Bahasa Inggris), presentasi studi kasus interaktif, pembuat Resume/CV otomatis, serta integrasi backend real-time menggunakan Supabase.
+Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untuk profesional di bidang Data Analytics dan Software Engineering. Dilengkapi dengan tampilan responsif, pengubah tema gelap/terang (dark/light mode), dukungan dua bahasa (Bahasa Indonesia & Bahasa Inggris), presentasi studi kasus interaktif, pembuat Resume/CV otomatis, serta penyimpanan data lokal via `portfolioData.ts`.
 
 ---
 
@@ -13,7 +13,7 @@ Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untu
 - **📄 Resume (CV) Interaktif & Ekspor PDF**: Modal pratinjau CV interaktif yang mendukung pengunduhan file PDF secara langsung menggunakan `html2pdf.js`.
 - **🛠️ Matriks Keterampilan (Skills Arsenal)**: Penampil keahlian teknis terstruktur berdasarkan kategori, indikator tingkat kemahiran, dan filter interaktif.
 - **✉️ Formulir Kontak Direct Gmail**: Formulir kontak terintegrasi yang membuka halaman pembuat pesan Gmail secara otomatis dengan isi pesan dan subjek yang sudah terisi.
-- **⚡ Panel Admin & Backend Supabase**: Sistem CMS terintegrasi untuk pengelolaan konten dinamis dan penyimpanan data real-time.
+- **⚡ Panel Admin & Manajemen Data Lokal**: Sistem CMS terintegrasi untuk pengelolaan konten dinamis dan penyimpanan data lokal via `portfolioData.ts`.
 - **📱 Navigasi Pintar Responsif**: Bilah navigasi atas yang otomatis tersembunyi saat digulir ke bawah dan muncul kembali saat digulir ke atas.
 
 ---
@@ -25,7 +25,7 @@ Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untu
 - **Desain & Tampilan**: [Tailwind CSS v4](https://tailwindcss.com/)
 - **Animasi**: [Motion](https://motion.dev/) (Framer Motion API)
 - **Ikon**: [Lucide React](https://lucide.dev/)
-- **Backend & Basis Data**: [Supabase JS Client](https://supabase.com/) (`@supabase/supabase-js`)
+- **Sumber Data**: `portfolioData.ts` & LocalStorage
 - **Ekspor PDF**: `html2pdf.js`
 - **Lingkungan Server**: Express (Node.js)
 
@@ -39,7 +39,7 @@ Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untu
 │   ├── components/          # Komponen UI Reusable
 │   │   ├── AboutMeStoryPage.tsx         # Cerita & rekam jejak karir
 │   │   ├── AboutMeSubPages.tsx          # Sub-halaman biografi detail
-│   │   ├── AdminPage.tsx                # Panel pengelolaan konten Supabase
+│   │   ├── AdminPage.tsx                # Panel pengelolaan konten
 │   │   ├── BackgroundTextures.tsx       # Latar belakang kanvas dekoratif
 │   │   ├── CaseStudyPresentationPage.tsx# Presentasi studi kasus data
 │   │   ├── ContactForm.tsx              # Formulir kontak terisi otomatis Gmail
@@ -48,14 +48,12 @@ Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untu
 │   │   ├── ResumeModal.tsx              # Pratinjau CV & Ekspor PDF
 │   │   ├── SkillsArsenal.tsx            # Matriks keterampilan terintegrasi
 │   │   └── SocialIcon.tsx               # Ikon media sosial
-│   ├── data/                # File konfigurasi & data statis
-│   ├── lib/                 # Utilitas (Inisialisasi Supabase client)
-│   │   └── supabaseClient.ts
+│   ├── data/                # File konfigurasi & data statis (portfolioData.ts)
+│   ├── lib/                 # Utilitas (Penyimpanan lokal)
 │   ├── App.tsx              # Komponen Utama & Routing Aplikasi
 │   ├── index.css            # CSS Global, Impor Tailwind & Styling Autofill
 │   ├── main.tsx             # Entry Point Aplikasi
 │   └── types.ts             # Antarmuka TypeScript (Interfaces)
-├── .env.example             # Templat variabel lingkungan
 ├── metadata.json            # Metadata aplikasi
 ├── package.json             # Dependensi NPM & skrip
 └── tsconfig.json            # Konfigurasi TypeScript
@@ -84,14 +82,7 @@ Pastikan perangkat Anda sudah terpasang perangkat lunak berikut:
    npm install
    ```
 
-3. **Konfigurasi Environment Variables**:
-   Buat file `.env` di direktori utama berdasarkan templat `.env.example`:
-   ```env
-   VITE_SUPABASE_URL=url_proyek_supabase_anda
-   VITE_SUPABASE_ANON_KEY=kunci_anon_supabase_anda
-   ```
-
-4. **Jalankan Server Pengembang**:
+3. **Jalankan Server Pengembang**:
    ```bash
    npm run dev
    ```
@@ -116,3 +107,4 @@ Dalam direktori proyek, Anda dapat menjalankan skrip berikut:
 ## 📄 Lisensi
 
 Proyek ini dilindungi di bawah Lisensi MIT.
+

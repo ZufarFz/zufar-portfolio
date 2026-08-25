@@ -36,6 +36,14 @@ export interface Experience {
   tools?: string[];
 }
 
+export interface EducationItem {
+  id?: string;
+  period: string;
+  degree: string;
+  institution: string;
+  description?: string;
+}
+
 export interface SkillItem {
   id: string;
   name: string;
@@ -44,12 +52,30 @@ export interface SkillItem {
   description: string;
   showOnWeb?: boolean;
   showOnCV?: boolean;
+  customSvg?: string;
+  svgUrl?: string;
 }
 
 export interface SkillCategory {
   id: string;
   label: string;
+  labelId?: string;
+  labelEn?: string;
   sortOrder?: number;
+}
+
+export interface CustomSubPage {
+  id: string;
+  title: string;
+  titleId?: string;
+  titleEn?: string;
+  subtitle: string;
+  subtitleId?: string;
+  subtitleEn?: string;
+  headerBg?: string;
+  coverImageUrl?: string;
+  iconName?: string;
+  showOnStoryPage?: boolean;
 }
 
 export interface ContactMessage {
@@ -107,3 +133,118 @@ export interface EducationSection {
   ovalPointiness?: number;
 }
 
+export interface CustomSocial {
+  id: string;
+  name: string;
+  value: string;
+  usernameOrUrl?: string;
+  logoUrl?: string;
+  showOnWeb: boolean;
+  showOnCvHeader: boolean;
+  showOnCvFooter: boolean;
+}
+
+export interface IDCardSvgItem {
+  id: string;
+  name: string;
+  svgContent: string;
+  scale: number;
+  x: number;
+  y: number;
+  zIndex: number;
+}
+
+export interface CVData {
+  name: string;
+  title: string;
+  location: string;
+  email: string;
+  linkedin: string;
+  github?: string;
+  instagram?: string;
+  whatsapp?: string;
+  aboutMe?: string;
+  webTexts?: Record<string, string>;
+  idCardSvgs?: IDCardSvgItem[];
+  technicalArsenal: {
+    dbms: string;
+    scientificLanguages: string;
+    dataPresentation: string;
+    analyticsSpecialties: string;
+  };
+  education: {
+    id?: string;
+    period: string;
+    degree: string;
+    institution: string;
+    description?: string;
+  }[];
+  educationSections?: EducationSection[];
+  experiences: {
+    id: string;
+    period: string;
+    role: string;
+    company: string;
+    bulletPoints: string[];
+    tools?: string[];
+  }[];
+  skills?: SkillItem[];
+  skillCategories?: SkillCategory[];
+  caseStudies?: CaseStudy[];
+  personality?: PersonalityItem[];
+  hobbies?: HobbyItem[];
+  careerGoals?: CareerGoalItem[];
+  customSubPages?: CustomSubPage[];
+  methodologyTitle: string;
+  methodologyText: string;
+  avatarUrl: string;
+  avatarScale?: number;
+  avatarX?: number;
+  avatarY?: number;
+  homeImageUrl?: string;
+  homeImageUrlDark?: string;
+  homeImageScale?: number;
+  homeImageX?: number;
+  homeImageY?: number;
+  aboutStoryImageScale?: number;
+  aboutStoryImageX?: number;
+  aboutStoryImageY?: number;
+  idCardBgTextSize?: number;
+  idCardPortraitFadeEnabled?: boolean;
+  idCardPortraitFadeStart?: number;
+  idCardPortraitFadeEnd?: number;
+  idCardSvgLight?: string;
+  idCardSvgDark?: string;
+  idCardSvgScale?: number;
+  idCardSvgX?: number;
+  idCardSvgY?: number;
+  idCardTextX?: number;
+  idCardTextY?: number;
+  idCardBadgeX?: number;
+  idCardBadgeY?: number;
+  customSocials?: CustomSocial[];
+  headerContacts?: string[];
+  footerSocials?: string[];
+  nickname?: string;
+  useNicknameOnCard?: boolean;
+  cardSocials?: string[];
+  idCardGroup?: string;
+  idCardSubText?: string;
+  idCardText3?: string;
+  layoutSettings?: {
+    themeColor: 'emerald' | 'blue' | 'slate' | 'indigo' | 'rose' | 'amber';
+    fontSize: 'compact' | 'standard' | 'comfortable';
+    spacing: 'tight' | 'standard' | 'spacious';
+    layoutStyle: 'left-sidebar' | 'right-sidebar' | 'single-column';
+    fontFamily: 'sans' | 'serif' | 'mono';
+    sectionOrder: string[];
+    showEducation?: boolean;
+    visibleExperiences?: string[];
+    visibleEducations?: string[];
+    marginTopBottom?: 'lebar' | 'sedang' | 'sempit';
+    marginLeftRight?: 'lebar' | 'sedang' | 'sempit';
+    headerPhotoPosition?: 'left' | 'top';
+    headerAlignment?: 'left' | 'center';
+    headerContactPosition?: 'bottom' | 'right';
+  };
+}

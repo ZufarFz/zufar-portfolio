@@ -6,7 +6,9 @@ import {
   ExternalLink, ChevronLeft, ChevronRight, Sparkles, Target, PenTool, Bookmark, Share2,
   Database, Shield, Terminal, ArrowRight, BookMarked, Check, LayoutGrid
 } from 'lucide-react';
-import { CVData } from '../lib/supabaseClient';
+import { CVData } from '../types';
+import BackgroundTextures from './BackgroundTextures';
+import SkillsArsenal from './SkillsArsenal';
 
 const IconMap: Record<string, any> = {
   Cpu, Flame, Smile, GraduationCap, Briefcase, Award, Heart, 
@@ -91,6 +93,7 @@ interface AboutMeSubPagesProps {
   subPage: string;
   cvData: CVData;
   theme: 'light' | 'dark';
+  lang?: 'id' | 'en';
   onBackToStory: () => void;
 }
 
@@ -98,6 +101,7 @@ export default function AboutMeSubPages({
   subPage, 
   cvData, 
   theme, 
+  lang = 'id',
   onBackToStory 
 }: AboutMeSubPagesProps) {
   const isDark = theme === 'dark';
@@ -204,9 +208,9 @@ export default function AboutMeSubPages({
     return <IconComponent className={className} />;
   };
 
-  // A clean, generalized renderer for ANY of the 6 subpages
+  // A clean, generalized renderer for ANY of the 6 subpages or custom subpages
   const renderCustomPage = (
-    pageKey: 'education' | 'personality' | 'hobbies' | 'career-journey' | 'skills' | 'career-goals',
+    pageKey: string,
     defaultTitle: string,
     defaultIntro: string,
     defaultBgUrl: string,
@@ -319,6 +323,13 @@ export default function AboutMeSubPages({
     const bgX = parseInt(cvData.webTexts?.[`${prefix}_header_bg_x`] || '0', 10);
     const bgY = parseInt(cvData.webTexts?.[`${prefix}_header_bg_y`] || '0', 10);
 
+    const subpageBgStyle = cvData.webTexts?.[`${prefix}_bg_style`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_style`] || cvData.webTexts?.about_subpages_bg_style || 'none';
+    const subpageBgOpacity = cvData.webTexts?.[`${prefix}_bg_pattern_opacity`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_pattern_opacity`] || cvData.webTexts?.about_subpages_bg_pattern_opacity;
+    const subpageBgScale = cvData.webTexts?.[`${prefix}_bg_pattern_scale`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_pattern_scale`] || cvData.webTexts?.about_subpages_bg_pattern_scale;
+    const subpageBgColor = cvData.webTexts?.[`${prefix}_bg_pattern_color`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_pattern_color`] || cvData.webTexts?.about_subpages_bg_pattern_color;
+    const subpageCustomSvg = cvData.webTexts?.[`${prefix}_bg_custom_svg`] || cvData.webTexts?.[`${prefix}_custom_svg`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_custom_svg`] || cvData.webTexts?.[`about_subpage_${prefix}_custom_svg`] || cvData.webTexts?.about_subpages_custom_svg;
+    const subpageCustomUrl = cvData.webTexts?.[`${prefix}_bg_custom_url`] || cvData.webTexts?.[`${prefix}_custom_url`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_custom_url`] || cvData.webTexts?.[`about_subpage_${prefix}_custom_url`] || cvData.webTexts?.about_subpages_custom_url;
+
     return (
       <motion.div 
         initial={{ opacity: 0 }}
@@ -327,24 +338,36 @@ export default function AboutMeSubPages({
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="min-h-screen pb-16 font-sans relative overflow-hidden"
       >
+        {/* Background Texture Overlay */}
+        {subpageBgStyle && subpageBgStyle !== 'none' && (
+          <BackgroundTextures
+            type={subpageBgStyle}
+            theme={theme}
+            opacity={subpageBgOpacity ? parseFloat(subpageBgOpacity) : undefined}
+            scale={subpageBgScale ? parseFloat(subpageBgScale) : undefined}
+            color={subpageBgColor || undefined}
+            customSvg={subpageCustomSvg || undefined}
+            customBgUrl={subpageCustomUrl || undefined}
+          />
+        )}
         {/* Absolute Header Background Image Band */}
-        <div className="absolute top-0 left-0 right-0 h-[480px] pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-0 left-0 right-0 h-[540px] pointer-events-none overflow-hidden z-0">
           <img 
             src={bgUrl} 
             alt={`${title} Banner`} 
+            referrerPolicy="no-referrer"
             className={`w-full h-full object-cover select-none pointer-events-none ${
-              isDark ? 'opacity-20' : 'opacity-[0.32]'
+              isDark ? 'opacity-25' : 'opacity-[0.35]'
             }`}
             style={{ 
-              referrerPolicy: "no-referrer",
               transform: `scale(${bgScale}) translate(${bgX / 5}%, ${bgY / 5}%)`,
               transformOrigin: 'center center'
             }}
           />
           <div className={`absolute inset-0 bg-gradient-to-b ${
             isDark 
-              ? 'from-transparent via-[#0f172a]/85 to-[#0f172a]' 
-              : 'from-transparent via-[#f7f9fb]/85 to-[#f7f9fb]'
+              ? 'from-transparent via-[#0f172a]/75 via-60% to-[#0f172a]' 
+              : 'from-transparent via-[#f7f9fb]/75 via-60% to-[#f7f9fb]'
           }`} />
         </div>
 
@@ -377,13 +400,25 @@ export default function AboutMeSubPages({
 
         {/* Main Sections Stack */}
         {displaySections.length === 0 ? (
-          <div className="max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto py-16 px-4">
-            <div className={`p-12 rounded-2xl border text-center ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
-              <Sparkles className="w-12 h-12 text-slate-500 mx-auto mb-4 animate-pulse" />
-              <p className="text-slate-400 text-sm font-bold">No custom slides/sheets created yet.</p>
-              <p className="text-slate-550 text-xs mt-1">Configure sections/slides for this page in the Admin Panel.</p>
+          pageKey === 'skills' ? (
+            <div className="max-w-6xl xl:max-w-7xl 2xl:max-w-[1440px] mx-auto py-8 px-4 sm:px-6 lg:px-8 relative z-10">
+              <SkillsArsenal 
+                skills={cvData.skills} 
+                theme={theme} 
+                customCategories={cvData.skillCategories} 
+                lang={lang} 
+                viewMode="detailed" 
+              />
             </div>
-          </div>
+          ) : (
+            <div className="max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto py-16 px-4">
+              <div className={`p-12 rounded-2xl border text-center ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <Sparkles className="w-12 h-12 text-slate-500 mx-auto mb-4 animate-pulse" />
+                <p className="text-slate-400 text-sm font-bold">No custom slides/sheets created yet.</p>
+                <p className="text-slate-550 text-xs mt-1">Configure sections/slides for this page in the Admin Panel.</p>
+              </div>
+            </div>
+          )
         ) : (
           <div className="relative z-10 flex flex-col">
             {displaySections.map((section, idx) => {
@@ -580,7 +615,8 @@ export default function AboutMeSubPages({
               const isBgMode = imgModel === 'bg_full' || imgModel === 'bg_smooth';
               const isSideBySide = !isBgMode && (
                 (pLayout === 'left' && iLayout === 'right') ||
-                (pLayout === 'right' && iLayout === 'left')
+                (pLayout === 'right' && iLayout === 'left') ||
+                (pLayout === 'left' || pLayout === 'right')
               );
               const imgAspectClass = orient === 'portrait' ? 'aspect-[3/4]' : 'aspect-video';
 
@@ -614,20 +650,15 @@ export default function AboutMeSubPages({
 
               let imgMaskStyle: React.CSSProperties = {};
               if (imgModel === 'bg_smooth') {
-                const fadeDir = section.imageFadeDirection || (iLayout === 'left' ? 'right' : iLayout === 'right' ? 'left' : 'center');
+                const fadeDir = section.imageFadeDirection || (pLayout === 'left' ? 'left' : pLayout === 'right' ? 'right' : 'center');
                 
                 if (fadeDir === 'right') {
                   const maskImg = `linear-gradient(to right, 
                     rgba(0,0,0,1) 0%, 
-                    rgba(0,0,0,0.8) ${Math.max(0, maskWidthVal - 25)}%, 
+                    rgba(0,0,0,0.85) ${Math.max(0, maskWidthVal - 25)}%, 
                     rgba(0,0,0,0.2) ${Math.max(0, maskWidthVal - 5)}%, 
                     rgba(0,0,0,0) ${maskWidthVal}%, 
                     rgba(0,0,0,0) 100%
-                  ), linear-gradient(to bottom,
-                    rgba(0,0,0,0.85) 0%,
-                    rgba(0,0,0,0.98) 15%,
-                    rgba(0,0,0,0.98) 85%,
-                    rgba(0,0,0,0.85) 100%
                   )`;
                   imgMaskStyle = {
                     maskImage: maskImg,
@@ -636,15 +667,10 @@ export default function AboutMeSubPages({
                 } else if (fadeDir === 'left') {
                   const maskImg = `linear-gradient(to left, 
                     rgba(0,0,0,1) 0%, 
-                    rgba(0,0,0,0.8) ${Math.max(0, maskWidthVal - 25)}%, 
+                    rgba(0,0,0,0.85) ${Math.max(0, maskWidthVal - 25)}%, 
                     rgba(0,0,0,0.2) ${Math.max(0, maskWidthVal - 5)}%, 
                     rgba(0,0,0,0) ${maskWidthVal}%, 
                     rgba(0,0,0,0) 100%
-                  ), linear-gradient(to bottom,
-                    rgba(0,0,0,0.85) 0%,
-                    rgba(0,0,0,0.98) 15%,
-                    rgba(0,0,0,0.98) 85%,
-                    rgba(0,0,0,0.85) 100%
                   )`;
                   imgMaskStyle = {
                     maskImage: maskImg,
@@ -653,15 +679,10 @@ export default function AboutMeSubPages({
                 } else if (fadeDir === 'top') {
                   const maskImg = `linear-gradient(to top, 
                     rgba(0,0,0,1) 0%, 
-                    rgba(0,0,0,0.8) ${Math.max(0, maskWidthVal - 25)}%, 
+                    rgba(0,0,0,0.85) ${Math.max(0, maskWidthVal - 25)}%, 
                     rgba(0,0,0,0.2) ${Math.max(0, maskWidthVal - 5)}%, 
                     rgba(0,0,0,0) ${maskWidthVal}%, 
                     rgba(0,0,0,0) 100%
-                  ), linear-gradient(to right,
-                    rgba(0,0,0,0.85) 0%,
-                    rgba(0,0,0,0.98) 15%,
-                    rgba(0,0,0,0.98) 85%,
-                    rgba(0,0,0,0.85) 100%
                   )`;
                   imgMaskStyle = {
                     maskImage: maskImg,
@@ -670,22 +691,17 @@ export default function AboutMeSubPages({
                 } else if (fadeDir === 'bottom') {
                   const maskImg = `linear-gradient(to bottom, 
                     rgba(0,0,0,1) 0%, 
-                    rgba(0,0,0,0.8) ${Math.max(0, maskWidthVal - 25)}%, 
+                    rgba(0,0,0,0.85) ${Math.max(0, maskWidthVal - 25)}%, 
                     rgba(0,0,0,0.2) ${Math.max(0, maskWidthVal - 5)}%, 
                     rgba(0,0,0,0) ${maskWidthVal}%, 
                     rgba(0,0,0,0) 100%
-                  ), linear-gradient(to right,
-                    rgba(0,0,0,0.85) 0%,
-                    rgba(0,0,0,0.98) 15%,
-                    rgba(0,0,0,0.98) 85%,
-                    rgba(0,0,0,0.85) 100%
                   )`;
                   imgMaskStyle = {
                     maskImage: maskImg,
                     WebkitMaskImage: maskImg
                   };
                 } else if (fadeDir === 'oval') {
-                  const ovalCenter = iLayout === 'left' ? '30%' : iLayout === 'right' ? '70%' : '50%';
+                  const ovalCenter = pLayout === 'left' ? '70%' : pLayout === 'right' ? '30%' : '50%';
                   const ovalW = section.ovalWidth !== undefined ? section.ovalWidth : 75;
                   const ovalH = section.ovalHeight !== undefined ? section.ovalHeight : 40;
                   const ovalP = (section.ovalPointiness !== undefined ? section.ovalPointiness : 50) / 100;
@@ -693,7 +709,7 @@ export default function AboutMeSubPages({
                   const stop2 = Math.round(Math.max(stop1 + 2, maskWidthVal - (1 + (ovalP * 8))));
                   const maskImg = `radial-gradient(ellipse ${ovalW}% ${ovalH}% at ${ovalCenter} 50%, 
                     rgba(0,0,0,1) 0%, 
-                    rgba(0,0,0,0.8) ${stop1}%, 
+                    rgba(0,0,0,0.85) ${stop1}%, 
                     rgba(0,0,0,0.2) ${stop2}%, 
                     rgba(0,0,0,0) ${maskWidthVal}%, 
                     rgba(0,0,0,0) 100%
@@ -711,20 +727,15 @@ export default function AboutMeSubPages({
                     rgba(0,0,0,0.2) ${Math.min(100, 100 - maskWidthVal + 5)}%, 
                     rgba(0,0,0,0.9) ${Math.min(100, 100 - maskWidthVal + 25)}%, 
                     rgba(0,0,0,0) 100%
-                  ), linear-gradient(to bottom,
-                    rgba(0,0,0,0.85) 0%,
-                    rgba(0,0,0,0.98) 15%,
-                    rgba(0,0,0,0.98) 85%,
-                    rgba(0,0,0,0.85) 100%
                   )`;
                   imgMaskStyle = {
                     maskImage: maskImg,
                     WebkitMaskImage: maskImg
                   };
                 }
-              } else {
+              } else if (imgModel === 'bg_full') {
                 if (section.imageFadeDirection === 'oval') {
-                  const ovalCenter = iLayout === 'left' ? '30%' : iLayout === 'right' ? '70%' : '50%';
+                  const ovalCenter = pLayout === 'left' ? '70%' : pLayout === 'right' ? '30%' : '50%';
                   const ovalW = section.ovalWidth !== undefined ? section.ovalWidth : 75;
                   const ovalH = section.ovalHeight !== undefined ? section.ovalHeight : 40;
                   const ovalP = (section.ovalPointiness !== undefined ? section.ovalPointiness : 50) / 100;
@@ -761,17 +772,6 @@ export default function AboutMeSubPages({
                   };
                 } else if (section.imageFadeDirection === 'bottom') {
                   const maskImg = `linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.15) ${maskWidthVal}%)`;
-                  imgMaskStyle = {
-                    maskImage: maskImg,
-                    WebkitMaskImage: maskImg
-                  };
-                } else {
-                  const maskImg = `linear-gradient(to bottom, 
-                    rgba(0,0,0,0.8) 0%, 
-                    rgba(0,0,0,0.95) 15%, 
-                    rgba(0,0,0,0.95) 85%, 
-                    rgba(0,0,0,0.8) 100%
-                  )`;
                   imgMaskStyle = {
                     maskImage: maskImg,
                     WebkitMaskImage: maskImg
@@ -848,19 +848,11 @@ export default function AboutMeSubPages({
               );
               const isNextBg = nextSection && (nextImgModel === 'bg_full' || nextImgModel === 'bg_smooth');
 
-              const sectionMarginClass = idx > 0 ? '-mt-15 sm:-mt-20' : '';
+              const sectionMarginClass = idx === 0 ? '-mt-10 sm:-mt-14' : '-mt-15 sm:-mt-20';
 
-              const maskStyle: React.CSSProperties = displaySections.length <= 1 ? {} : {
-                maskImage: idx === 0 
-                  ? 'linear-gradient(to bottom, black 0%, black calc(100% - 110px), transparent 100%)'
-                  : idx === displaySections.length - 1
-                    ? 'linear-gradient(to bottom, transparent 0%, black 110px, black 100%)'
-                    : 'linear-gradient(to bottom, transparent 0%, black 110px, black calc(100% - 110px), transparent 100%)',
-                WebkitMaskImage: idx === 0 
-                  ? 'linear-gradient(to bottom, black 0%, black calc(100% - 110px), transparent 100%)'
-                  : idx === displaySections.length - 1
-                    ? 'linear-gradient(to bottom, transparent 0%, black 110px, black 100%)'
-                    : 'linear-gradient(to bottom, transparent 0%, black 110px, black calc(100% - 110px), transparent 100%)',
+              const maskStyle: React.CSSProperties = {
+                maskImage: 'linear-gradient(to bottom, transparent 0%, black 110px, black calc(100% - 110px), transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 110px, black calc(100% - 110px), transparent 100%)',
               };
 
                return (
@@ -897,18 +889,26 @@ export default function AboutMeSubPages({
 
                       return (
                         <div className={containerClass}>
-                          <SmoothImage 
-                             src={section.imageUrl} 
-                             alt="Slide Background Visual" 
-                             className={`w-full h-full ${objectPositionClass}`}
-                             targetOpacity={finalOpacity}
-                             style={{ 
-                               transform: `scale(${section.imageScale || 1}) translate(${section.imageX || 0}px, ${section.imageY || 0}px)`,
-                               ...imgMaskStyle
-                             }}
-                             referrerPolicy="no-referrer"
-                             showSkeleton={false}
-                          />
+                          <div 
+                            className="w-full h-full origin-center"
+                            style={{
+                              transform: `scale(${section.imageScale || 1}) translate(${section.imageX || 0}px, ${section.imageY || 0}px)`,
+                              ...imgMaskStyle,
+                              WebkitMaskSize: '100% 100%',
+                              maskSize: '100% 100%',
+                              WebkitMaskRepeat: 'no-repeat',
+                              maskRepeat: 'no-repeat'
+                            }}
+                          >
+                            <SmoothImage 
+                               src={section.imageUrl} 
+                               alt="Slide Background Visual" 
+                               className={`w-full h-full ${objectPositionClass}`}
+                               targetOpacity={finalOpacity}
+                               referrerPolicy="no-referrer"
+                               showSkeleton={false}
+                            />
+                          </div>
                         </div>
                       );
                     })()
@@ -1403,6 +1403,28 @@ export default function AboutMeSubPages({
           </div>
         )}
       </motion.div>
+    );
+  }
+
+  // DYNAMIC CUSTOM SUBPAGE FALLBACK
+  const customPageData = (cvData.customSubPages || []).find(p => p.id === subPage);
+  if (customPageData || subPage) {
+    const customTitle = customPageData 
+      ? (lang === 'id' ? (customPageData.title || customPageData.titleEn) : (customPageData.titleEn || customPageData.title))
+      : (cvData.webTexts?.[`${subPage}_title`] || subPage.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
+    const customSubtitle = customPageData
+      ? (lang === 'id' ? (customPageData.subtitle || customPageData.subtitleEn) : (customPageData.subtitleEn || customPageData.subtitle))
+      : (cvData.webTexts?.[`${subPage}_intro`] || cvData.webTexts?.[`${subPage}_subtitle`] || 'Explore detailed stories, achievements, and insights in this section.');
+    const customBg = customPageData?.headerBg || cvData.webTexts?.[`${subPage}_header_bg`] || 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1200&auto=format&fit=crop';
+    const IconComp = (customPageData?.iconName && IconMap[customPageData.iconName]) ? IconMap[customPageData.iconName] : Sparkles;
+
+    return renderCustomPage(
+      subPage,
+      customTitle,
+      customSubtitle,
+      customBg,
+      <IconComp className="w-8 h-8" />,
+      customTitle
     );
   }
 

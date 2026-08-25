@@ -186,6 +186,11 @@ export default function ContactForm({
             key="contact-form"
             onSubmit={handleFormSubmit}
             className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5 sm:space-y-4"
+            style={
+              theme === 'dark'
+                ? (webTexts?.contact_card_bg_color_dark ? { backgroundColor: webTexts.contact_card_bg_color_dark } : undefined)
+                : (webTexts?.contact_card_bg_color ? { backgroundColor: webTexts.contact_card_bg_color } : undefined)
+            }
           >
             {errorText && (
               <motion.div 

@@ -25,7 +25,8 @@ import {
   Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CVData, saveCVData, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
+import { CVData } from '../types';
+import { saveCVData } from '../lib/storage';
 import SocialIcon, { getAbsoluteSocialUrl } from './SocialIcon';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
@@ -214,17 +215,14 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
 
   // Check if admin session is active on mount
   useEffect(() => {
-    async function checkAdminSession() {
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (data?.session) {
-            setIsAdmin(true);
-          }
-        } catch (e) {
-          console.error('Error checking active admin session in CV Modal:', e);
+    function checkAdminSession() {
+      try {
+        const sessionAuth = sessionStorage.getItem('admin_session_auth');
+        const authFlag = localStorage.getItem('bi-portfolio-auth-flag');
+        if (sessionAuth === 'true' || authFlag === 'true') {
+          setIsAdmin(true);
         }
-      }
+      } catch (e) {}
     }
     checkAdminSession();
   }, []);
@@ -514,7 +512,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
     }
   };
 
-  // Permanently save settings to Supabase DB or LocalStorage
+  // Permanently save settings to LocalStorage
   const handleSaveLayout = async () => {
     setIsSyncing(true);
     setSaveStatus({ type: null, message: '' });
@@ -532,9 +530,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
         }
         setSaveStatus({
           type: 'success',
-          message: isAdmin 
-            ? 'Sukses! Layout kustom tersinkronisasi ke cloud database Supabase.'
-            : 'Sukses disimpan di browser lokal offline! Log in ke Admin untuk sinkronisasi cloud.'
+          message: 'Sukses! Layout kustom berhasil disimpan.'
         });
       } else {
         setSaveStatus({
@@ -1588,7 +1584,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                       <label className="text-[10px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
                         Urutkan Deretan Bagian
                       </label>
-                      <Info className="w-3 h-3 text-indigo-400" title="Klik tombol panah untuk memindah posisi section atas bawah" />
+                      <span title="Klik tombol panah untuk memindah posisi section atas bawah">
+                        <Info className="w-3 h-3 text-indigo-400" />
+                      </span>
                     </div>
                     <div className="space-y-1 mt-2">
                       {settings.sectionOrder.map((secId, index) => {
@@ -1661,12 +1659,12 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     {isAdmin ? (
                       <>
                         <Check className="w-3 h-3 text-emerald-400" />
-                        <span>Sesi Admin Cloud Aktif (Supabase)</span>
+                        <span>Sesi Admin Aktif</span>
                       </>
                     ) : (
                       <>
                         <CloudLightning className="w-3 h-3 text-amber-400" />
-                        <span>Offline/Lokal. Memperbarui cache browser.</span>
+                        <span>Mode Lokal. Memperbarui cache browser.</span>
                       </>
                     )}
                   </div>
