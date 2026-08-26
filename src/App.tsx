@@ -47,13 +47,15 @@ import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 import BackgroundTextures from './components/BackgroundTextures';
 
 // TypewriterText Component - Animasi Typing Looping
-function TypewriterText({ name }: { name: string }) {
+function TypewriterText({ name, lang }: { name: string; lang: 'id' | 'en' }) {
   const [displayText, setDisplayText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [loopNum, setLoopNum] = useState(0);
   const [typingSpeed, setTypingSpeed] = useState(150);
 
-  const fullText = `HELLO, I'M ${name.toUpperCase()}`;
+  const fullText = lang === 'id' 
+    ? `HAI, SAYA ${name.toUpperCase()}` 
+    : `HELLO, I'M ${name.toUpperCase()}`;
 
   useEffect(() => {
     const handleTyping = () => {
@@ -2123,32 +2125,29 @@ export default function App() {
           />
           
           <div 
-            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 md:py-20 lg:py-24 grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-16 xl:gap-x-24 gap-y-4 items-center justify-items-center md:justify-items-start text-center md:text-left relative z-10 w-full"
+            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 md:py-20 lg:py-24 grid grid-cols-1 md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 gap-y-6 items-center text-center md:text-left relative z-10 w-full"
             style={{
               gridTemplateAreas: isMobile 
                 ? `"title" "image" "desc"` 
-                : `"title image" "desc image"`,
+                : `"title title title title title image image image image badge badge badge" "desc desc desc desc desc image image image image badge badge badge"`,
               gridTemplateRows: isMobile 
                 ? "auto auto auto" 
                 : "auto 1fr",
-              gridTemplateColumns: isMobile
-                ? "1fr"
-                : "1.05fr 0.95fr"
             }}
           >
             {/* 1. Greeting & Title/Judul at the top, centered */}
             <div style={{ gridArea: 'title' }} className="text-center md:text-left">
-              {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 */}
+              {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 - Diperbesar */}
               <motion.div 
                 initial={{ opacity: 0, y: isMobile ? 10 : 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: isMobile ? 0.4 : 0.5, delay: isMobile ? 0.05 : 0.15, ease: "easeOut" }}
-                className={`font-bold text-base sm:text-xl md:text-2xl lg:text-3xl tracking-widest uppercase mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 ${
+                className={`font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl tracking-widest uppercase mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 ${
                   theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`}
                 style={{ fontFamily: "'VT323', monospace" }}
               >
-                <TypewriterText name={activeCVData.nickname || activeCVData.name || "ZUFA"} />
+                <TypewriterText name={activeCVData.nickname || activeCVData.name || "ZUFA"} lang={lang} />
               </motion.div>
               
               {/* Main Title */}
@@ -2168,37 +2167,39 @@ export default function App() {
 
             </div>
 
-            {/* 2. Image/Gambar in the center dengan frame lingkar biru dan badge */}
+            {/* 2. Image/Gambar in the center dengan frame lingkar biru dan badge - Posisi di tengah */}
             <motion.div 
               initial={{ opacity: 0, y: isMobile ? 10 : 20, scale: isMobile ? 0.99 : 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: isMobile ? 0.45 : 0.7, ease: "easeOut", delay: isMobile ? 0.1 : 0.3 }}
               style={{ gridArea: 'image' }}
-              className="w-full flex flex-col items-center justify-center md:justify-end mb-5 md:mb-0 relative"
+              className="w-full flex flex-col items-center justify-center mb-5 md:mb-0 relative"
             >
-              <div className="relative w-full max-w-[380px] sm:max-w-[450px] md:max-w-[500px] lg:max-w-[550px] xl:max-w-[600px]">
-                {/* SVG Lingkaran dengan Gradasi - Diperbesar dan Warna Solid */}
+              <div className="relative w-full max-w-[420px] sm:max-w-[500px] md:max-w-[560px] lg:max-w-[640px] xl:max-w-[700px]">
+                {/* SVG Lingkaran dengan Gradasi Radial - Blue Sphere Effect */}
                 <svg 
+                  xmlns="http://www.w3.org/2000/svg"
                   className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0" 
                   width="70%"
                   height="70%"
-                  viewBox="0 0 100 100"
+                  viewBox="0 0 500 500"
                   preserveAspectRatio="xMidYMid meet"
                 >
                   <defs>
-                    <linearGradient id="circleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor={theme === 'dark' ? "#60a5fa" : "#3b82f6"} stopOpacity="1" />
-                      <stop offset="50%" stopColor={theme === 'dark' ? "#3b82f6" : "#2563eb"} stopOpacity="1" />
-                      <stop offset="100%" stopColor={theme === 'dark' ? "#2563eb" : "#1d4ed8"} stopOpacity="1" />
-                    </linearGradient>
+                    {/* Gradien Radial untuk efek pencahayaan halus */}
+                    <radialGradient id="blueSphere" cx="42%" cy="38%" r="55%" fx="42%" fy="38%">
+                      <stop offset="0%" stopColor="#6ba0e6" />
+                      <stop offset="50%" stopColor="#4a7bc7" />
+                      <stop offset="100%" stopColor="#3661a3" />
+                    </radialGradient>
                   </defs>
                   
-                  {/* Lingkaran Solid dengan Gradasi - Tidak Transparan */}
+                  {/* Lingkaran dengan efek sphere */}
                   <circle 
-                    cx="50" 
-                    cy="50" 
-                    r="48" 
-                    fill="url(#circleGradient)"
+                    cx="250" 
+                    cy="250" 
+                    r="220" 
+                    fill="url(#blueSphere)"
                   />
                 </svg>
                 
@@ -2208,40 +2209,6 @@ export default function App() {
                     ? 'from-slate-900/30 via-slate-900/10 to-transparent' 
                     : 'from-white/30 via-white/10 to-transparent'
                 }`}></div>
-                
-                {/* Badge Informasi di Sebelah Kanan Foto - Posisi lebih ke kanan, warna hitam */}
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-                  className="absolute -right-6 sm:-right-8 md:-right-12 lg:-right-16 top-[20%] flex flex-col gap-1 z-20 items-end"
-                >
-                  {/* OPEN TO WORK - Bold warna hitam */}
-                  <div className="flex items-center gap-1.5">
-                    <span className={`font-sans text-xs sm:text-sm md:text-base font-black uppercase tracking-[0.15em] italic ${
-                      theme === 'dark' ? 'text-white' : 'text-black'
-                    }`}>
-                      OPEN TO WORK
-                    </span>
-                  </div>
-                  
-                  {/* Tahun 2026 - Font Black Ops One, lebih besar dan bold */}
-                  <span 
-                    className={`font-black text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-none ${
-                      theme === 'dark' ? 'text-white' : 'text-black'
-                    }`}
-                    style={{ fontFamily: "'Black Ops One', cursive" }}
-                  >
-                    2026
-                  </span>
-                  
-                  {/* Lokasi - Bold dan hitam */}
-                  <span className={`font-sans font-black text-sm sm:text-base md:text-lg italic uppercase tracking-wider ${
-                    theme === 'dark' ? 'text-white' : 'text-black'
-                  }`}>
-                    {activeCVData.location || "Indonesia"}
-                  </span>
-                </motion.div>
                 
                 {/* Container Gambar */}
                 {(() => {
@@ -2329,8 +2296,43 @@ export default function App() {
               </div>
             </motion.div>
 
-            {/* 3. Description/Deskripsi dan Tombol Action CTA */}
-            <div style={{ gridArea: 'desc' }} className="max-w-2xl mx-auto md:mx-0">
+            {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi */}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+              style={{ gridArea: 'badge' }}
+              className="hidden md:flex flex-col gap-1 items-start text-left justify-center"
+            >
+              {/* OPEN TO WORK - Bold warna hitam */}
+              <div className="flex items-center gap-1.5">
+                <span className={`font-sans text-xs sm:text-sm md:text-base lg:text-lg font-black uppercase tracking-[0.15em] italic ${
+                  theme === 'dark' ? 'text-white' : 'text-black'
+                }`}>
+                  OPEN TO WORK
+                </span>
+              </div>
+              
+              {/* Tahun 2026 - Font Black Ops One, lebih besar dan bold */}
+              <span 
+                className={`font-black text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-none ${
+                  theme === 'dark' ? 'text-white' : 'text-black'
+                }`}
+                style={{ fontFamily: "'Black Ops One', cursive" }}
+              >
+                2026
+              </span>
+              
+              {/* Lokasi - Bold dan hitam */}
+              <span className={`font-sans font-black text-base md:text-lg lg:text-xl italic uppercase tracking-wider ${
+                theme === 'dark' ? 'text-white' : 'text-black'
+              }`}>
+                {activeCVData.location || "Indonesia"}
+              </span>
+            </motion.div>
+
+            {/* 4. Description/Deskripsi dan Tombol Action CTA */}
+            <div style={{ gridArea: 'desc' }} className="max-w-3xl mx-auto md:mx-0">
               <motion.p 
                 initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -2364,33 +2366,21 @@ export default function App() {
                   <span>Hubungi Saya</span>
                 </button>
                 
-                {/* Tombol Sekunder - Outlined "Lihat Project →" */}
-                <button
-                  onClick={() => scrollToSection('projects')}
-                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer border hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                    theme === 'dark' 
-                      ? 'border-blue-500/50 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 shadow-blue-900/20' 
-                      : 'border-blue-400/50 text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-blue-500/10'
-                  }`}
-                >
-                  <span>Lihat Project</span>
-                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </button>
-                
-                {/* Resume Download Link (Teks Kecil di Bawah) */}
+                {/* Tombol Sekunder - Biru Solid "Download Resume" - Warna Putih */}
                 <button
                   onClick={() => {
                     const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
                     setCvModalDirectDownload(isMobileViewport);
                     setCvModalOpen(true);
                   }}
-                  className={`font-sans font-medium text-[10px] sm:text-xs italic underline decoration-1 underline-offset-3 cursor-pointer mt-1 sm:mt-0 transition-colors duration-150 ${
+                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
                     theme === 'dark' 
-                      ? 'text-slate-400 hover:text-slate-300' 
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
+                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40'
                   }`}
                 >
-                  {lang === 'id' ? 'atau unduh resume formal saya' : 'or download my formal resume'}
+                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Download Resume</span>
                 </button>
               </motion.div>
             </div>
