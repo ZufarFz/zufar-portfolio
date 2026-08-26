@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { 
-  ArrowRight, 
   Layers, 
   ExternalLink,
   Search,
@@ -10,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { SkillItem, SkillCategory } from '../types';
 import TechLogo from './TechLogo';
+import BorderGlow from './BorderGlow';
 
 interface SkillsArsenalProps {
   skills?: SkillItem[];
@@ -19,7 +19,6 @@ interface SkillsArsenalProps {
   badgeText?: string;
   groupDesc?: string;
   viewMode?: 'home' | 'detailed';
-  onNavigateToAboutMe?: () => void;
 }
 
 // Map known category IDs or slugs to standard display labels and Japanese sub-tags
@@ -74,8 +73,7 @@ export default function SkillsArsenal({
   badgeText,
   groupDesc,
   viewMode = 'home',
-  onNavigateToAboutMe
-}: SkillsArsenalProps) {
+  }: SkillsArsenalProps) {
   const isDark = theme === 'dark';
 
   // Filter skills to only visible ones
@@ -399,22 +397,8 @@ export default function SkillsArsenal({
             </p>
 
             {/* Jump to About Me Details Link */}
-            {onNavigateToAboutMe && (
-              <button
-                onClick={onNavigateToAboutMe}
-                className={`mt-5 inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl border transition-all duration-200 cursor-pointer ${
-                  isDark
-                    ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-emerald-400 hover:text-emerald-300 shadow-sm'
-                    : 'bg-white hover:bg-slate-50 border-slate-200 text-emerald-600 hover:text-emerald-700 shadow-xs'
-                }`}
-              >
-                <span>{lang === 'id' ? 'Lihat Penjelasan di About Me' : 'Explore Details in About Me'}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </motion.div>
-
-          {/* ================================================================ */}
+			</motion.div>
+            
           {/* RIGHT COLUMN: Categorized Sections with Clean SVG Logo + Name */}
           {/* ================================================================ */}
           <div className="lg:col-span-8 xl:col-span-8.5 space-y-8 sm:space-y-10 w-full">
@@ -428,7 +412,7 @@ export default function SkillsArsenal({
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.1 }}
                   transition={{ duration: 0.6, delay: groupIdx * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-3 sm:space-y-4"
+                  className="space-y-2 sm:space-y-3"
                 >
                   {/* Category Header Bar */}
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
@@ -443,60 +427,73 @@ export default function SkillsArsenal({
                       </h3>
                     </div>
 
-                    <span className="font-sans text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-wider">
-                      {group.jpTag}
-                    </span>
+<span className="font-sans text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-wider">
+                        See detail
+                      </span>
                   </div>
 
-                  {/* Technology Grid Cards with Buttery Smooth Hardware-Accelerated Hover */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-3.5">
+                  {/* Technology Grid Cards - Square Layout with Crisp SVG */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3">
                     {group.items.map((skill) => (
-                      <motion.div
-                        key={skill.id}
-                        whileHover="hover"
-                        initial="rest"
-                        variants={{
-                          rest: { y: 0 },
-                          hover: { 
-                            y: -5,
-                            transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } 
-                          }
-                        }}
-                        className={`group rounded-2xl p-4 sm:p-5 flex flex-col items-center justify-center gap-3 cursor-default relative overflow-hidden transition-colors duration-300 transform-gpu ${
-                          isDark
-                            ? 'bg-slate-800/80 border border-slate-700/60 hover:border-emerald-500/50 hover:bg-slate-800 shadow-xs hover:shadow-xl hover:shadow-emerald-950/20'
-                            : 'bg-white/95 border border-slate-200/80 hover:border-blue-400/50 hover:shadow-xl hover:shadow-blue-500/10 shadow-xs'
-                        }`}
-                        title={skill.name}
-                      >
-                        {/* Authentic Vector Logo with Super Smooth Zoom */}
-                        <motion.div 
+                        <motion.div
+                          whileHover="hover"
+                          initial="rest"
                           variants={{
-                            rest: { scale: 1 },
+                            rest: { y: 0, scale: 1 },
                             hover: { 
-                              scale: 1.15,
-                              transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } 
+                              y: -8,
+                              scale: 1.08,
+                              transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } 
                             }
                           }}
-                          className="flex items-center justify-center will-change-transform transform-gpu"
+                          className="group h-full w-full relative transform-gpu"
+                          title={skill.name}
                         >
-                          <TechLogo
-                            name={skill.name}
-                            iconName={skill.icon}
-                            customSvg={skill.customSvg}
-                            svgUrl={skill.svgUrl}
-                            size={36}
-                            className="w-9 h-9 sm:w-10 sm:h-10"
-                          />
-                        </motion.div>
+                          <BorderGlow
+                            edgeSensitivity={20}
+                            glowColor={isDark ? "160 100 50" : "160 80 60"}
+                            backgroundColor={isDark ? "#1e293b" : "#ffffff"}
+                            borderRadius={12}
+                            glowRadius={50}
+                            glowIntensity={1.2}
+                            coneSpread={25}
+                            animated={false}
+                            colors={isDark ? ['#10b981', '#06b6d4', '#8b5cf6'] : ['#10b981', '#3b82f6', '#a855f7']}
+                            fillOpacity={0.4}
+                            className="h-full w-full"
+                          >
+                            <div className="h-full w-full p-2 flex flex-col items-center justify-center gap-1.5 cursor-default">
+                              {/* Authentic Vector Logo with Crisp Zoom - SVG stays HD */}
+                              <motion.div 
+                                variants={{
+                                  rest: { scale: 1, transformOrigin: 'center center' },
+                                  hover: { 
+                                    scale: 1.15,
+                                    transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                                    transformBox: 'fill-box'
+                                  }
+                                }}
+                                className="flex items-center justify-center will-change-transform transform-gpu"
+                              >
+                                <TechLogo
+                                  name={skill.name}
+                                  iconName={skill.icon}
+                                  customSvg={skill.customSvg}
+                                  svgUrl={skill.svgUrl}
+                                  size={36}
+                                  className="w-9 h-9 sm:w-10 sm:h-10"
+                                />
+                              </motion.div>
 
-                        {/* Skill Name */}
-                        <span className={`font-sans font-bold text-xs sm:text-[13px] tracking-tight text-center leading-tight truncate w-full transition-colors duration-200 ${
-                          isDark ? 'text-slate-100 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'
-                        }`}>
-                          {skill.name}
-                        </span>
-                      </motion.div>
+                              {/* Skill Name */}
+                              <span className={`font-sans font-bold text-xs sm:text-[14px] tracking-tight text-center leading-tight truncate w-full transition-colors duration-150 ${
+                                isDark ? 'text-slate-100 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'
+                              }`}>
+                                {skill.name}
+                              </span>
+                            </div>
+                          </BorderGlow>
+                        </motion.div>
                     ))}
                   </div>
                 </motion.div>
@@ -506,6 +503,6 @@ export default function SkillsArsenal({
 
         </div>
       )}
-    </div>
+  </div>
   );
 }

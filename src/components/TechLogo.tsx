@@ -21,9 +21,10 @@ interface TechLogoProps {
   svgUrl?: string;
   className?: string;
   size?: number;
+  shapeRendering?: 'auto' | 'crispEdges' | 'optimizeSpeed' | 'geometricPrecision';
 }
 
-function sanitizeAndFormatSvg(raw: string): string {
+function sanitizeAndFormatSvg(raw: string, shapeRendering: string = 'crispEdges'): string {
   if (!raw) return '';
   let cleaned = raw
     .replace(/<\?xml[\s\S]*?\?>/gi, '')
@@ -40,10 +41,10 @@ function sanitizeAndFormatSvg(raw: string): string {
     let newAttrs = attrs
       .replace(/\bwidth\s*=\s*"[^"]*"/gi, '')
       .replace(/\bheight\s*=\s*"[^"]*"/gi, '')
-      .replace(/\bstyle\s*=\s*"[^"]*width:[^;"]*;?[^"]*"/gi, '')
-      .replace(/\bstyle\s*=\s*"[^"]*height:[^;"]*;?[^"]*"/gi, '')
+      .replace(/\bstyle\s*="[^"]*width:[^;"]*;?[^"]*"/gi, '')
+      .replace(/\bstyle\s*="[^"]*height:[^;"]*;?[^"]*"/gi, '')
       .trim();
-    return `<svg width="100%" height="100%" ${newAttrs}>`;
+    return `<svg width="100%" height="100%" ${newAttrs} shape-rendering="${shapeRendering}">`;
   });
 
   return cleaned;
@@ -55,12 +56,13 @@ export default function TechLogo({
   customSvg,
   svgUrl,
   className = "w-8 h-8",
-  size = 32
+  size = 32,
+  shapeRendering = 'crispEdges'
 }: TechLogoProps) {
   // If custom raw SVG string is provided (or passed in svgUrl)
   const rawSvgCandidate = customSvg || (svgUrl && svgUrl.includes('<svg') ? svgUrl : undefined);
   if (rawSvgCandidate && rawSvgCandidate.includes('<svg')) {
-    const cleanSvg = sanitizeAndFormatSvg(rawSvgCandidate);
+    const cleanSvg = sanitizeAndFormatSvg(rawSvgCandidate, shapeRendering);
     if (cleanSvg) {
       return (
         <div 

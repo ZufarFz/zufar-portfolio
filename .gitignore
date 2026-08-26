@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 coverage/
+agent/
 .DS_Store
 *.log
 bun.lock

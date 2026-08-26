@@ -46,6 +46,53 @@ import { CVData } from './types';
 import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 import BackgroundTextures from './components/BackgroundTextures';
 
+// TypewriterText Component - Animasi Typing Looping
+function TypewriterText({ name }: { name: string }) {
+  const [displayText, setDisplayText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [loopNum, setLoopNum] = useState(0);
+  const [typingSpeed, setTypingSpeed] = useState(150);
+
+  const fullText = `HELLO, I'M ${name.toUpperCase()}`;
+
+  useEffect(() => {
+    const handleTyping = () => {
+      const i = loopNum % 1;
+      const currentText = fullText;
+
+      if (!isDeleting) {
+        // Typing
+        setDisplayText(currentText.substring(0, displayText.length + 1));
+        setTypingSpeed(100);
+
+        if (displayText === currentText) {
+          // Stay for 2 seconds before deleting
+          setTimeout(() => setIsDeleting(true), 2000);
+        }
+      } else {
+        // Deleting
+        setDisplayText(currentText.substring(0, displayText.length - 1));
+        setTypingSpeed(50);
+
+        if (displayText === '') {
+          setIsDeleting(false);
+          setLoopNum(loopNum + 1);
+        }
+      }
+    };
+
+    const timer = setTimeout(handleTyping, typingSpeed);
+    return () => clearTimeout(timer);
+  }, [displayText, isDeleting, loopNum, fullText, typingSpeed]);
+
+  return (
+    <span className="inline-flex items-center">
+      {displayText}
+      <span className="animate-blink ml-1">|</span>
+    </span>
+  );
+}
+
 // Helper to format unstructured phone numbers or domain strings into clean absolute hyperlinks
 function formatSocialLink(link: string | undefined, platform: string, defaultValue: string): string {
   if (!link) return defaultValue;
@@ -2089,134 +2136,264 @@ export default function App() {
                 : "1.05fr 0.95fr"
             }}
           >
-            {/* 1. Title/Judul at the top, centered */}
-            <motion.h1 
-              initial={{ opacity: 0, y: isMobile ? 12 : 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.05 : 0.2, ease: "easeOut" }}
-              style={{ gridArea: 'title' }}
-              className={`font-sans font-black text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight mb-4 md:mb-2 transition-colors duration-200 text-center md:text-left max-w-3xl md:max-w-none ${
-                theme === 'dark' ? 'text-white' : 'text-slate-900'
-              }`}
-            >
-              {(activeCVData.webTexts?.hero_title || "Transforming Raw Data\ninto Business Decisions").split('\n').map((line, i) => (
-                <span key={i} className="block">{line}</span>
-              ))}
-            </motion.h1>
+            {/* 1. Greeting & Title/Judul at the top, centered */}
+            <div style={{ gridArea: 'title' }} className="text-center md:text-left">
+              {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 */}
+              <motion.div 
+                initial={{ opacity: 0, y: isMobile ? 10 : 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: isMobile ? 0.4 : 0.5, delay: isMobile ? 0.05 : 0.15, ease: "easeOut" }}
+                className={`font-bold text-base sm:text-xl md:text-2xl lg:text-3xl tracking-widest uppercase mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                }`}
+                style={{ fontFamily: "'VT323', monospace" }}
+              >
+                <TypewriterText name={activeCVData.nickname || activeCVData.name || "ZUFA"} />
+              </motion.div>
+              
+              {/* Main Title */}
+              <motion.h1 
+                initial={{ opacity: 0, y: isMobile ? 12 : 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.1 : 0.25, ease: "easeOut" }}
+                className={`font-sans font-black text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight mb-4 md:mb-3 transition-colors duration-200 max-w-3xl md:max-w-none ${
+                  theme === 'dark' ? 'text-white' : 'text-slate-900'
+                }`}
+              >
+                {(activeCVData.webTexts?.hero_title || "Transforming Raw Data\ninto Business Decisions").split('\n').map((line, i) => (
+                  <span key={i} className="block">{line}</span>
+                ))}
+              </motion.h1>
 
-            {/* 2. Image/Gambar in the center */}
+
+            </div>
+
+            {/* 2. Image/Gambar in the center dengan frame lingkar biru dan badge */}
             <motion.div 
               initial={{ opacity: 0, y: isMobile ? 10 : 20, scale: isMobile ? 0.99 : 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: isMobile ? 0.45 : 0.7, ease: "easeOut", delay: isMobile ? 0.1 : 0.3 }}
               style={{ gridArea: 'image' }}
-              className="w-full flex items-center justify-center md:justify-end mb-5 md:mb-0"
+              className="w-full flex flex-col items-center justify-center md:justify-end mb-5 md:mb-0 relative"
             >
-              {(() => {
-                const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '40';
-                const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '95';
-                const radialX = activeCVData.webTexts?.home_image_radial_x || '80';
-                const radialY = activeCVData.webTexts?.home_image_radial_y || '80';
-
-                let imageWrapperStyle: React.CSSProperties = {};
-                let auraGlowElement: React.ReactNode = null;
-
-                const radialShape = `ellipse ${radialX}% ${radialY}% at center`;
-
-                if (maskStyle === 'fade_bottom') {
-                  imageWrapperStyle = {
-                    maskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                    WebkitMaskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                  };
-                } else if (maskStyle === 'fade_circle') {
-                  imageWrapperStyle = {
-                    maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                    WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                  };
-                } else if (maskStyle === 'fade_edge') {
-                  imageWrapperStyle = {
-                    maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                    WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                  };
-                } else if (maskStyle === 'fade_glow_aura') {
-                  auraGlowElement = (
-                    <div className={`absolute inset-0 rounded-full blur-3xl opacity-35 -z-10 ${isMobile ? '' : 'animate-pulse'} ${
-                      theme === 'dark' ? 'bg-emerald-500/35' : 'bg-emerald-600/25'
-                    }`} style={{ transform: 'scale(0.85)' }} />
-                  );
-                }
-
-                return (
-                  <div 
-                    className={`relative w-full aspect-square max-w-[420px] sm:max-w-[480px] md:max-w-[500px] lg:max-w-[620px] xl:max-w-[680px] 2xl:max-w-[760px] group transition-all duration-300 ease-out hover:scale-102 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
-                    onClick={() => scrollToSection('profil')}
-                    title="Buka Halaman Tentang Saya (Story)"
-                  >
-                    {/* Aura Glow Background */}
-                    {auraGlowElement}
-
-                    {/* Image Wrapper */}
-                    <div 
-                      className={`w-full h-full rounded-2xl transition-all overflow-hidden relative flex items-center justify-center ${
-                        isPng 
-                          ? 'bg-transparent border-transparent' 
-                          : (theme === 'dark' ? 'border border-slate-800 bg-slate-900/60 shadow-xl' : 'border border-slate-200 bg-slate-100 shadow-xl')
-                      }`}
-                      style={imageWrapperStyle}
-                    >
-                      {currentProfileImageUrl ? (
-                        <img 
-                          className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
-                            isPng ? 'object-contain' : 'object-cover grayscale-[15%] group-hover:scale-102'
-                          }`}
-                          referrerPolicy="no-referrer"
-                          alt="Professional Portfolio Visual" 
-                          src={currentProfileImageUrl}
-                          style={{
-                            transform: `scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
-                            transformOrigin: 'center center'
-                          }}
-                        />
-                      ) : (
-                        <div className={`text-center p-6 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                          <p className="text-xs font-mono">Belum ada gambar</p>
-                        </div>
-                      )}
-                    </div>
+              <div className="relative w-full max-w-[380px] sm:max-w-[450px] md:max-w-[500px] lg:max-w-[550px] xl:max-w-[600px]">
+                {/* SVG Lingkaran dengan Gradasi - Diperbesar dan Warna Solid */}
+                <svg 
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0" 
+                  width="70%"
+                  height="70%"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  <defs>
+                    <linearGradient id="circleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor={theme === 'dark' ? "#60a5fa" : "#3b82f6"} stopOpacity="1" />
+                      <stop offset="50%" stopColor={theme === 'dark' ? "#3b82f6" : "#2563eb"} stopOpacity="1" />
+                      <stop offset="100%" stopColor={theme === 'dark' ? "#2563eb" : "#1d4ed8"} stopOpacity="1" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Lingkaran Solid dengan Gradasi - Tidak Transparan */}
+                  <circle 
+                    cx="50" 
+                    cy="50" 
+                    r="48" 
+                    fill="url(#circleGradient)"
+                  />
+                </svg>
+                
+                {/* Fading Halus di Bagian Bawah Frame */}
+                <div className={`absolute inset-0 rounded-[2.5rem] md:rounded-[3rem] lg:rounded-[3.5rem] pointer-events-none bg-gradient-to-t z-10 ${
+                  theme === 'dark' 
+                    ? 'from-slate-900/30 via-slate-900/10 to-transparent' 
+                    : 'from-white/30 via-white/10 to-transparent'
+                }`}></div>
+                
+                {/* Badge Informasi di Sebelah Kanan Foto - Posisi lebih ke kanan, warna hitam */}
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+                  className="absolute -right-6 sm:-right-8 md:-right-12 lg:-right-16 top-[20%] flex flex-col gap-1 z-20 items-end"
+                >
+                  {/* OPEN TO WORK - Bold warna hitam */}
+                  <div className="flex items-center gap-1.5">
+                    <span className={`font-sans text-xs sm:text-sm md:text-base font-black uppercase tracking-[0.15em] italic ${
+                      theme === 'dark' ? 'text-white' : 'text-black'
+                    }`}>
+                      OPEN TO WORK
+                    </span>
                   </div>
-                );
-              })()}
+                  
+                  {/* Tahun 2026 - Font Black Ops One, lebih besar dan bold */}
+                  <span 
+                    className={`font-black text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-none ${
+                      theme === 'dark' ? 'text-white' : 'text-black'
+                    }`}
+                    style={{ fontFamily: "'Black Ops One', cursive" }}
+                  >
+                    2026
+                  </span>
+                  
+                  {/* Lokasi - Bold dan hitam */}
+                  <span className={`font-sans font-black text-sm sm:text-base md:text-lg italic uppercase tracking-wider ${
+                    theme === 'dark' ? 'text-white' : 'text-black'
+                  }`}>
+                    {activeCVData.location || "Indonesia"}
+                  </span>
+                </motion.div>
+                
+                {/* Container Gambar */}
+                {(() => {
+                  const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                  const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '40';
+                  const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '95';
+                  const radialX = activeCVData.webTexts?.home_image_radial_x || '80';
+                  const radialY = activeCVData.webTexts?.home_image_radial_y || '80';
+
+                  let imageWrapperStyle: React.CSSProperties = {};
+                  let auraGlowElement: React.ReactNode = null;
+
+                  const radialShape = `ellipse ${radialX}% ${radialY}% at center`;
+
+                  if (maskStyle === 'fade_bottom') {
+                    imageWrapperStyle = {
+                      maskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                      WebkitMaskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                    };
+                  } else if (maskStyle === 'fade_circle') {
+                    imageWrapperStyle = {
+                      maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                      WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                    };
+                  } else if (maskStyle === 'fade_edge') {
+                    imageWrapperStyle = {
+                      maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                      WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
+                    };
+                  } else if (maskStyle === 'fade_glow_aura') {
+                    auraGlowElement = (
+                      <div className={`absolute inset-0 rounded-full blur-3xl opacity-35 -z-10 ${isMobile ? '' : 'animate-pulse'} ${
+                        theme === 'dark' ? 'bg-blue-500/35' : 'bg-blue-600/25'
+                      }`} style={{ transform: 'scale(0.85)' }} />
+                    );
+                  }
+
+                  return (
+                    <div 
+                      className={`relative w-full aspect-square group transition-all duration-300 ease-out hover:scale-102 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
+                      onClick={() => scrollToSection('profil')}
+                      title="Buka Halaman Tentang Saya (Story)"
+                    >
+                      {/* Aura Glow Background */}
+                      {auraGlowElement}
+
+                      {/* Image Wrapper dengan efek fading */}
+                      <div 
+                        className={`w-full h-full rounded-2xl md:rounded-3xl transition-all overflow-hidden relative flex items-center justify-center ${
+                          isPng 
+                            ? 'bg-transparent border-transparent' 
+                            : 'shadow-xl'
+                        }`}
+                        style={imageWrapperStyle}
+                      >
+                        {currentProfileImageUrl ? (
+                          <img 
+                            className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
+                              isPng ? 'object-contain' : 'object-cover grayscale-[10%] group-hover:scale-105'
+                            }`}
+                            referrerPolicy="no-referrer"
+                            alt="Professional Portfolio Visual" 
+                            src={currentProfileImageUrl}
+                            style={{
+                              transform: `scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
+                              transformOrigin: 'center center'
+                            }}
+                          />
+                        ) : (
+                          <div className={`text-center p-6 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                            <p className="text-xs font-mono">Belum ada gambar</p>
+                          </div>
+                        )}
+                        
+                        {/* Overlay Fading Halus di Bawah Gambar */}
+                        <div className={`absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t ${
+                          theme === 'dark' 
+                            ? 'from-slate-900/90 via-slate-900/40 to-transparent' 
+                            : 'from-white/90 via-white/40 to-transparent'
+                        } pointer-events-none`}></div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </motion.div>
 
-            {/* 3. Description/Deskripsi at the bottom, centered */}
-            <motion.p 
-              initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.15 : 0.35, ease: "easeOut" }}
-              style={{ gridArea: 'desc' }}
-              className={`font-sans text-xs sm:text-base md:text-lg mb-4 md:mb-0 max-w-2xl leading-relaxed text-justify md:text-left whitespace-pre-line mx-auto md:mx-0 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
-              }`}
-            >
-              <span>
-                {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
-              </span>{" "}
-              <button
-                onClick={() => {
-                  const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
-                  setCvModalDirectDownload(isMobileViewport);
-                  setCvModalOpen(true);
-                }}
-                className={`font-semibold italic underline decoration-2 underline-offset-4 cursor-pointer inline-block mt-2 transition-colors duration-150 ${
-                  theme === 'dark' 
-                    ? 'text-blue-400 hover:text-blue-350' 
-                    : 'text-blue-600 hover:text-blue-700'
+            {/* 3. Description/Deskripsi dan Tombol Action CTA */}
+            <div style={{ gridArea: 'desc' }} className="max-w-2xl mx-auto md:mx-0">
+              <motion.p 
+                initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.15 : 0.35, ease: "easeOut" }}
+                className={`font-sans text-xs sm:text-base md:text-lg mb-6 md:mb-8 leading-relaxed text-justify md:text-left whitespace-pre-line transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
                 }`}
               >
-                {lang === 'id' ? 'Unduh resume formal saya di sini.' : 'Download my formal resume here.'}
-              </button>
-            </motion.p>
+                <span>
+                  {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
+                </span>
+              </motion.p>
+
+              {/* Tombol Action CTA - Dua Tombol Modern */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: isMobile ? 0.2 : 0.4, ease: "easeOut" }}
+                className="flex flex-wrap gap-3 sm:gap-4 items-center"
+              >
+                {/* Tombol Utama - Biru Solid "Hubungi Saya" */}
+                <button
+                  onClick={() => scrollToSection('contact')}
+                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
+                    theme === 'dark' 
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                  }`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Hubungi Saya</span>
+                </button>
+                
+                {/* Tombol Sekunder - Outlined "Lihat Project →" */}
+                <button
+                  onClick={() => scrollToSection('projects')}
+                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer border hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
+                    theme === 'dark' 
+                      ? 'border-blue-500/50 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 shadow-blue-900/20' 
+                      : 'border-blue-400/50 text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-blue-500/10'
+                  }`}
+                >
+                  <span>Lihat Project</span>
+                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+                
+                {/* Resume Download Link (Teks Kecil di Bawah) */}
+                <button
+                  onClick={() => {
+                    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+                    setCvModalDirectDownload(isMobileViewport);
+                    setCvModalOpen(true);
+                  }}
+                  className={`font-sans font-medium text-[10px] sm:text-xs italic underline decoration-1 underline-offset-3 cursor-pointer mt-1 sm:mt-0 transition-colors duration-150 ${
+                    theme === 'dark' 
+                      ? 'text-slate-400 hover:text-slate-300' 
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {lang === 'id' ? 'atau unduh resume formal saya' : 'or download my formal resume'}
+                </button>
+              </motion.div>
+            </div>
           </div>
         </section>
 
