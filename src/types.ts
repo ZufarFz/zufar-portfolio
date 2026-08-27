@@ -154,6 +154,27 @@ export interface IDCardSvgItem {
   zIndex: number;
 }
 
+export interface FloatingAsset {
+  id: string;
+  name: string;
+  section: string; // 'home' | 'projects' | 'skills' | 'experience' | 'contact' | 'about_story' | 'all'
+  type: 'svg' | 'url'; // 'svg' for raw SVG or 'url' for link/path
+  content: string; // raw SVG string OR file URL
+  color?: string; // custom color if raw SVG
+  width?: number; // size in px (e.g., 100 to 1200+)
+  height?: number;
+  size?: number;
+  scale?: number; // scale multiplier e.g. 1
+  x: number; // position X percentage (0-100)
+  y: number; // position Y percentage (0-100)
+  rotation?: number; // 0 - 360 deg
+  opacity?: number; // 0 - 1
+  zIndex?: number; // e.g. 10
+  layer?: 'bg' | 'above_image' | 'above_all'; // 'bg' (setara pattern/background), 'above_image' (di atas gambar, di bawah teks), 'above_all' (di atas semua)
+  animation?: 'none' | 'float' | 'spin' | 'pulse' | 'bounce';
+  flipX?: boolean;
+}
+
 export interface CVData {
   name: string;
   title: string;
@@ -166,6 +187,7 @@ export interface CVData {
   aboutMe?: string;
   webTexts?: Record<string, string>;
   idCardSvgs?: IDCardSvgItem[];
+  floatingAssets?: FloatingAsset[];
   technicalArsenal: {
     dbms: string;
     scientificLanguages: string;

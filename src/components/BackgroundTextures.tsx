@@ -125,6 +125,64 @@ export default function BackgroundTextures({
   // Unique ID prefix for SVG pattern defs to prevent collision across elements
   const patternId = React.useId().replace(/:/g, '');
 
+  // Handling Custom SVG or Custom URL (Smart Dual-Mode)
+  const isRawSvg = Boolean(customSvg && (customSvg.trim().startsWith('<svg') || customSvg.trim().includes('<svg')));
+  const isCustomUrl = Boolean(
+    customBgUrl || 
+    (customSvg && !isRawSvg && (customSvg.trim().startsWith('http') || customSvg.trim().startsWith('/') || customSvg.trim().startsWith('./') || customSvg.trim().startsWith('data:') || customSvg.trim().endsWith('.svg') || customSvg.trim().endsWith('.png') || customSvg.trim().endsWith('.jpg') || customSvg.trim().endsWith('.webp')))
+  );
+  const effectiveBgUrl = customBgUrl || (!isRawSvg && customSvg ? customSvg.trim() : '');
+
+  if (type === 'custom_svg' || type === 'custom_url' || isRawSvg || isCustomUrl) {
+    if (isRawSvg && customSvg) {
+      let processedCustomSvg = customSvg.trim();
+      if (color) {
+        if (processedCustomSvg.includes('currentColor')) {
+          processedCustomSvg = processedCustomSvg.replace(/currentColor/g, color);
+        } else if (!processedCustomSvg.includes('fill=') && !processedCustomSvg.includes('stroke=')) {
+          processedCustomSvg = processedCustomSvg.replace('<svg', `<svg fill="${color}"`);
+        } else {
+          processedCustomSvg = processedCustomSvg.replace(/fill="(?!none|url)[^"]*"/g, `fill="${color}"`);
+          processedCustomSvg = processedCustomSvg.replace(/stroke="(?!none|url)[^"]*"/g, `stroke="${color}"`);
+        }
+      }
+      return (
+        <div 
+          className={baseClass}
+          style={{
+            opacity: activeOpacity,
+            transform: scaleVal !== 1 ? `scale(${scaleVal})` : 'none'
+          }}
+        >
+          <div 
+            className="w-full h-full [&>svg]:w-full [&>svg]:h-full [&>svg]:object-cover pointer-events-none"
+            dangerouslySetInnerHTML={{ __html: processedCustomSvg }}
+          />
+        </div>
+      );
+    }
+
+    if (effectiveBgUrl) {
+      return (
+        <div 
+          className={baseClass}
+          style={{
+            opacity: activeOpacity,
+            transform: scaleVal !== 1 ? `scale(${scaleVal})` : 'none'
+          }}
+        >
+          <div 
+            className="w-full h-full bg-no-repeat bg-cover bg-center pointer-events-none"
+            style={{
+              backgroundImage: `url("${effectiveBgUrl}")`,
+              backgroundSize: scaleVal !== 1 ? `${scaleVal * 100}%` : 'cover'
+            }}
+          />
+        </div>
+      );
+    }
+  }
+
   // 1. SVG PATTERN: SEIGAIHA (Gelombang Ombak Jepang / Japanese Scallop Waves) - Exact match to user uploaded Image 2
   if (type === 'pattern_seigaiha') {
     const pId = `p_seigaiha_${patternId}`;

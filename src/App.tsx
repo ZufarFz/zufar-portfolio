@@ -45,6 +45,9 @@ import { fetchCVData, downloadCVDataAsTypeScript, DEFAULT_CV_DATA, EMPTY_CV_DATA
 import { CVData } from './types';
 import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 import BackgroundTextures from './components/BackgroundTextures';
+import FloatingAssetsOverlay from './components/FloatingAssetsOverlay';
+import SectionGradientShadow from './components/SectionGradientShadow';
+import { getThemeColorPalette, getHeroCircleColors } from './lib/themeUtils';
 
 // TypewriterText Component - Animasi Typing Looping
 function TypewriterText({ name, lang }: { name: string; lang: 'id' | 'en' }) {
@@ -2109,10 +2112,17 @@ export default function App() {
         }`}
         style={
           theme === 'dark'
-            ? (activeCVData.webTexts?.hero_bg_color_dark ? { backgroundColor: activeCVData.webTexts.hero_bg_color_dark } : undefined)
-            : (activeCVData.webTexts?.hero_bg_color ? { backgroundColor: activeCVData.webTexts.hero_bg_color } : undefined)
+            ? { backgroundColor: activeCVData.webTexts?.home_bg_color_dark || activeCVData.webTexts?.hero_bg_color_dark || activeCVData.webTexts?.theme_bg_color_dark }
+            : { backgroundColor: activeCVData.webTexts?.home_bg_color || activeCVData.webTexts?.hero_bg_color || activeCVData.webTexts?.theme_bg_color_light }
         }
         >
+          {/* SECTION GRADIENT SHADOW OVERLAY */}
+          <SectionGradientShadow 
+            sectionKey="home" 
+            webTexts={activeCVData.webTexts} 
+            theme={theme} 
+            accentHex={getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary}
+          />
           {/* BACKGROUND CUSTOMIZER OVERLAYS */}
           <BackgroundTextures 
             type={activeCVData.webTexts?.home_bg_style || 'dots'} 
@@ -2123,26 +2133,28 @@ export default function App() {
             customSvg={activeCVData.webTexts?.home_bg_custom_svg || activeCVData.webTexts?.home_custom_svg || activeCVData.webTexts?.hero_bg_custom_svg || undefined}
             customBgUrl={activeCVData.webTexts?.home_bg_custom_url || activeCVData.webTexts?.home_custom_url || undefined}
           />
+          {/* FLOATING DECORATIVE ASSETS OVERLAY */}
+          <FloatingAssetsOverlay sectionId="home" assets={activeCVData.floatingAssets} />
           
           <div 
-            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 md:py-8 lg:py-10 grid grid-cols-1 md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 gap-y-6 items-center text-center md:text-left relative z-10 w-full min-h-[calc(100vh-4rem)] flex-1"
+            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 md:py-8 lg:py-10 grid grid-cols-1 md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 gap-y-8 md:gap-y-0 items-center text-center md:text-left relative w-full min-h-[calc(100vh-4rem)] flex-1"
             style={{
               gridTemplateAreas: isMobile 
-                ? `"title" "image" "desc"` 
-                : `"title title title title title image image image image badge badge badge" "desc desc desc desc desc image image image image badge badge badge"`,
+                ? `"title" "image"` 
+                : `"title title title title title image image image image badge badge badge"`,
               gridTemplateRows: isMobile 
-                ? "auto auto auto" 
-                : "auto 1fr",
+                ? "auto auto" 
+                : "1fr",
             }}
           >
-            {/* 1. Greeting & Title/Judul at the top, centered */}
-            <div style={{ gridArea: 'title' }} className="text-center md:text-left">
-              {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 - Diperbesar */}
+            {/* 1. Greeting, Title/Judul, Description & CTA Buttons (Fluid Responsive Sizing) */}
+            <div style={{ gridArea: 'title' }} className="text-center md:text-left flex flex-col justify-center max-w-3xl md:max-w-none relative z-20">
+              {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 - Fluid Dynamic Scaling */}
               <motion.div 
                 initial={{ opacity: 0, y: isMobile ? 10 : 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: isMobile ? 0.4 : 0.5, delay: isMobile ? 0.05 : 0.15, ease: "easeOut" }}
-                className={`font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl tracking-widest uppercase mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 ${
+                className={`font-bold text-[clamp(1.25rem,2.5vw,3rem)] tracking-widest uppercase mb-1 sm:mb-2 transition-colors duration-200 ${
                   theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`}
                 style={{ fontFamily: "'VT323', monospace" }}
@@ -2150,12 +2162,12 @@ export default function App() {
                 <TypewriterText name={activeCVData.nickname || activeCVData.name || "ZUFA"} lang={lang} />
               </motion.div>
               
-              {/* Main Title */}
+              {/* Main Title (misal Junior Data Analyst) - Mepet ke bawah dengan deskripsi - Fluid Responsive */}
               <motion.h1 
                 initial={{ opacity: 0, y: isMobile ? 12 : 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.1 : 0.25, ease: "easeOut" }}
-                className={`font-sans font-black text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight mb-4 md:mb-3 transition-colors duration-200 max-w-3xl md:max-w-none ${
+                className={`font-sans font-black text-[clamp(1.75rem,4.2vw,4.75rem)] leading-[1.08] tracking-tight mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 max-w-3xl md:max-w-none ${
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}
               >
@@ -2164,48 +2176,108 @@ export default function App() {
                 ))}
               </motion.h1>
 
+              {/* Description/Deskripsi - Fluid Responsive */}
+              <motion.p 
+                initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.15 : 0.35, ease: "easeOut" }}
+                className={`font-sans text-[clamp(0.875rem,1.15vw,1.2rem)] mb-5 md:mb-7 leading-relaxed text-justify md:text-left whitespace-pre-line transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
+                }`}
+              >
+                <span>
+                  {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
+                </span>
+              </motion.p>
 
+              {/* Tombol Action CTA - Dua Tombol Modern */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: isMobile ? 0.2 : 0.4, ease: "easeOut" }}
+                className="flex flex-wrap gap-3 sm:gap-4 items-center justify-center md:justify-start"
+              >
+                {/* Tombol Utama - Biru Solid "Hubungi Saya" */}
+                <button
+                  onClick={() => scrollToSection('contact')}
+                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
+                    theme === 'dark' 
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                  }`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Hubungi Saya</span>
+                </button>
+                
+                {/* Tombol Sekunder - Biru Solid "Download Resume" - Warna Putih */}
+                <button
+                  onClick={() => {
+                    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+                    setCvModalDirectDownload(isMobileViewport);
+                    setCvModalOpen(true);
+                  }}
+                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
+                    theme === 'dark' 
+                      ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
+                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40'
+                  }`}
+                >
+                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Download Resume</span>
+                </button>
+              </motion.div>
             </div>
 
-            {/* 2. Image/Gambar - ABSOLUTE POSITIONED, NO CONTAINER */}
+            {/* 2. Image/Gambar - RESPONSIVE CONTAINER & DYNAMIC SCALING */}
             <motion.div 
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
               style={{ gridArea: 'image' }}
-              className="relative pointer-events-none"
+              className="relative z-5 pointer-events-none flex items-center justify-center w-full min-h-[290px] sm:min-h-[350px] md:min-h-[390px] lg:min-h-[470px] xl:min-h-[570px] 2xl:min-h-[670px] my-4 md:my-0"
             >
-              {/* SVG Lingkaran dengan Gradasi Radial - Blue Sphere Effect */}
-              <svg 
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute left-1/2 top-1/2 pointer-events-none z-0" 
-                width="600"
-                height="600"
-                viewBox="0 0 500 500"
-                preserveAspectRatio="xMidYMid meet"
-                style={{
-                  transform: `translate(-50%, -50%) scale(${(activeCVData as any).homeImageCircleScale ?? 1}) translate(${((activeCVData as any).homeImageCircleX ?? 0) * 2}px, ${((activeCVData as any).homeImageCircleY ?? 0) * 2}px)`
-                }}
-              >
-                <defs>
-                  <radialGradient id="blueSphere" cx="42%" cy="38%" r="55%" fx="42%" fy="38%">
-                    <stop offset="0%" stopColor="#6ba0e6" />
-                    <stop offset="50%" stopColor="#4a7bc7" />
-                    <stop offset="100%" stopColor="#3661a3" />
-                  </radialGradient>
-                </defs>
-                <circle 
-                  cx="250" 
-                  cy="250" 
-                  r="220" 
-                  fill="url(#blueSphere)"
-                />
-              </svg>
+              {/* SVG Lingkaran dengan Gradasi Radial - Dynamic Theme-Customizable Sphere Effect Responsif */}
+              {(() => {
+                const circleConfig = getHeroCircleColors(activeCVData, theme);
+                return (
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute left-1/2 top-1/2 pointer-events-none z-0 w-[270px] h-[270px] sm:w-[330px] sm:h-[330px] md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none transition-all duration-300 ease-out" 
+                    viewBox="0 0 500 500"
+                    preserveAspectRatio="xMidYMid meet"
+                    style={{
+                      opacity: circleConfig.opacity,
+                      transform: `translate(-50%, -50%) scale(${(activeCVData as any).homeImageCircleScale ?? 1}) translate(${((activeCVData as any).homeImageCircleX ?? 0) * 2}px, ${((activeCVData as any).homeImageCircleY ?? 0) * 2}px)`
+                    }}
+                  >
+                    <defs>
+                      <radialGradient id="heroCircleSphere" cx="42%" cy="38%" r="55%" fx="42%" fy="38%">
+                        <stop offset="0%" stopColor={circleConfig.start} />
+                        <stop offset="50%" stopColor={circleConfig.mid} />
+                        <stop offset="100%" stopColor={circleConfig.end} />
+                      </radialGradient>
+                      <linearGradient id="heroCircleLinear" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor={circleConfig.start} />
+                        <stop offset="100%" stopColor={circleConfig.end} />
+                      </linearGradient>
+                    </defs>
+                    <circle 
+                      cx="250" 
+                      cy="250" 
+                      r="220" 
+                      fill={circleConfig.style === 'linear' ? "url(#heroCircleLinear)" : circleConfig.style === 'flat' ? circleConfig.start : "url(#heroCircleSphere)"}
+                      stroke={circleConfig.style === 'outline' ? circleConfig.start : 'none'}
+                      strokeWidth={circleConfig.style === 'outline' ? 8 : 0}
+                    />
+                  </svg>
+                );
+              })()}
               
-              {/* Image - ABSOLUTE, NO WRAPPER */}
+              {/* Image - Dynamic responsive scaling across mobile, laptop, desktop, and large displays */}
               {currentProfileImageUrl && (
                 <img 
-                  className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-transform duration-700 ease-out select-none ${
+                  className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-all duration-700 ease-out select-none w-[270px] h-[270px] sm:w-[330px] sm:h-[330px] md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none ${
                     isPng ? 'object-contain' : 'object-cover'
                   }`}
                   onClick={() => scrollToSection('profil')}
@@ -2214,8 +2286,6 @@ export default function App() {
                   alt="Professional Portfolio Visual" 
                   src={currentProfileImageUrl}
                   style={{
-                    width: '600px',
-                    height: '600px',
                     transform: `translate(-50%, -50%) scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
                     transformOrigin: 'center center',
                     opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
@@ -2250,26 +2320,26 @@ export default function App() {
               )}
             </motion.div>
 
-            {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi */}
+            {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi (Posisi agak ke bawah) */}
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
               style={{ gridArea: 'badge' }}
-              className="hidden md:flex flex-col gap-1 items-start text-left justify-center"
+              className="hidden md:flex flex-col gap-1.5 items-start text-left justify-start self-start pt-8 md:pt-10 lg:pt-14 xl:pt-20"
             >
-              {/* OPEN TO WORK - Bold warna hitam */}
+              {/* OPEN TO WORK - Bold warna hitam/putih dengan fluid scaling */}
               <div className="flex items-center gap-1.5">
-                <span className={`font-sans text-xs sm:text-sm md:text-base lg:text-lg font-black uppercase tracking-[0.15em] italic ${
+                <span className={`font-sans text-[clamp(0.75rem,1.1vw,1.15rem)] font-black uppercase tracking-[0.15em] italic transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}>
                   OPEN TO WORK
                 </span>
               </div>
               
-              {/* Tahun 2026 - Font Black Ops One, lebih besar dan bold */}
+              {/* Tahun 2026 - Font Black Ops One, lebih besar dan bold fluid */}
               <span 
-                className={`font-black text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-none ${
+                className={`font-black text-[clamp(2.75rem,4.75vw,5.25rem)] leading-none transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}
                 style={{ fontFamily: "'Black Ops One', cursive" }}
@@ -2277,67 +2347,13 @@ export default function App() {
                 2026
               </span>
               
-              {/* Lokasi - Bold dan hitam */}
-              <span className={`font-sans font-black text-base md:text-lg lg:text-xl italic uppercase tracking-wider ${
+              {/* Lokasi - Bold dan hitam/putih fluid */}
+              <span className={`font-sans font-black text-[clamp(0.875rem,1.2vw,1.35rem)] italic uppercase tracking-wider transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-black'
               }`}>
                 {activeCVData.location || "Indonesia"}
               </span>
             </motion.div>
-
-            {/* 4. Description/Deskripsi dan Tombol Action CTA */}
-            <div style={{ gridArea: 'desc' }} className="max-w-3xl mx-auto md:mx-0">
-              <motion.p 
-                initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.15 : 0.35, ease: "easeOut" }}
-                className={`font-sans text-xs sm:text-base md:text-lg mb-6 md:mb-8 leading-relaxed text-justify md:text-left whitespace-pre-line transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
-                }`}
-              >
-                <span>
-                  {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
-                </span>
-              </motion.p>
-
-              {/* Tombol Action CTA - Dua Tombol Modern */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: isMobile ? 0.2 : 0.4, ease: "easeOut" }}
-                className="flex flex-wrap gap-3 sm:gap-4 items-center"
-              >
-                {/* Tombol Utama - Biru Solid "Hubungi Saya" */}
-                <button
-                  onClick={() => scrollToSection('contact')}
-                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                    theme === 'dark' 
-                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
-                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
-                  }`}
-                >
-                  <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Hubungi Saya</span>
-                </button>
-                
-                {/* Tombol Sekunder - Biru Solid "Download Resume" - Warna Putih */}
-                <button
-                  onClick={() => {
-                    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
-                    setCvModalDirectDownload(isMobileViewport);
-                    setCvModalOpen(true);
-                  }}
-                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                    theme === 'dark' 
-                      ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
-                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40'
-                  }`}
-                >
-                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Download Resume</span>
-                </button>
-              </motion.div>
-            </div>
           </div>
         </section>
 
@@ -2348,10 +2364,17 @@ export default function App() {
         }`}
         style={
           theme === 'dark'
-            ? (activeCVData.webTexts?.projects_bg_color_dark ? { backgroundColor: activeCVData.webTexts.projects_bg_color_dark } : undefined)
-            : (activeCVData.webTexts?.projects_bg_color ? { backgroundColor: activeCVData.webTexts.projects_bg_color } : undefined)
+            ? { backgroundColor: activeCVData.webTexts?.projects_bg_color_dark }
+            : { backgroundColor: activeCVData.webTexts?.projects_bg_color }
         }
         >
+          {/* SECTION GRADIENT SHADOW OVERLAY */}
+          <SectionGradientShadow 
+            sectionKey="projects" 
+            webTexts={activeCVData.webTexts} 
+            theme={theme} 
+            accentHex={getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary}
+          />
           {/* SECTION BACKGROUND OVERLAY */}
           {activeCVData.webTexts?.projects_bg_style && activeCVData.webTexts.projects_bg_style !== 'none' && (
             <BackgroundTextures 
@@ -2364,6 +2387,8 @@ export default function App() {
               customBgUrl={activeCVData.webTexts.projects_bg_custom_url || undefined}
             />
           )}
+          {/* FLOATING DECORATIVE ASSETS OVERLAY */}
+          <FloatingAssetsOverlay sectionId="projects" assets={activeCVData.floatingAssets} />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="mb-12">
               <motion.div 
@@ -2593,10 +2618,17 @@ export default function App() {
         }`}
         style={
           theme === 'dark'
-            ? (activeCVData.webTexts?.skills_bg_color_dark ? { backgroundColor: activeCVData.webTexts.skills_bg_color_dark } : undefined)
-            : (activeCVData.webTexts?.skills_bg_color ? { backgroundColor: activeCVData.webTexts.skills_bg_color } : undefined)
+            ? { backgroundColor: activeCVData.webTexts?.skills_bg_color_dark }
+            : { backgroundColor: activeCVData.webTexts?.skills_bg_color }
         }
         >
+          {/* SECTION GRADIENT SHADOW OVERLAY */}
+          <SectionGradientShadow 
+            sectionKey="skills" 
+            webTexts={activeCVData.webTexts} 
+            theme={theme} 
+            accentHex={getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary}
+          />
           {/* SECTION BACKGROUND OVERLAY */}
           {activeCVData.webTexts?.skills_bg_style && activeCVData.webTexts.skills_bg_style !== 'none' && (
             <BackgroundTextures 
@@ -2609,6 +2641,8 @@ export default function App() {
               customBgUrl={activeCVData.webTexts.skills_bg_custom_url || activeCVData.webTexts.skills_custom_url || undefined}
             />
           )}
+          {/* FLOATING DECORATIVE ASSETS OVERLAY */}
+          <FloatingAssetsOverlay sectionId="skills" assets={activeCVData.floatingAssets} />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
@@ -2647,10 +2681,17 @@ export default function App() {
         }`}
         style={
           theme === 'dark'
-            ? (activeCVData.webTexts?.experience_bg_color_dark ? { backgroundColor: activeCVData.webTexts.experience_bg_color_dark } : undefined)
-            : (activeCVData.webTexts?.experience_bg_color ? { backgroundColor: activeCVData.webTexts.experience_bg_color } : undefined)
+            ? { backgroundColor: activeCVData.webTexts?.experience_bg_color_dark }
+            : { backgroundColor: activeCVData.webTexts?.experience_bg_color }
         }
         >
+          {/* SECTION GRADIENT SHADOW OVERLAY */}
+          <SectionGradientShadow 
+            sectionKey="experience" 
+            webTexts={activeCVData.webTexts} 
+            theme={theme} 
+            accentHex={getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary}
+          />
           {/* SECTION BACKGROUND OVERLAY */}
           {activeCVData.webTexts?.experience_bg_style && activeCVData.webTexts.experience_bg_style !== 'none' && (
             <BackgroundTextures 
@@ -2663,6 +2704,8 @@ export default function App() {
               customBgUrl={activeCVData.webTexts.experience_bg_custom_url || activeCVData.webTexts.experience_custom_url || undefined}
             />
           )}
+          {/* FLOATING DECORATIVE ASSETS OVERLAY */}
+          <FloatingAssetsOverlay sectionId="experience" assets={activeCVData.floatingAssets} />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
@@ -2817,10 +2860,17 @@ export default function App() {
         }`}
         style={
           theme === 'dark'
-            ? (activeCVData.webTexts?.contact_bg_color_dark ? { backgroundColor: activeCVData.webTexts.contact_bg_color_dark } : undefined)
-            : (activeCVData.webTexts?.contact_bg_color ? { backgroundColor: activeCVData.webTexts.contact_bg_color } : undefined)
+            ? { backgroundColor: activeCVData.webTexts?.contact_bg_color_dark }
+            : { backgroundColor: activeCVData.webTexts?.contact_bg_color }
         }
         >
+          {/* SECTION GRADIENT SHADOW OVERLAY */}
+          <SectionGradientShadow 
+            sectionKey="contact" 
+            webTexts={activeCVData.webTexts} 
+            theme={theme} 
+            accentHex={getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary}
+          />
           {/* SECTION BACKGROUND OVERLAY */}
           {activeCVData.webTexts?.contact_bg_style && activeCVData.webTexts.contact_bg_style !== 'none' && (
             <BackgroundTextures 
@@ -2833,6 +2883,8 @@ export default function App() {
               customBgUrl={activeCVData.webTexts.contact_bg_custom_url || activeCVData.webTexts.contact_custom_url || undefined}
             />
           )}
+          {/* FLOATING DECORATIVE ASSETS OVERLAY */}
+          <FloatingAssetsOverlay sectionId="contact" assets={activeCVData.floatingAssets} />
           <div className="w-full max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <ContactForm 
               email={activeCVData.email} 

@@ -19,6 +19,7 @@ interface SkillsArsenalProps {
   badgeText?: string;
   groupDesc?: string;
   viewMode?: 'home' | 'detailed';
+  onNavigateToAboutMe?: () => void;
 }
 
 // Map known category IDs or slugs to standard display labels and Japanese sub-tags
@@ -73,7 +74,8 @@ export default function SkillsArsenal({
   badgeText,
   groupDesc,
   viewMode = 'home',
-  }: SkillsArsenalProps) {
+  onNavigateToAboutMe,
+}: SkillsArsenalProps) {
   const isDark = theme === 'dark';
 
   // Filter skills to only visible ones
@@ -396,7 +398,21 @@ export default function SkillsArsenal({
               {displayGroupDesc}
             </p>
 
-            {/* Jump to About Me Details Link */}
+            {/* Jump to About Me / Skills Details Link */}
+            {onNavigateToAboutMe && (
+              <button
+                type="button"
+                onClick={onNavigateToAboutMe}
+                className={`mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer border ${
+                  isDark
+                    ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-900'
+                }`}
+              >
+                <span>{lang === 'id' ? 'Eksplorasi Keahlian Lengkap' : 'Explore Full Skills Guide'}</span>
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            )}
 			</motion.div>
             
           {/* RIGHT COLUMN: Categorized Sections with Clean SVG Logo + Name */}
@@ -427,15 +443,27 @@ export default function SkillsArsenal({
                       </h3>
                     </div>
 
-<span className="font-sans text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-wider">
-                        See detail
+                    {onNavigateToAboutMe ? (
+                      <button
+                        type="button"
+                        onClick={onNavigateToAboutMe}
+                        className="font-sans text-[11px] font-medium text-slate-400 hover:text-emerald-600 dark:text-slate-500 dark:hover:text-emerald-400 tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>{lang === 'id' ? 'Lihat detail' : 'See detail'}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </button>
+                    ) : (
+                      <span className="font-sans text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-wider">
+                        {lang === 'id' ? 'Lihat detail' : 'See detail'}
                       </span>
+                    )}
                   </div>
 
                   {/* Technology Grid Cards - Square Layout with Crisp SVG */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3">
                     {group.items.map((skill) => (
                         <motion.div
+                          key={skill.id || skill.name}
                           whileHover="hover"
                           initial="rest"
                           variants={{

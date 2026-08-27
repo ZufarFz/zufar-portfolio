@@ -49,7 +49,10 @@ import {
   ChevronDown,
   ChevronUp,
   Award,
-  Search
+  Search,
+  GripHorizontal,
+  PictureInPicture2,
+  Dock
 } from 'lucide-react';
 import { 
   CVData, 
@@ -62,10 +65,11 @@ import {
   CareerGoalItem,
   SkillItem,
   SkillCategory,
-  CustomSubPage
+  CustomSubPage,
+  FloatingAsset
 } from '../types';
-import { saveCVData, uploadFileToStorage } from '../lib/storage';
-import { DEFAULT_WEB_TEXTS, ID_TRANSLATIONS } from '../data/portfolioData';
+import { saveCVData, uploadFileToStorage, resetCVDataToDefault } from '../lib/storage';
+import { DEFAULT_CV_DATA, DEFAULT_WEB_TEXTS, ID_TRANSLATIONS } from '../data/portfolioData';
 import BackgroundPatternSelector from './BackgroundPatternSelector';
 import TechLogo from './TechLogo';
 
@@ -98,12 +102,62 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   const [localData, setLocalData] = useState<CVData>(cvData);
   const [editLang, setEditLang] = useState<'id' | 'en'>(currentLang);
   const [editorMode, setEditorMode] = useState<'id' | 'en' | 'assets'>('id');
-  const [assetTab, setAssetTab] = useState<'bg_patterns' | 'bg_colors' | 'images' | 'idcard'>('bg_patterns');
+  const [assetTab, setAssetTab] = useState<'bg_patterns' | 'floating_assets' | 'bg_shadows' | 'bg_colors' | 'images' | 'idcard'>('bg_patterns');
   const [activeBgSection, setActiveBgSection] = useState<string>('home');
   const [appliedAllNotice, setAppliedAllNotice] = useState<boolean>(false);
+  const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [activeTab, setActiveTab] = useState<string>('auto');
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  // Floating Pop-out Window States & Dragging Handler
+  const [isFloating, setIsFloating] = useState<boolean>(false);
+  const [isMinimizedFloating, setIsMinimizedFloating] = useState<boolean>(false);
+  const [floatingPos, setFloatingPos] = useState<{ x: number; y: number }>({ x: 40, y: 30 });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStartRef = useRef<{ x: number; y: number; posX: number; posY: number }>({ x: 0, y: 0, posX: 40, posY: 30 });
+
+  // Handle header drag for floating window
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if (!isFloating) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('textarea')) {
+      return;
+    }
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: floatingPos.x,
+      posY: floatingPos.y
+    };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      setFloatingPos({
+        x: Math.max(10, Math.min(window.innerWidth - 280, dragStartRef.current.posX + dx)),
+        y: Math.max(10, Math.min(window.innerHeight - 60, dragStartRef.current.posY + dy))
+      });
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging) setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   // Synchronize localData when prop cvData changes
   useEffect(() => {
@@ -319,6 +373,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
       key.includes('_image_mask') ||
       key.includes('_image_fade') ||
       key.includes('_radial_') ||
+      key.includes('_shadow_') ||
       key.includes('_image_url');
 
     handleUpdate(prev => {
@@ -881,6 +936,45 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
     }
   };
 
+  // Helper for Floating Decorative Assets Manager
+  const handleAddFloatingAsset = (preset?: Partial<FloatingAsset>) => {
+    const newAsset: FloatingAsset = {
+      id: 'asset-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+      name: preset?.name || 'Aset Melayang Baru',
+      section: preset?.section || (activeBgSection || 'home'),
+      type: preset?.type || 'svg',
+      content: preset?.content || '<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 50 Q 30 15 50 45 Q 70 15 90 50 Q 70 32 50 52 Q 30 32 10 50 Z" fill="currentColor"/></svg>',
+      color: preset?.color || '#3b82f6',
+      width: preset?.width || 90,
+      x: preset?.x !== undefined ? preset.x : 80,
+      y: preset?.y !== undefined ? preset.y : 20,
+      rotation: preset?.rotation || 0,
+      opacity: preset?.opacity !== undefined ? preset.opacity : 0.85,
+      zIndex: preset?.zIndex !== undefined ? preset.zIndex : 15,
+      animation: preset?.animation || 'float',
+      flipX: preset?.flipX || false,
+    };
+
+    handleUpdate(prev => ({
+      ...prev,
+      floatingAssets: [...(prev.floatingAssets || []), newAsset]
+    }));
+  };
+
+  const handleUpdateFloatingAsset = (id: string, field: keyof FloatingAsset, value: any) => {
+    handleUpdate(prev => ({
+      ...prev,
+      floatingAssets: (prev.floatingAssets || []).map(a => a.id === id ? { ...a, [field]: value } : a)
+    }));
+  };
+
+  const handleRemoveFloatingAsset = (id: string) => {
+    handleUpdate(prev => ({
+      ...prev,
+      floatingAssets: (prev.floatingAssets || []).filter(a => a.id !== id)
+    }));
+  };
+
   // Save to persistent storage
   const handleSave = async () => {
     setSaveStatus('saving');
@@ -913,50 +1007,142 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, x: 420 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 440 }}
+          initial={isFloating ? { opacity: 0, scale: 0.95 } : { opacity: 0, x: 420 }}
+          animate={isFloating ? { opacity: 1, scale: 1 } : { opacity: 1, x: 0 }}
+          exit={isFloating ? { opacity: 0, scale: 0.95 } : { opacity: 0, x: 440 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className={`fixed top-0 right-0 h-full z-[100] shadow-2xl flex flex-col border-l backdrop-blur-xl transition-all duration-200 ${
-            isExpanded ? 'w-full md:w-[720px]' : 'w-full sm:w-[480px]'
+          style={isFloating ? {
+            position: 'fixed',
+            top: `${floatingPos.y}px`,
+            left: `${floatingPos.x}px`,
+            width: isMinimizedFloating ? '340px' : isExpanded ? '720px' : '520px',
+            maxHeight: isMinimizedFloating ? '56px' : '88vh',
+            height: isMinimizedFloating ? '56px' : '720px',
+            zIndex: 100,
+          } : undefined}
+          className={`${
+            isFloating
+              ? 'fixed z-[100] shadow-2xl rounded-2xl border flex flex-col backdrop-blur-2xl transition-all duration-200 overflow-hidden ring-2 ring-emerald-500/40 shadow-emerald-950/60'
+              : `fixed top-0 right-0 h-full z-[100] shadow-2xl flex flex-col border-l backdrop-blur-xl transition-all duration-200 ${
+                  isExpanded ? 'w-full md:w-[720px]' : 'w-full sm:w-[480px]'
+                }`
           } ${
             isDark
               ? 'bg-slate-900/95 border-slate-800 text-slate-100'
               : 'bg-white/95 border-slate-200 text-slate-800'
           }`}
         >
-          {/* 1. TOP DRAWER HEADER */}
-          <div className={`p-4 border-b flex items-center justify-between gap-3 ${
-            isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-100 bg-slate-50/80'
-          }`}>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 font-bold">
-                <Pencil className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm leading-tight flex items-center gap-1.5">
-                  <span>Visual Quick Editor</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">
-                    Live Sync
+          {/* 1. TOP DRAWER / FLOATING HEADER */}
+          <div 
+            onMouseDown={handleHeaderMouseDown}
+            className={`p-3.5 border-b flex items-center justify-between gap-2.5 transition-colors select-none ${
+              isFloating ? 'cursor-grab active:cursor-grabbing bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-purple-950/40 border-emerald-500/30' : ''
+            } ${
+              isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-100 bg-slate-50/80'
+            }`}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {isFloating ? (
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold shrink-0 cursor-grab">
+                  <GripHorizontal className="w-4 h-4" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 font-bold shrink-0">
+                  <Pencil className="w-4 h-4" />
+                </div>
+              )}
+              <div className="truncate">
+                <h3 className="font-bold text-xs sm:text-sm leading-tight flex items-center gap-1.5">
+                  <span className="truncate">{isFloating ? 'Quick Editor (Floating)' : 'Visual Quick Editor'}</span>
+                  <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold shrink-0">
+                    {isFloating ? 'Pop-out' : 'Live Sync'}
                   </span>
                 </h3>
-                <p className="text-[11px] text-slate-400">
-                  Edit tulisan & lembar halaman aktif secara langsung
+                <p className="text-[10.5px] text-slate-400 truncate hidden xs:block">
+                  {isFloating ? 'Geser header untuk memindahkan window' : 'Edit tulisan & lembar halaman aktif'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className={`hidden sm:flex p-1.5 rounded-lg border text-slate-400 hover:text-slate-200 transition-colors cursor-pointer ${
-                  isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-100'
-                }`}
-                title={isExpanded ? 'Perkecil Drawer' : 'Perlebar Drawer'}
-              >
-                {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* BUTTON: DOCK TO SIDEBAR vs POP-OUT FLOATING */}
+              {isFloating ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFloating(false);
+                    setIsMinimizedFloating(false);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-95"
+                  title="Gabung kembali ke Sidebar Kanan (Dock)"
+                >
+                  <Dock className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Gabung Sidebar</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFloating(true);
+                    setFloatingPos({
+                      x: Math.max(20, window.innerWidth - 560),
+                      y: 40
+                    });
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 ${
+                    isDark 
+                      ? 'border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300' 
+                      : 'border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-700'
+                  }`}
+                  title="Pisahkan Editor menjadi Pop-out Floating Window di atas halaman"
+                >
+                  <PictureInPicture2 className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Pisahkan Window</span>
+                </button>
+              )}
+
+              {/* MINIMIZE FLOATING BUTTON */}
+              {isFloating && (
+                <button
+                  type="button"
+                  onClick={() => setIsMinimizedFloating(!isMinimizedFloating)}
+                  className={`p-1.5 rounded-lg border text-slate-400 hover:text-slate-200 transition-colors cursor-pointer ${
+                    isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title={isMinimizedFloating ? 'Restore Window Editor' : 'Minimize Window Editor'}
+                >
+                  {isMinimizedFloating ? <ChevronUp className="w-4 h-4 text-emerald-400 animate-bounce" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+
+              {/* Reset to Default TS Data button */}
+              {!isMinimizedFloating && (
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirm(true)}
+                  className={`px-2 py-1.5 rounded-lg border text-amber-400 hover:text-amber-300 hover:border-amber-500/50 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold ${
+                    isDark ? 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20' : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800'
+                  }`}
+                  title="Reset seluruh editan ke data asli template (portfolioData.ts)"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="hidden md:inline">Reset Asli</span>
+                </button>
+              )}
+
+              {/* EXPAND DRAWER BUTTON */}
+              {!isMinimizedFloating && (
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className={`hidden sm:flex p-1.5 rounded-lg border text-slate-400 hover:text-slate-200 transition-colors cursor-pointer ${
+                    isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title={isExpanded ? 'Perkecil Editor' : 'Perlebar Editor'}
+                >
+                  {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -971,10 +1157,91 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
             </div>
           </div>
 
+          {/* Reset Confirmation Overlay Modal */}
+          <AnimatePresence>
+            {showResetConfirm && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4"
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className={`max-w-md w-full p-5 rounded-2xl border shadow-2xl ${
+                    isDark ? 'bg-slate-900 border-amber-500/40 text-slate-100' : 'bg-white border-amber-300 text-slate-800'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-500 shrink-0">
+                      <RotateCcw className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm text-amber-400">
+                        {editLang === 'id' ? 'Reset ke Data Asli (portfolioData.ts)?' : 'Reset to Original Data (portfolioData.ts)?'}
+                      </h4>
+                      <p className="text-xs text-slate-300 dark:text-slate-400 leading-relaxed">
+                        {editLang === 'id'
+                          ? 'Perhatian: Seluruh editan draft lokal (teks, warna, background, pola, gambar, subhalaman) yang tersimpan di browser ini akan dihapus dan dikembalikan persis sesuai data bawaan asli di portfolioData.ts.'
+                          : 'Warning: All local drafts (texts, colors, backgrounds, patterns, images, subpages) stored in this browser will be cleared and reset to match the pristine template in portfolioData.ts.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 mt-5">
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirm(false)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {editLang === 'id' ? 'Batal' : 'Cancel'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const freshData = resetCVDataToDefault();
+                        setLocalData(freshData);
+                        onUpdateCV(freshData);
+                        setShowResetConfirm(false);
+                        setResetNotice(editLang === 'id' ? 'Data berhasil di-reset ke versi asli portfolioData.ts!' : 'Data successfully reset to original template data!');
+                        setTimeout(() => setResetNotice(null), 4000);
+                      }}
+                      className="px-4 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{editLang === 'id' ? 'Ya, Reset Data' : 'Yes, Reset Data'}</span>
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Reset Notice Toast */}
+          <AnimatePresence>
+            {resetNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mx-4 mt-2 px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 font-bold shadow-md"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{resetNotice}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* 2. BILINGUAL LANGUAGE SWITCHER & ASSETS STUDIO TOGGLE */}
-          <div className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-2 text-xs ${
-            isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'
-          }`}>
+          {!isMinimizedFloating && (
+            <>
+              <div className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-2 text-xs ${
+                isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'
+              }`}>
             {/* 3-Way Mode Selector: ID | EN | Aset & Desain */}
             <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-300 dark:border-slate-700 shadow-inner">
               <button
@@ -1114,7 +1381,29 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <span>🌊 Pola SVG</span>
+                  <span>🌊 Pola Background</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('floating_assets')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                    assetTab === 'floating_assets'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-1 ring-emerald-400/50'
+                      : 'text-emerald-400 hover:text-emerald-200 bg-emerald-950/30'
+                  }`}
+                >
+                  <span>🕊️ Aset Melayang (SVG/Ornamen)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('bg_shadows')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                    assetTab === 'bg_shadows'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span>🌓 Bayangan Gradasi</span>
                 </button>
                 <button
                   type="button"
@@ -1316,6 +1605,526 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                   </div>
                 )}
 
+                {/* 1.5 ASET MELAYANG (FLOATING DECORATIVE ASSETS & ORNAMENTS) */}
+                {assetTab === 'floating_assets' && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+                      <div>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Kelola Aset Melayang (SVG, Burung, Ornamen, Stiker)</span>
+                        </h4>
+                        <p className="text-[10.5px] text-slate-400 mt-0.5">
+                          Tambahkan ornamen visual melayang (burung SVG, bintang, logo, dll) di seksi tertentu atau seluruh halaman.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAddFloatingAsset()}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 cursor-pointer shadow-sm transition-all active:scale-95"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Tambah Aset</span>
+                      </button>
+                    </div>
+
+                    {/* Fast Presets Box */}
+                    <div className={`p-3.5 rounded-xl border ${cardBg} space-y-2.5`}>
+                      <span className="text-[11px] font-bold text-slate-300 block">
+                        🚀 Templat Cepat Aset Melayang:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleAddFloatingAsset({
+                            name: '🕊️ Burung Terbang',
+                            type: 'svg',
+                            content: '<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 50 Q 30 15 50 45 Q 70 15 90 50 Q 70 32 50 52 Q 30 32 10 50 Z" fill="currentColor"/></svg>',
+                            color: '#3b82f6',
+                            width: 90,
+                            animation: 'float',
+                            x: 82,
+                            y: 18
+                          })}
+                          className="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          🕊️ + Burung Terbang
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddFloatingAsset({
+                            name: '⭐ Bintang Sparkle',
+                            type: 'svg',
+                            content: '<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M50 0 L61 38 L100 50 L61 62 L50 100 L39 62 L0 50 L39 38 Z" fill="currentColor"/></svg>',
+                            color: '#eab308',
+                            width: 60,
+                            animation: 'pulse',
+                            x: 12,
+                            y: 15
+                          })}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          ⭐ + Bintang Sparkle
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddFloatingAsset({
+                            name: '🚀 Roket Melayang',
+                            type: 'svg',
+                            content: '<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M50 5 C30 25 25 60 25 80 L50 70 L75 80 C75 60 70 25 50 5 Z" fill="currentColor"/><circle cx="50" cy="40" r="10" fill="#ffffff" opacity="0.8"/></svg>',
+                            color: '#ef4444',
+                            width: 80,
+                            animation: 'bounce',
+                            x: 88,
+                            y: 70
+                          })}
+                          className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          🚀 + Roket Melayang
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddFloatingAsset({
+                            name: '🌸 Bunga Origami',
+                            type: 'svg',
+                            content: '<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="15" fill="currentColor"/><circle cx="50" cy="20" r="18" fill="currentColor" opacity="0.8"/><circle cx="80" cy="50" r="18" fill="currentColor" opacity="0.8"/><circle cx="50" cy="80" r="18" fill="currentColor" opacity="0.8"/><circle cx="20" cy="50" r="18" fill="currentColor" opacity="0.8"/></svg>',
+                            color: '#ec4899',
+                            width: 70,
+                            animation: 'spin',
+                            x: 10,
+                            y: 80
+                          })}
+                          className="px-2.5 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          🌸 + Bunga Sakura
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddFloatingAsset({
+                            name: '⚡ Sirkuit Tech (Link File)',
+                            type: 'url',
+                            content: '/svg/accessories/circuit-tech.svg',
+                            width: 120,
+                            animation: 'none',
+                            x: 85,
+                            y: 85
+                          })}
+                          className="px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          ⚡ + Sirkuit Tech (URL)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Active Floating Assets List */}
+                    {(!localData.floatingAssets || localData.floatingAssets.length === 0) ? (
+                      <div className={`p-8 rounded-xl border text-center ${cardBg} space-y-2`}>
+                        <Smile className="w-8 h-8 text-emerald-400 mx-auto opacity-60" />
+                        <p className="text-xs text-slate-300 font-bold">Belum Ada Aset Melayang</p>
+                        <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                          Klik button <strong>"Tambah Aset"</strong> atau pilih salah satu templat cepat di atas untuk langsung menambahkan ornamen burung SVG / stiker melayang di halaman web Anda.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {localData.floatingAssets.map((asset, index) => {
+                          const isRawSvg = asset.type === 'svg' || (asset.content && asset.content.trim().startsWith('<svg'));
+                          return (
+                            <div key={asset.id} className={`p-4 rounded-xl border ${cardBg} space-y-4 relative group border-emerald-500/30 hover:border-emerald-500/60 transition-all`}>
+                              
+                              {/* Asset Card Header */}
+                              <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <span className="w-5 h-5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold flex items-center justify-center shrink-0">
+                                    #{index + 1}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={asset.name}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'name', e.target.value)}
+                                    className="bg-transparent font-bold text-xs text-slate-200 border-b border-transparent hover:border-slate-700 focus:border-emerald-500 outline-none px-1 py-0.5 transition-all w-full max-w-[200px]"
+                                    placeholder="Nama Aset..."
+                                  />
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
+                                    isRawSvg ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                  }`}>
+                                    {isRawSvg ? '🎨 Raw SVG (Bisa Edit Warna)' : '🔗 Link URL (Fitur Warna Mati)'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveFloatingAsset(asset.id)}
+                                    className="p-1 rounded text-rose-400 hover:text-rose-200 hover:bg-rose-500/20 transition-all cursor-pointer"
+                                    title="Hapus Aset ini"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Form Input Row 1: Target Halaman & Tipe Input */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                    Target Halaman / Seksi:
+                                  </label>
+                                  <select
+                                    value={asset.section}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'section', e.target.value)}
+                                    className={inputClass}
+                                  >
+                                    <option value="home">Hero / Home (Seksi Depan)</option>
+                                    <option value="projects">Case Studies (Proyek)</option>
+                                    <option value="skills">Technical Arsenal (Skills)</option>
+                                    <option value="experience">Professional Journey (Pengalaman)</option>
+                                    <option value="contact">Contact Matrix (Kontak)</option>
+                                    <option value="about_story">Kisah Saya (About Story)</option>
+                                    <option value="about_subpage_education">Subpage: Education Degree</option>
+                                    <option value="about_subpage_personality">Subpage: Personality</option>
+                                    <option value="about_subpage_hobbies">Subpage: Hobbies</option>
+                                    <option value="about_subpage_career_goals">Subpage: Career Goals</option>
+                                    {(localData.customSubPages || []).map(p => (
+                                      <option key={p.id} value={`about_subpage_${p.id}`}>
+                                        Subpage: {p.title}
+                                      </option>
+                                    ))}
+                                    <option value="all">🌐 Tampilkan di Semua Halaman</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                    Tipe Sumber Aset:
+                                  </label>
+                                  <select
+                                    value={isRawSvg ? 'svg' : 'url'}
+                                    onChange={(e) => {
+                                      const newType = e.target.value as 'svg' | 'url';
+                                      handleUpdateFloatingAsset(asset.id, 'type', newType);
+                                      if (newType === 'svg' && (!asset.content || !asset.content.trim().startsWith('<svg'))) {
+                                        handleUpdateFloatingAsset(asset.id, 'content', '<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 50 Q 30 15 50 45 Q 70 15 90 50 Q 70 32 50 52 Q 30 32 10 50 Z" fill="currentColor"/></svg>');
+                                      }
+                                    }}
+                                    className={inputClass}
+                                  >
+                                    <option value="svg">Raw Kode &lt;svg&gt; (Fitur Edit Warna Aktif)</option>
+                                    <option value="url">Link URL Gambar / SVG (Edit Warna Mati Otomatis)</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Form Input Row 2: Content (Raw SVG String or URL Link) */}
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="text-[10.5px] font-bold text-slate-300">
+                                    {isRawSvg ? 'Kode <svg> Aset (Burung, Stiker, Logo):' : 'Link URL File Aset / Gambar:'}
+                                  </label>
+                                  <label className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all border border-slate-700">
+                                    <Upload className="w-3 h-3 text-emerald-400" />
+                                    <span>Upload File</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*,.svg"
+                                      className="hidden"
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        if (file.name.endsWith('.svg')) {
+                                          const text = await file.text();
+                                          if (text.includes('<svg')) {
+                                            handleUpdateFloatingAsset(asset.id, 'type', 'svg');
+                                            handleUpdateFloatingAsset(asset.id, 'content', text);
+                                            return;
+                                          }
+                                        }
+                                        const uploadedUrl = await uploadFileToStorage(file);
+                                        if (uploadedUrl) {
+                                          handleUpdateFloatingAsset(asset.id, 'type', 'url');
+                                          handleUpdateFloatingAsset(asset.id, 'content', uploadedUrl);
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+
+                                {isRawSvg ? (
+                                  <textarea
+                                    value={asset.content}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'content', e.target.value)}
+                                    rows={3}
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-emerald-300 focus:outline-none focus:border-emerald-500 transition-all resize-y"
+                                    placeholder='<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">...</svg>'
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={asset.content}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'content', e.target.value)}
+                                    className={inputClass}
+                                    placeholder="https://... atau /svg/accessories/bird.svg"
+                                  />
+                                )}
+                              </div>
+
+                              {/* Form Input Row 3: WARNA ASET (Smart Status: Disabled for URL) */}
+                              <div className={`p-3 rounded-lg border transition-all ${
+                                isRawSvg 
+                                  ? 'bg-emerald-950/20 border-emerald-500/30' 
+                                  : 'bg-slate-900/40 border-slate-800 opacity-60'
+                              }`}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                                      <Brush className="w-3.5 h-3.5 text-emerald-400" />
+                                      <span>Warna Aset (SVG Fill Color)</span>
+                                    </label>
+                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                      {isRawSvg 
+                                        ? 'Pilih warna kustom untuk disuntikkan ke dalam atribut fill kode SVG.'
+                                        : '🔒 Fitur edit warna otomatis mati karena aset menggunakan link URL / file eksternal.'}
+                                    </p>
+                                  </div>
+
+                                  {isRawSvg && (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <input
+                                        type="color"
+                                        value={asset.color || '#3b82f6'}
+                                        onChange={(e) => handleUpdateFloatingAsset(asset.id, 'color', e.target.value)}
+                                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                                      />
+                                      <input
+                                        type="text"
+                                        value={asset.color || '#3b82f6'}
+                                        onChange={(e) => handleUpdateFloatingAsset(asset.id, 'color', e.target.value)}
+                                        className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 font-mono text-[11px] text-slate-200 text-center"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Form Input Row 4: Sliders Posisi X & Y, Ukuran, Opasitas */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                {/* Posisi Horizontal X (%) */}
+                                <div className="space-y-1">
+                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                    <span>Posisi X (Horizontal):</span>
+                                    <span className="font-mono text-emerald-400">{asset.x}%</span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={asset.x}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'x', parseInt(e.target.value, 10))}
+                                    className="w-full accent-emerald-500 cursor-pointer"
+                                  />
+                                  <div className="flex justify-between text-[9px] text-slate-500">
+                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'x', 10)} className="hover:text-emerald-400">Kiri (10%)</button>
+                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'x', 50)} className="hover:text-emerald-400">Tengah (50%)</button>
+                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'x', 85)} className="hover:text-emerald-400">Kanan (85%)</button>
+                                  </div>
+                                </div>
+
+                                {/* Posisi Vertikal Y (%) */}
+                                <div className="space-y-1">
+                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                    <span>Posisi Y (Vertikal):</span>
+                                    <span className="font-mono text-emerald-400">{asset.y}%</span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={asset.y}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'y', parseInt(e.target.value, 10))}
+                                    className="w-full accent-emerald-500 cursor-pointer"
+                                  />
+                                  <div className="flex justify-between text-[9px] text-slate-500">
+                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'y', 15)} className="hover:text-emerald-400">Atas (15%)</button>
+                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'y', 50)} className="hover:text-emerald-400">Tengah (50%)</button>
+                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'y', 85)} className="hover:text-emerald-400">Bawah (85%)</button>
+                                  </div>
+                                </div>
+
+                                {/* Ukuran Lebar (Width in px) dengan Slider Besar & Input Angka & Preset */}
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                    <span>Ukuran Besar / Kecil:</span>
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="number"
+                                        min={10}
+                                        max={2000}
+                                        value={asset.width || 80}
+                                        onChange={(e) => handleUpdateFloatingAsset(asset.id, 'width', parseInt(e.target.value, 10) || 80)}
+                                        className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 font-mono text-[11px] text-emerald-400 text-right focus:outline-none focus:border-emerald-500"
+                                      />
+                                      <span className="text-[10px] text-slate-400 font-mono">px</span>
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={15}
+                                    max={1200}
+                                    step={5}
+                                    value={asset.width || 80}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'width', parseInt(e.target.value, 10))}
+                                    className="w-full accent-emerald-500 cursor-pointer"
+                                  />
+                                  {/* Quick Size Presets */}
+                                  <div className="flex flex-wrap gap-1 text-[9.5px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 60)}
+                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                    >
+                                      Kecil (60px)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 150)}
+                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                    >
+                                      Sedang (150px)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 350)}
+                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                    >
+                                      Besar (350px)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 650)}
+                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                    >
+                                      Sangat Besar (650px)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 1000)}
+                                      className="px-1.5 py-0.5 rounded bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 transition-all"
+                                    >
+                                      Giant (1000px)
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Opasitas (Transparency) */}
+                                <div className="space-y-1">
+                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                    <span>Opasitas Transparansi:</span>
+                                    <span className="font-mono text-emerald-400">{Math.round((asset.opacity ?? 0.8) * 100)}%</span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={0.1}
+                                    max={1}
+                                    step={0.05}
+                                    value={asset.opacity ?? 0.8}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'opacity', parseFloat(e.target.value))}
+                                    className="w-full accent-emerald-500 cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Form Input Row 4.5: POSISI LAPISAN (LAYER DEPTH / STACK ORDER) */}
+                              <div className="p-3 rounded-xl border bg-slate-900/60 border-slate-800 space-y-2">
+                                <label className="text-[10.5px] font-bold text-slate-200 flex items-center justify-between">
+                                  <span className="flex items-center gap-1.5">
+                                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Posisi Lapisan (Layer Stacking Order):</span>
+                                  </span>
+                                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                                    {asset.layer === 'bg' ? 'Layer #1 (Background)' : asset.layer === 'above_all' ? 'Layer #3 (Top Foreground)' : 'Layer #2 (Di Atas Gambar)'}
+                                  </span>
+                                </label>
+                                <select
+                                  value={asset.layer || (asset.zIndex === 2 ? 'bg' : asset.zIndex === 30 ? 'above_all' : 'above_image')}
+                                  onChange={(e) => {
+                                    const newLayer = e.target.value as 'bg' | 'above_image' | 'above_all';
+                                    handleUpdateFloatingAsset(asset.id, 'layer', newLayer);
+                                    if (newLayer === 'bg') handleUpdateFloatingAsset(asset.id, 'zIndex', 2);
+                                    else if (newLayer === 'above_image') handleUpdateFloatingAsset(asset.id, 'zIndex', 8);
+                                    else if (newLayer === 'above_all') handleUpdateFloatingAsset(asset.id, 'zIndex', 30);
+                                  }}
+                                  className={inputClass}
+                                >
+                                  <option value="bg">🥉 Setara Background (Di atas Pattern, Di bawah Gambar/Avatar & Tulisan)</option>
+                                  <option value="above_image">🥈 Di atas Gambar & Lingkaran Avatar (Di bawah Tulisan / Text)</option>
+                                  <option value="above_all">🥇 Di atas Semua Konten (Di atas Gambar & Di atas Tulisan / Judul)</option>
+                                </select>
+                                <p className="text-[10px] text-slate-400">
+                                  {asset.layer === 'bg' && '✨ Aset berada pas di atas pattern background, di bawah semua gambar profil dan tulisan.'}
+                                  {(asset.layer === 'above_image' || (!asset.layer && asset.zIndex !== 2 && asset.zIndex !== 30)) && '✨ Aset berada di atas lingkaran/foto avatar, namun teks dan judul utama tetap berada di atasnya agar terbaca sempurna.'}
+                                  {asset.layer === 'above_all' && '✨ Aset berada di paling depan melayang melintasi tulisan dan gambar.'}
+                                </p>
+                              </div>
+
+                              {/* Form Input Row 5: Animasi & Rotasi & Mirroring */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
+                                <div>
+                                  <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                    Efek Animasi Melayang:
+                                  </label>
+                                  <select
+                                    value={asset.animation || 'float'}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'animation', e.target.value)}
+                                    className={inputClass}
+                                  >
+                                    <option value="float">🕊️ Float (Melayang Ombak)</option>
+                                    <option value="pulse">⭐ Pulse (Bersetubuh/Denyut)</option>
+                                    <option value="bounce">🚀 Bounce (Membumbung)</option>
+                                    <option value="spin">🌸 Spin (Berputar Lambat)</option>
+                                    <option value="none">🛑 Diam (Tanpa Animasi)</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                    Rotasi Kemiringan (°):
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={-180}
+                                    max={180}
+                                    value={asset.rotation || 0}
+                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'rotation', parseInt(e.target.value, 10) || 0)}
+                                    className={inputClass}
+                                    placeholder="0°"
+                                  />
+                                </div>
+
+                                <div className="flex flex-col justify-end">
+                                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all">
+                                    <input
+                                      type="checkbox"
+                                      checked={asset.flipX || false}
+                                      onChange={(e) => handleUpdateFloatingAsset(asset.id, 'flipX', e.target.checked)}
+                                      className="accent-emerald-500 w-4 h-4 rounded cursor-pointer"
+                                    />
+                                    <span className="text-[11px] font-bold text-slate-300">
+                                      Flip Horizontal (Cermin X)
+                                    </span>
+                                  </label>
+                                </div>
+                              </div>
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 2. WARNA BACKGROUND & TEMA */}
                 {assetTab === 'bg_colors' && (
                   <div className="space-y-5">
@@ -1326,10 +2135,68 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           <span>Palet Warna Background &amp; Tema Web</span>
                         </h4>
                         <p className="text-[10.5px] text-slate-400 mt-0.5">
-                          Atur warna background mode Terang/Gelap, warna kartu, dan warna navbar
+                          Atur warna background per halaman/bagian, tema aksen, dan navbar
                         </p>
                       </div>
                     </div>
+
+                    {/* Section indicator */}
+                    <div className="px-3.5 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/25 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-purple-300">
+                          Halaman Aktif:
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-purple-950/80 border border-purple-500/40 text-purple-200 font-mono font-bold text-[11px]">
+                          {activeBgSection === 'home' ? '🏠 Beranda / Home' :
+                           activeBgSection === 'projects' ? '📂 Projek & Studi Kasus' :
+                           activeBgSection === 'skills' ? '⚡ Skills & Arsenal' :
+                           activeBgSection === 'experience' ? '💼 Pengalaman / Journey' :
+                           activeBgSection === 'contact' ? '✉️ Kontak & Footer' :
+                           activeBgSection === 'about_story' ? '📖 Kisah Saya (Story)' :
+                           `📄 ${activeBgSection.replace('about_subpage_', '').toUpperCase()}`}
+                        </span>
+                      </div>
+
+                      {/* Apply to All Sections Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const lightVal = localData.webTexts?.[`${activeBgSection}_bg_color`] || localData.webTexts?.home_bg_color || '#f7f9fb';
+                          const darkVal = localData.webTexts?.[`${activeBgSection}_bg_color_dark`] || localData.webTexts?.home_bg_color_dark || '#0f172a';
+                          const sections = [
+                            'home', 'hero', 'projects', 'skills', 'experience', 'contact', 'about_story',
+                            'about_subpage_education', 'about_subpage_personality', 'about_subpage_hobbies',
+                            'about_subpage_career_goals'
+                          ];
+                          handleUpdate(prev => {
+                            const newTexts = { ...(prev.webTexts || {}) };
+                            sections.forEach(sec => {
+                              newTexts[`${sec}_bg_color`] = lightVal;
+                              newTexts[`${sec}_bg_color_id`] = lightVal;
+                              newTexts[`${sec}_bg_color_en`] = lightVal;
+                              newTexts[`${sec}_bg_color_dark`] = darkVal;
+                              newTexts[`${sec}_bg_color_dark_id`] = darkVal;
+                              newTexts[`${sec}_bg_color_dark_en`] = darkVal;
+                            });
+                            return { ...prev, webTexts: newTexts };
+                          });
+                          setAppliedAllNotice(true);
+                          setTimeout(() => setAppliedAllNotice(false), 3000);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10.5px] transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                        title="Terapkan warna background bagian ini ke semua halaman web"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-300" />
+                        <span>Terapkan ke Semua Halaman</span>
+                      </button>
+                    </div>
+
+                    {appliedAllNotice && (
+                      <div className="px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Warna background berhasil diterapkan ke seluruh halaman portofolio!</span>
+                      </div>
+                    )}
 
                     {/* Theme Accent Color Picker */}
                     <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
@@ -1346,7 +2213,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           { id: 'amber', label: 'Amber', hex: '#f59e0b' },
                           { id: 'slate', label: 'Slate', hex: '#64748b' }
                         ].map((c) => {
-                          const active = (localData.layoutSettings?.themeColor || 'emerald') === c.id;
+                          const active = (localData.layoutSettings?.themeColor || 'blue') === c.id;
                           return (
                             <button
                               key={c.id}
@@ -1382,90 +2249,434 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       </div>
                     </div>
 
-                    {/* Light & Dark Global Background Colors */}
+                    {/* Section Selector Pills for Background Colors */}
+                    <div className="space-y-1.5 pt-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Pilih Halaman yang Diatur:</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const lightBg = localData.webTexts?.[activeBgSection === 'home' ? 'home_bg_color' : `${activeBgSection}_bg_color`] || '#f7f9fb';
+                            const darkBg = localData.webTexts?.[activeBgSection === 'home' ? 'home_bg_color_dark' : `${activeBgSection}_bg_color_dark`] || '#0f172a';
+                            const sections = [
+                              'home', 'projects', 'skills', 'experience', 'contact', 'about_story',
+                              'about_subpage_education', 'about_subpage_personality', 'about_subpage_hobbies',
+                              'about_subpage_career_goals'
+                            ];
+                            handleUpdate(prev => {
+                              const newTexts = { ...(prev.webTexts || {}) };
+                              sections.forEach(sec => {
+                                newTexts[`${sec}_bg_color`] = lightBg;
+                                newTexts[`${sec}_bg_color_dark`] = darkBg;
+                              });
+                              newTexts['hero_bg_color'] = lightBg;
+                              newTexts['hero_bg_color_dark'] = darkBg;
+                              return { ...prev, webTexts: newTexts };
+                            });
+                            setAppliedAllNotice(true);
+                            setTimeout(() => setAppliedAllNotice(false), 3000);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <Sparkles className="w-3 h-3 text-amber-300" />
+                          <span>Terapkan BG ke Semua Halaman</span>
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { id: 'home', label: '🏠 Beranda' },
+                          { id: 'projects', label: '📂 Projek' },
+                          { id: 'skills', label: '⚡ Skills' },
+                          { id: 'experience', label: '💼 Pengalaman' },
+                          { id: 'contact', label: '✉️ Kontak' },
+                          { id: 'about_story', label: '📖 Kisah Saya' },
+                          { id: 'about_subpage_education', label: '🎓 Pendidikan' },
+                          { id: 'about_subpage_personality', label: '🧠 Kepribadian' },
+                          { id: 'about_subpage_hobbies', label: '🎨 Hobi' },
+                          { id: 'about_subpage_career_goals', label: '🎯 Target Karir' }
+                        ].map((sec) => (
+                          <button
+                            key={sec.id}
+                            type="button"
+                            onClick={() => setActiveBgSection(sec.id)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              activeBgSection === sec.id
+                                ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-400/40'
+                                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
+                            }`}
+                          >
+                            {sec.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Section-Specific Background Colors */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Light Mode BG */}
-                      <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
-                        <div className="flex items-center gap-1.5 text-amber-500 font-bold text-xs">
-                          <Sun className="w-4 h-4" />
-                          <span>Warna Background (Mode Terang)</span>
-                        </div>
+                      {/* Light Mode BG for Active Section */}
+                      {(() => {
+                        const lightBgKey = activeBgSection === 'home' ? 'home_bg_color' : `${activeBgSection}_bg_color`;
+                        const currentVal = localData.webTexts?.[lightBgKey] || localData.webTexts?.home_bg_color || '#f7f9fb';
+                        return (
+                          <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-amber-500 font-bold text-xs">
+                                <Sun className="w-4 h-4" />
+                                <span>Warna Background (Mode Terang)</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {lightBgKey}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={currentVal.startsWith('#') ? currentVal : '#f7f9fb'}
+                                onChange={(e) => {
+                                  handleWebTextChange(lightBgKey, e.target.value, editLang);
+                                  if (activeBgSection === 'home') {
+                                    handleWebTextChange('hero_bg_color', e.target.value, editLang);
+                                  }
+                                }}
+                                className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={currentVal}
+                                onChange={(e) => {
+                                  handleWebTextChange(lightBgKey, e.target.value, editLang);
+                                  if (activeBgSection === 'home') {
+                                    handleWebTextChange('hero_bg_color', e.target.value, editLang);
+                                  }
+                                }}
+                                placeholder="#f7f9fb"
+                                className={inputClass}
+                              />
+                            </div>
+                            {/* Quick Presets for Light */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {[
+                                { hex: '#ccd6e1', name: 'Design Gray' },
+                                { hex: '#ffffff', name: 'Putih' },
+                                { hex: '#f7f9fb', name: 'Default' },
+                                { hex: '#f1f5f9', name: 'Slate Light' },
+                                { hex: '#e2e8f0', name: 'Slate Gray' },
+                                { hex: '#fdfbf7', name: 'Cream' },
+                                { hex: '#f0fdf4', name: 'Mint' },
+                                { hex: '#f0f9ff', name: 'Sky' }
+                              ].map((p) => (
+                                <button
+                                  key={p.hex}
+                                  type="button"
+                                  onClick={() => {
+                                    handleWebTextChange(lightBgKey, p.hex, editLang);
+                                    if (activeBgSection === 'home') {
+                                      handleWebTextChange('hero_bg_color', p.hex, editLang);
+                                    }
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[10px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                                >
+                                  {p.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Dark Mode BG for Active Section */}
+                      {(() => {
+                        const darkBgKey = activeBgSection === 'home' ? 'home_bg_color_dark' : `${activeBgSection}_bg_color_dark`;
+                        const currentVal = localData.webTexts?.[darkBgKey] || localData.webTexts?.home_bg_color_dark || '#0f172a';
+                        return (
+                          <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-blue-400 font-bold text-xs">
+                                <Moon className="w-4 h-4" />
+                                <span>Warna Background (Mode Gelap)</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {darkBgKey}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={currentVal.startsWith('#') ? currentVal : '#0f172a'}
+                                onChange={(e) => {
+                                  handleWebTextChange(darkBgKey, e.target.value, editLang);
+                                  if (activeBgSection === 'home') {
+                                    handleWebTextChange('hero_bg_color_dark', e.target.value, editLang);
+                                  }
+                                }}
+                                className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={currentVal}
+                                onChange={(e) => {
+                                  handleWebTextChange(darkBgKey, e.target.value, editLang);
+                                  if (activeBgSection === 'home') {
+                                    handleWebTextChange('hero_bg_color_dark', e.target.value, editLang);
+                                  }
+                                }}
+                                placeholder="#0f172a"
+                                className={inputClass}
+                              />
+                            </div>
+                            {/* Quick Presets for Dark */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {[
+                                { hex: '#0f172a', name: 'Midnight' },
+                                { hex: '#0b1120', name: 'Deep Navy' },
+                                { hex: '#020617', name: 'Pitch Dark' },
+                                { hex: '#1e293b', name: 'Slate Dark' },
+                                { hex: '#111827', name: 'Charcoal' }
+                              ].map((p) => (
+                                <button
+                                  key={p.hex}
+                                  type="button"
+                                  onClick={() => {
+                                    handleWebTextChange(darkBgKey, p.hex, editLang);
+                                    if (activeBgSection === 'home') {
+                                      handleWebTextChange('hero_bg_color_dark', p.hex, editLang);
+                                    }
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[10px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                                >
+                                  {p.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* HERO CIRCLE SVG THEME CUSTOMIZER */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                         <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={localData.webTexts?.home_bg_color || '#f7f9fb'}
-                            onChange={(e) => handleWebTextChange('home_bg_color', e.target.value, editLang)}
-                            className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer p-0.5 bg-transparent"
-                          />
-                          <input
-                            type="text"
-                            value={localData.webTexts?.home_bg_color || '#f7f9fb'}
-                            onChange={(e) => handleWebTextChange('home_bg_color', e.target.value, editLang)}
-                            placeholder="#f7f9fb"
-                            className={inputClass}
-                          />
+                          <Palette className="w-4 h-4 text-purple-400" />
+                          <span className="font-bold text-xs text-slate-200">
+                            Warna Lingkaran SVG Hero (Per Tema)
+                          </span>
                         </div>
-                        {/* Quick Presets for Light */}
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {[
-                            { hex: '#ffffff', name: 'Putih' },
-                            { hex: '#f7f9fb', name: 'Default' },
-                            { hex: '#fdfbf7', name: 'Cream' },
-                            { hex: '#f0fdf4', name: 'Mint' },
-                            { hex: '#f0f9ff', name: 'Sky' },
-                            { hex: '#fff1f2', name: 'Rose' }
-                          ].map((p) => (
-                            <button
-                              key={p.hex}
-                              type="button"
-                              onClick={() => handleWebTextChange('home_bg_color', p.hex, editLang)}
-                              className="px-2 py-0.5 rounded text-[10px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                            >
-                              {p.name}
-                            </button>
-                          ))}
+                        <span className="text-[10px] text-purple-400 font-mono">
+                          Mode Terang & Gelap
+                        </span>
+                      </div>
+
+                      {/* Sync with Theme Accent Switch */}
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-purple-950/30 border border-purple-500/20">
+                        <div>
+                          <span className="text-xs font-bold text-purple-200 block">
+                            Ikuti Warna Aksen Tema Otomatis
+                          </span>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            Jika aktif, lingkaran SVG akan menyelaraskan warnanya otomatis dengan tema aktif
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = localData.webTexts?.home_circle_sync_accent === 'true';
+                            handleWebTextChange('home_circle_sync_accent', current ? 'false' : 'true', editLang);
+                          }}
+                          className={`w-11 h-6 rounded-full transition-colors cursor-pointer p-0.5 flex items-center ${
+                            localData.webTexts?.home_circle_sync_accent === 'true' ? 'bg-purple-600 justify-end' : 'bg-slate-700 justify-start'
+                          }`}
+                        >
+                          <span className="w-5 h-5 rounded-full bg-white shadow-md" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Light Mode Circle Colors */}
+                        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                              <Sun className="w-3.5 h-3.5" />
+                              <span>Lingkaran (Mode Terang)</span>
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Awal (Atas / Pusat):</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={localData.webTexts?.home_circle_color_light || '#6ba0e6'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_light', e.target.value, editLang)}
+                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                                />
+                                <input
+                                  type="text"
+                                  value={localData.webTexts?.home_circle_color_light || '#6ba0e6'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_light', e.target.value, editLang)}
+                                  className={inputClass}
+                                  placeholder="#6ba0e6"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Akhir (Bawah / Luar):</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={localData.webTexts?.home_circle_color_light_end || '#3661a3'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_light_end', e.target.value, editLang)}
+                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                                />
+                                <input
+                                  type="text"
+                                  value={localData.webTexts?.home_circle_color_light_end || '#3661a3'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_light_end', e.target.value, editLang)}
+                                  className={inputClass}
+                                  placeholder="#3661a3"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Light Presets */}
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {[
+                                { name: 'Royal Blue', start: '#6ba0e6', end: '#3661a3' },
+                                { name: 'Indigo', start: '#818cf8', end: '#4338ca' },
+                                { name: 'Emerald', start: '#34d399', end: '#059669' },
+                                { name: 'Rose', start: '#fb7185', end: '#e11d48' },
+                                { name: 'Amber', start: '#fbbf24', end: '#d97706' },
+                                { name: 'Slate', start: '#94a3b8', end: '#475569' }
+                              ].map((p) => (
+                                <button
+                                  key={p.name}
+                                  type="button"
+                                  onClick={() => {
+                                    handleWebTextChange('home_circle_color_light', p.start, editLang);
+                                    handleWebTextChange('home_circle_color_light_end', p.end, editLang);
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[9.5px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                                >
+                                  {p.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dark Mode Circle Colors */}
+                        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                              <Moon className="w-3.5 h-3.5" />
+                              <span>Lingkaran (Mode Gelap)</span>
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Awal (Atas / Pusat):</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={localData.webTexts?.home_circle_color_dark || '#3b82f6'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_dark', e.target.value, editLang)}
+                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                                />
+                                <input
+                                  type="text"
+                                  value={localData.webTexts?.home_circle_color_dark || '#3b82f6'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_dark', e.target.value, editLang)}
+                                  className={inputClass}
+                                  placeholder="#3b82f6"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Akhir (Bawah / Luar):</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="color"
+                                  value={localData.webTexts?.home_circle_color_dark_end || '#0f172a'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_dark_end', e.target.value, editLang)}
+                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                                />
+                                <input
+                                  type="text"
+                                  value={localData.webTexts?.home_circle_color_dark_end || '#0f172a'}
+                                  onChange={(e) => handleWebTextChange('home_circle_color_dark_end', e.target.value, editLang)}
+                                  className={inputClass}
+                                  placeholder="#0f172a"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Dark Presets */}
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {[
+                                { name: 'Deep Blue', start: '#3b82f6', end: '#0f172a' },
+                                { name: 'Neon Purple', start: '#a855f7', end: '#1e1b4b' },
+                                { name: 'Emerald', start: '#10b981', end: '#022c22' },
+                                { name: 'Crimson', start: '#f43f5e', end: '#4c0519' },
+                                { name: 'Amber', start: '#f59e0b', end: '#451a03' },
+                                { name: 'Charcoal', start: '#475569', end: '#090d16' }
+                              ].map((p) => (
+                                <button
+                                  key={p.name}
+                                  type="button"
+                                  onClick={() => {
+                                    handleWebTextChange('home_circle_color_dark', p.start, editLang);
+                                    handleWebTextChange('home_circle_color_dark_end', p.end, editLang);
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[9.5px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
+                                >
+                                  {p.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Dark Mode BG */}
-                      <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
-                        <div className="flex items-center gap-1.5 text-blue-400 font-bold text-xs">
-                          <Moon className="w-4 h-4" />
-                          <span>Warna Background (Mode Gelap)</span>
+                      {/* Circle Style & Opacity */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-300 mb-1">
+                            Gaya Visual Lingkaran:
+                          </label>
+                          <select
+                            value={localData.webTexts?.home_circle_style || 'sphere'}
+                            onChange={(e) => handleWebTextChange('home_circle_style', e.target.value, editLang)}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs focus:border-purple-500"
+                          >
+                            <option value="sphere">🌐 3D Sphere Radial (Default)</option>
+                            <option value="linear">🎨 Linear 45° Gradient</option>
+                            <option value="flat">⬛ Solid Flat Fill</option>
+                            <option value="outline">⭕ Glowing Neon Outline</option>
+                          </select>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div>
+                          <div className="flex justify-between text-[10.5px] font-bold text-slate-300 mb-1">
+                            <span>Kepekatan Lingkaran:</span>
+                            <span className="font-mono text-purple-400">
+                              {Math.round(parseFloat(localData.webTexts?.home_circle_opacity || '1') * 100)}%
+                            </span>
+                          </div>
                           <input
-                            type="color"
-                            value={localData.webTexts?.home_bg_color_dark || '#0f172a'}
-                            onChange={(e) => handleWebTextChange('home_bg_color_dark', e.target.value, editLang)}
-                            className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                            type="range"
+                            min="0.1"
+                            max="1.0"
+                            step="0.05"
+                            value={parseFloat(localData.webTexts?.home_circle_opacity || '1')}
+                            onChange={(e) => handleWebTextChange('home_circle_opacity', e.target.value, editLang)}
+                            className="w-full accent-purple-500 cursor-pointer h-2 bg-slate-800 rounded"
                           />
-                          <input
-                            type="text"
-                            value={localData.webTexts?.home_bg_color_dark || '#0f172a'}
-                            onChange={(e) => handleWebTextChange('home_bg_color_dark', e.target.value, editLang)}
-                            placeholder="#0f172a"
-                            className={inputClass}
-                          />
-                        </div>
-                        {/* Quick Presets for Dark */}
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {[
-                            { hex: '#0f172a', name: 'Midnight' },
-                            { hex: '#0b1120', name: 'Deep Navy' },
-                            { hex: '#020617', name: 'Pitch Dark' },
-                            { hex: '#081711', name: 'Forest' },
-                            { hex: '#111827', name: 'Charcoal' }
-                          ].map((p) => (
-                            <button
-                              key={p.hex}
-                              type="button"
-                              onClick={() => handleWebTextChange('home_bg_color_dark', p.hex, editLang)}
-                              className="px-2 py-0.5 rounded text-[10px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                            >
-                              {p.name}
-                            </button>
-                          ))}
                         </div>
                       </div>
                     </div>
@@ -1484,7 +2695,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           <div className="flex items-center gap-2">
                             <input
                               type="color"
-                              value={localData.webTexts?.navbar_bg_color || '#ffffff'}
+                              value={localData.webTexts?.navbar_bg_color?.startsWith('#') ? localData.webTexts.navbar_bg_color : '#ffffff'}
                               onChange={(e) => handleWebTextChange('navbar_bg_color', e.target.value, editLang)}
                               className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
                             />
@@ -1505,7 +2716,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           <div className="flex items-center gap-2">
                             <input
                               type="color"
-                              value={localData.webTexts?.navbar_bg_color_dark || '#1e293b'}
+                              value={localData.webTexts?.navbar_bg_color_dark?.startsWith('#') ? localData.webTexts.navbar_bg_color_dark : '#1e293b'}
                               onChange={(e) => handleWebTextChange('navbar_bg_color_dark', e.target.value, editLang)}
                               className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
                             />
@@ -1520,6 +2731,368 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* 2.5 BAYANGAN GRADASI SISI PER HALAMAN */}
+                {assetTab === 'bg_shadows' && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between pb-2 border-b border-purple-500/20">
+                      <div>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>Pengaturan Bayangan Gradasi Sisi (Edge Shadows)</span>
+                        </h4>
+                        <p className="text-[10.5px] text-slate-400 mt-0.5">
+                          Aktifkan efek gradasi bayangan dari bawah/atas/sisi halaman dengan ketebalan dan intensitas fleksibel
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Section Selector Pills for Shadow tab */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Pilih Halaman Target Bayangan:</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const enabled = localData.webTexts?.[`${activeBgSection}_shadow_enabled`] || 'false';
+                            const dir = localData.webTexts?.[`${activeBgSection}_shadow_direction`] || 'bottom';
+                            const depth = localData.webTexts?.[`${activeBgSection}_shadow_depth`] || '40';
+                            const opacity = localData.webTexts?.[`${activeBgSection}_shadow_opacity`] || '0.85';
+                            const colorMode = localData.webTexts?.[`${activeBgSection}_shadow_color_mode`] || 'auto';
+                            const customColor = localData.webTexts?.[`${activeBgSection}_shadow_custom_color`] || '';
+
+                            const sections = [
+                              'home', 'projects', 'skills', 'experience', 'contact', 'about_story',
+                              'about_subpage_education', 'about_subpage_personality', 'about_subpage_hobbies',
+                              'about_subpage_career_goals'
+                            ];
+                            handleUpdate(prev => {
+                              const newTexts = { ...(prev.webTexts || {}) };
+                              sections.forEach(sec => {
+                                newTexts[`${sec}_shadow_enabled`] = enabled;
+                                newTexts[`${sec}_shadow_direction`] = dir;
+                                newTexts[`${sec}_shadow_depth`] = depth;
+                                newTexts[`${sec}_shadow_opacity`] = opacity;
+                                newTexts[`${sec}_shadow_color_mode`] = colorMode;
+                                newTexts[`${sec}_shadow_custom_color`] = customColor;
+                              });
+                              if (activeBgSection === 'home') {
+                                newTexts['hero_shadow_enabled'] = enabled;
+                                newTexts['hero_shadow_direction'] = dir;
+                                newTexts['hero_shadow_depth'] = depth;
+                                newTexts['hero_shadow_opacity'] = opacity;
+                                newTexts['hero_shadow_color_mode'] = colorMode;
+                                newTexts['hero_shadow_custom_color'] = customColor;
+                              }
+                              return { ...prev, webTexts: newTexts };
+                            });
+                            setAppliedAllNotice(true);
+                            setTimeout(() => setAppliedAllNotice(false), 3000);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                        >
+                          <Sparkles className="w-3 h-3 text-amber-300" />
+                          <span>Terapkan ke Semua Halaman</span>
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { id: 'home', label: '🏠 Beranda' },
+                          { id: 'projects', label: '📂 Projek' },
+                          { id: 'skills', label: '⚡ Skills' },
+                          { id: 'experience', label: '💼 Pengalaman' },
+                          { id: 'contact', label: '✉️ Kontak' },
+                          { id: 'about_story', label: '📖 Kisah Saya' },
+                          { id: 'about_subpage_education', label: '🎓 Pendidikan' },
+                          { id: 'about_subpage_personality', label: '🧠 Kepribadian' },
+                          { id: 'about_subpage_hobbies', label: '🎨 Hobi' },
+                          { id: 'about_subpage_career_goals', label: '🎯 Target Karir' }
+                        ].map((sec) => (
+                          <button
+                            key={sec.id}
+                            type="button"
+                            onClick={() => setActiveBgSection(sec.id)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              activeBgSection === sec.id
+                                ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-400/40'
+                                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60'
+                            }`}
+                          >
+                            {sec.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {appliedAllNotice && (
+                      <div className="px-3 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Pengaturan bayangan gradasi berhasil diterapkan ke semua halaman!</span>
+                      </div>
+                    )}
+
+                    {/* Master Switch: Enable / Disable */}
+                    {(() => {
+                      const enabledKey = `${activeBgSection}_shadow_enabled`;
+                      const isEnabled = localData.webTexts?.[enabledKey] === 'true' || (activeBgSection === 'home' && localData.webTexts?.hero_shadow_enabled === 'true');
+
+                      return (
+                        <div className={`p-4 rounded-xl border ${cardBg} flex items-center justify-between gap-4`}>
+                          <div>
+                            <span className="font-bold text-xs text-slate-200 block">
+                              Aktifkan Bayangan Gradasi Halaman ({activeBgSection.toUpperCase()})
+                            </span>
+                            <span className="text-[11px] text-slate-400 block mt-0.5">
+                              Menampilkan gradasi bayangan halus di sisi tepi halaman ini
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextVal = isEnabled ? 'false' : 'true';
+                              handleWebTextChange(enabledKey, nextVal, editLang);
+                              if (activeBgSection === 'home') {
+                                handleWebTextChange('hero_shadow_enabled', nextVal, editLang);
+                              }
+                            }}
+                            className={`w-12 h-6 rounded-full transition-colors cursor-pointer p-0.5 flex items-center ${
+                              isEnabled ? 'bg-emerald-600 justify-end' : 'bg-slate-700 justify-start'
+                            }`}
+                          >
+                            <span className="w-5 h-5 rounded-full bg-white shadow-md transform transition-transform" />
+                          </button>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Shadow Detailed Controls */}
+                    {(() => {
+                      const dirKey = `${activeBgSection}_shadow_direction`;
+                      const depthKey = `${activeBgSection}_shadow_depth`;
+                      const opacityKey = `${activeBgSection}_shadow_opacity`;
+                      const colorModeKey = `${activeBgSection}_shadow_color_mode`;
+                      const customColorKey = `${activeBgSection}_shadow_custom_color`;
+
+                      const currentDir = localData.webTexts?.[dirKey] || (activeBgSection === 'home' ? localData.webTexts?.hero_shadow_direction : undefined) || 'bottom';
+                      const currentDepth = parseFloat(localData.webTexts?.[depthKey] || (activeBgSection === 'home' ? localData.webTexts?.hero_shadow_depth : undefined) || '40');
+                      const currentOpacity = parseFloat(localData.webTexts?.[opacityKey] || (activeBgSection === 'home' ? localData.webTexts?.hero_shadow_opacity : undefined) || '0.85');
+                      const currentColorMode = localData.webTexts?.[colorModeKey] || (activeBgSection === 'home' ? localData.webTexts?.hero_shadow_color_mode : undefined) || 'auto';
+                      const currentCustomColor = localData.webTexts?.[customColorKey] || '#000000';
+                      const enabledKey = `${activeBgSection}_shadow_enabled`;
+                      const isEnabled = localData.webTexts?.[enabledKey] === 'true' || (activeBgSection === 'home' && localData.webTexts?.hero_shadow_enabled === 'true');
+
+                      return (
+                        <div className="space-y-4">
+                          {/* Live Simulation Preview */}
+                          <div className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
+                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-300">
+                              <span className="flex items-center gap-1.5">
+                                <Eye className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Simulasi Tampilan Bayangan:</span>
+                              </span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${isEnabled ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`}>
+                                {isEnabled ? '🟢 AKTIF' : '⚪ NON-AKTIF'}
+                              </span>
+                            </div>
+                            <div className="relative w-full h-20 rounded-lg bg-slate-900 border border-slate-700/80 overflow-hidden flex items-center justify-center">
+                              <div className="text-[10px] text-slate-500 font-mono select-none z-10">
+                                {activeBgSection.toUpperCase()} PREVIEW CANVAS
+                              </div>
+                              {isEnabled && (
+                                <div
+                                  className="absolute inset-0 pointer-events-none transition-all duration-200"
+                                  style={{
+                                    background:
+                                      currentDir === 'bottom'
+                                        ? `linear-gradient(to top, rgba(0,0,0,${currentOpacity}) 0%, transparent ${currentDepth}%)`
+                                        : currentDir === 'top'
+                                        ? `linear-gradient(to bottom, rgba(0,0,0,${currentOpacity}) 0%, transparent ${currentDepth}%)`
+                                        : currentDir === 'top_bottom'
+                                        ? `linear-gradient(to top, rgba(0,0,0,${currentOpacity}) 0%, transparent ${currentDepth}%), linear-gradient(to bottom, rgba(0,0,0,${currentOpacity}) 0%, transparent ${currentDepth}%)`
+                                        : currentDir === 'left'
+                                        ? `linear-gradient(to right, rgba(0,0,0,${currentOpacity}) 0%, transparent ${currentDepth}%)`
+                                        : currentDir === 'right'
+                                        ? `linear-gradient(to left, rgba(0,0,0,${currentOpacity}) 0%, transparent ${currentDepth}%)`
+                                        : `radial-gradient(ellipse at center, transparent ${Math.max(0, 100 - currentDepth)}%, rgba(0,0,0,${currentOpacity}) 100%)`
+                                  }}
+                                />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Direction Selector */}
+                          <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                            <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                              <Move className="w-3.5 h-3.5 text-purple-400" />
+                              <span>Pilih Arah / Posisi Bayangan:</span>
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                              {[
+                                { id: 'bottom', label: '⬇️ Bawah (Bottom)', desc: 'Gradasi dari bawah' },
+                                { id: 'top', label: '⬆️ Atas (Top)', desc: 'Gradasi dari atas' },
+                                { id: 'top_bottom', label: '↕️ Atas & Bawah', desc: 'Dua sisi vertikal' },
+                                { id: 'left', label: '⬅️ Kiri (Left)', desc: 'Gradasi dari kiri' },
+                                { id: 'right', label: '➡️ Kanan (Right)', desc: 'Gradasi dari kanan' },
+                                { id: 'all', label: '🔲 Sekeliling (Vignette)', desc: '4 sudut melingkar' }
+                              ].map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleWebTextChange(dirKey, item.id, editLang);
+                                    if (activeBgSection === 'home') {
+                                      handleWebTextChange('hero_shadow_direction', item.id, editLang);
+                                    }
+                                  }}
+                                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                    currentDir === item.id
+                                      ? 'border-purple-500 ring-2 ring-purple-500/40 bg-purple-500/15 text-white'
+                                      : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                                  }`}
+                                >
+                                  <span className="font-bold text-[11px] block">{item.label}</span>
+                                  <span className="text-[9.5px] opacity-75 block mt-0.5">{item.desc}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Depth / Thickness Slider */}
+                          <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                                <ZoomIn className="w-3.5 h-3.5 text-blue-400" />
+                                <span>Ketebalan / Jangkauan Bayangan:</span>
+                              </label>
+                              <span className="text-xs font-mono font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/30">
+                                {currentDepth}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="10"
+                              max="95"
+                              step="5"
+                              value={currentDepth}
+                              onChange={(e) => {
+                                handleWebTextChange(depthKey, e.target.value, editLang);
+                                if (activeBgSection === 'home') {
+                                  handleWebTextChange('hero_shadow_depth', e.target.value, editLang);
+                                }
+                              }}
+                              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                              <span>10% (Tipis di pinggir)</span>
+                              <span>50% (Sedang)</span>
+                              <span>95% (Hampir Penuh)</span>
+                            </div>
+                          </div>
+
+                          {/* Opacity / Intensity Slider */}
+                          <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                                <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Kepekatan / Intensitas Bayangan:</span>
+                              </label>
+                              <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
+                                {Math.round(currentOpacity * 100)}%
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="1.0"
+                              step="0.05"
+                              value={currentOpacity}
+                              onChange={(e) => {
+                                handleWebTextChange(opacityKey, e.target.value, editLang);
+                                if (activeBgSection === 'home') {
+                                  handleWebTextChange('hero_shadow_opacity', e.target.value, editLang);
+                                }
+                              }}
+                              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                              <span>10% (Sangat Halus)</span>
+                              <span>50% (Natural)</span>
+                              <span>100% (Sangat Pekat)</span>
+                            </div>
+                          </div>
+
+                          {/* Shadow Color Mode */}
+                          <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                            <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                              <Palette className="w-3.5 h-3.5 text-teal-400" />
+                              <span>Warna Bayangan Gradasi:</span>
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                              {[
+                                { id: 'auto', label: '🎨 Otomatis', desc: 'Kontras Alami' },
+                                { id: 'black', label: '⚫ Hitam', desc: 'Bayangan Gelap' },
+                                { id: 'white', label: '⚪ Putih', desc: 'Gradasi Terang' },
+                                { id: 'accent', label: '💎 Aksen', desc: 'Sesuai Aksen' },
+                                { id: 'custom', label: '🖌️ Custom', desc: 'Pilih Warna' }
+                              ].map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleWebTextChange(colorModeKey, item.id, editLang);
+                                    if (activeBgSection === 'home') {
+                                      handleWebTextChange('hero_shadow_color_mode', item.id, editLang);
+                                    }
+                                  }}
+                                  className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                                    currentColorMode === item.id
+                                      ? 'border-teal-500 ring-2 ring-teal-500/40 bg-teal-500/15 text-white'
+                                      : 'border-slate-800 bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                                  }`}
+                                >
+                                  <span className="font-bold text-[11px] block">{item.label}</span>
+                                  <span className="text-[9px] opacity-75 block">{item.desc}</span>
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Custom Color Input if 'custom' is selected */}
+                            {currentColorMode === 'custom' && (
+                              <div className="flex items-center gap-2 pt-2">
+                                <input
+                                  type="color"
+                                  value={currentCustomColor.startsWith('#') ? currentCustomColor : '#000000'}
+                                  onChange={(e) => {
+                                    handleWebTextChange(customColorKey, e.target.value, editLang);
+                                    if (activeBgSection === 'home') {
+                                      handleWebTextChange('hero_shadow_custom_color', e.target.value, editLang);
+                                    }
+                                  }}
+                                  className="w-9 h-9 rounded-lg border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                                />
+                                <input
+                                  type="text"
+                                  value={currentCustomColor}
+                                  onChange={(e) => {
+                                    handleWebTextChange(customColorKey, e.target.value, editLang);
+                                    if (activeBgSection === 'home') {
+                                      handleWebTextChange('hero_shadow_custom_color', e.target.value, editLang);
+                                    }
+                                  }}
+                                  placeholder="#000000"
+                                  className={inputClass}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -4427,6 +6000,8 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
               )}
             </button>
           </div>
+            </>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

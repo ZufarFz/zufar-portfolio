@@ -181,6 +181,16 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
     }
   }, [directDownload]);
   
+  const getValidSectionOrder = (sOrder: any) => {
+    const defaults = ['arsenal', 'education', 'experience', 'methodology'];
+    if (!Array.isArray(sOrder) || sOrder.length === 0) return defaults;
+    const result = [...sOrder];
+    defaults.forEach(sec => {
+      if (!result.includes(sec)) result.push(sec);
+    });
+    return result;
+  };
+
   // Settings initialized with fallback to defaults
   const [settings, setSettings] = useState<LayoutSettings>(() => {
     const s = (cvData as any).layoutSettings;
@@ -188,10 +198,10 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       return {
         ...DEFAULT_SETTINGS,
         ...s,
-        sectionOrder: s.sectionOrder || DEFAULT_SETTINGS.sectionOrder
+        sectionOrder: getValidSectionOrder(s.sectionOrder)
       };
     }
-    return { ...DEFAULT_SETTINGS };
+    return { ...DEFAULT_SETTINGS, sectionOrder: getValidSectionOrder(s?.sectionOrder) };
   });
 
   // Keep settings automatically synchronized with parent data
@@ -201,10 +211,10 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       setSettings({
         ...DEFAULT_SETTINGS,
         ...s,
-        sectionOrder: s.sectionOrder || DEFAULT_SETTINGS.sectionOrder
+        sectionOrder: getValidSectionOrder(s.sectionOrder)
       });
     } else {
-      setSettings({ ...DEFAULT_SETTINGS });
+      setSettings({ ...DEFAULT_SETTINGS, sectionOrder: getValidSectionOrder(s?.sectionOrder) });
     }
   }, [cvData]);
 
@@ -606,7 +616,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             if (idStr.endsWith('-id')) return idStr.slice(0, -3);
             return idStr;
           };
-          const visibleEdu = settings.visibleEducations 
+          const visibleEdu = (settings.visibleEducations && settings.visibleEducations.length > 0)
             ? cvData.education.filter(edu => settings.visibleEducations?.includes(getEduBaseId(String(edu.id || '')))) 
             : cvData.education;
           if (visibleEdu.length === 0) return '';
@@ -631,7 +641,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             if (idStr.endsWith('-id')) return idStr.slice(0, -3);
             return idStr;
           };
-          const visibleExp = settings.visibleExperiences 
+          const visibleExp = (settings.visibleExperiences && settings.visibleExperiences.length > 0)
             ? cvData.experiences.filter(exp => settings.visibleExperiences?.includes(getExpBaseId(String(exp.id || '')))) 
             : cvData.experiences;
           if (visibleExp.length === 0) return '';
@@ -801,7 +811,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
           if (idStr.endsWith('-id')) return idStr.slice(0, -3);
           return idStr;
         };
-        const visibleEduList = settings.visibleEducations 
+        const visibleEduList = (settings.visibleEducations && settings.visibleEducations.length > 0) 
           ? cvData.education.filter(edu => settings.visibleEducations?.includes(getEduBaseIdJSX(String(edu.id || '')))) 
           : cvData.education;
         if (visibleEduList.length === 0) return null;
@@ -834,7 +844,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
           if (idStr.endsWith('-id')) return idStr.slice(0, -3);
           return idStr;
         };
-        const visibleExpList = settings.visibleExperiences 
+        const visibleExpList = (settings.visibleExperiences && settings.visibleExperiences.length > 0) 
           ? cvData.experiences.filter(exp => settings.visibleExperiences?.includes(getExpBaseIdJSX(String(exp.id || '')))) 
           : cvData.experiences;
         if (visibleExpList.length === 0) return null;
@@ -991,7 +1001,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               // Determine contacts element
               const renderHeaderContacts = () => {
                 const items: React.ReactNode[] = [];
-                const visibleIds = cvData.headerContacts || ['location', 'email', 'linkedin'];
+                const visibleIds = (cvData.headerContacts && cvData.headerContacts.length > 0)
+                  ? cvData.headerContacts 
+                  : ['location', 'email', 'social-linkedin', 'social-github', 'social-whatsapp'];
                 
                 // Get unified list of social channels
                 const unifiedSocials = [...(cvData.customSocials || [])];
@@ -1002,15 +1014,15 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                   { key: 'whatsapp', name: 'WhatsApp', val: cvData.whatsapp }
                 ];
                 standards.forEach(({ key, name, val }) => {
-                  const exists = unifiedSocials.some(s => s.id === key || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+                  const exists = unifiedSocials.some(s => s.id === key || s.id === `social-${key}` || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
                   if (val && !exists) {
                     unifiedSocials.push({
-                      id: key,
+                      id: `social-${key}`,
                       name,
                       value: val,
                       showOnWeb: true,
-                      showOnCvHeader: cvData.headerContacts?.includes(key) ?? false,
-                      showOnCvFooter: cvData.footerSocials?.includes(key) ?? true
+                      showOnCvHeader: cvData.headerContacts?.includes(key) || cvData.headerContacts?.includes(`social-${key}`) || false,
+                      showOnCvFooter: cvData.footerSocials?.includes(key) || cvData.footerSocials?.includes(`social-${key}`) || true
                     });
                   }
                 });
@@ -1028,10 +1040,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     // Look in unified socials for matching ID
                     const found = unifiedSocials.find(s => 
                       s.id === id || 
-                      (id === 'linkedin' && s.name?.toLowerCase().trim() === 'linkedin') ||
-                      (id === 'github' && s.name?.toLowerCase().trim() === 'github') ||
-                      (id === 'instagram' && s.name?.toLowerCase().trim() === 'instagram') ||
-                      (id === 'whatsapp' && s.name?.toLowerCase().trim() === 'whatsapp')
+                      s.id === `social-${id}` ||
+                      (id.replace('social-', '') === s.id.replace('social-', '')) ||
+                      (id.includes('linkedin') && s.name?.toLowerCase().trim() === 'linkedin') ||
+                      (id.includes('github') && s.name?.toLowerCase().trim() === 'github') ||
+                      (id.includes('instagram') && s.name?.toLowerCase().trim() === 'instagram') ||
+                      (id.includes('whatsapp') && s.name?.toLowerCase().trim() === 'whatsapp') ||
+                      (id.includes('website') && s.name?.toLowerCase().trim() === 'website')
                     );
                     if (found && found.value) {
                       const cleanVal = found.value.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
@@ -1698,7 +1713,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                 // Determine contacts element
                 const renderHeaderContacts = () => {
                   const items: React.ReactNode[] = [];
-                  const visibleIds = cvData.headerContacts || ['location', 'email', 'linkedin'];
+                  const visibleIds = (cvData.headerContacts && cvData.headerContacts.length > 0)
+                    ? cvData.headerContacts 
+                    : ['location', 'email', 'social-linkedin', 'social-github', 'social-whatsapp'];
                   
                   // Get unified list of social channels
                   const unifiedSocials = [...(cvData.customSocials || [])];
@@ -1709,15 +1726,15 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     { key: 'whatsapp', name: 'WhatsApp', val: cvData.whatsapp }
                   ];
                   standards.forEach(({ key, name, val }) => {
-                    const exists = unifiedSocials.some(s => s.id === key || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
+                    const exists = unifiedSocials.some(s => s.id === key || s.id === `social-${key}` || s.name?.toLowerCase().trim() === name.toLowerCase().trim());
                     if (val && !exists) {
                       unifiedSocials.push({
-                        id: key,
+                        id: `social-${key}`,
                         name,
                         value: val,
                         showOnWeb: true,
-                        showOnCvHeader: cvData.headerContacts?.includes(key) ?? false,
-                        showOnCvFooter: cvData.footerSocials?.includes(key) ?? true
+                        showOnCvHeader: cvData.headerContacts?.includes(key) || cvData.headerContacts?.includes(`social-${key}`) || false,
+                        showOnCvFooter: cvData.footerSocials?.includes(key) || cvData.footerSocials?.includes(`social-${key}`) || true
                       });
                     }
                   });
@@ -1735,10 +1752,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                       // Look in unified socials for matching ID
                       const found = unifiedSocials.find(s => 
                         s.id === id || 
-                        (id === 'linkedin' && s.name?.toLowerCase().trim() === 'linkedin') ||
-                        (id === 'github' && s.name?.toLowerCase().trim() === 'github') ||
-                        (id === 'instagram' && s.name?.toLowerCase().trim() === 'instagram') ||
-                        (id === 'whatsapp' && s.name?.toLowerCase().trim() === 'whatsapp')
+                        s.id === `social-${id}` ||
+                        (id.replace('social-', '') === s.id.replace('social-', '')) ||
+                        (id.includes('linkedin') && s.name?.toLowerCase().trim() === 'linkedin') ||
+                        (id.includes('github') && s.name?.toLowerCase().trim() === 'github') ||
+                        (id.includes('instagram') && s.name?.toLowerCase().trim() === 'instagram') ||
+                        (id.includes('whatsapp') && s.name?.toLowerCase().trim() === 'whatsapp') ||
+                        (id.includes('website') && s.name?.toLowerCase().trim() === 'website')
                       );
                       if (found && found.value) {
                         const cleanVal = found.value.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');

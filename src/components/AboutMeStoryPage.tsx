@@ -24,6 +24,9 @@ import {
 import { CVData } from '../types';
 import Lanyard from './Lanyard';
 import BackgroundTextures from './BackgroundTextures';
+import FloatingAssetsOverlay from './FloatingAssetsOverlay';
+import SectionGradientShadow from './SectionGradientShadow';
+import { getThemeColorPalette } from '../lib/themeUtils';
 
 interface AboutMeStoryPageProps {
   key?: React.Key;
@@ -159,7 +162,19 @@ export default function AboutMeStoryPage({
       className={`min-h-screen pt-2 pb-24 px-4 sm:px-6 lg:px-8 border-b transition-colors duration-200 select-none relative overflow-hidden ${
         isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-[#FAF9F5] border-slate-200 text-slate-800'
       }`}
+      style={
+        isDark
+          ? { backgroundColor: texts.about_story_bg_color_dark || texts.aboutme_bg_color_dark || texts.about_bg_color_dark }
+          : { backgroundColor: texts.about_story_bg_color || texts.aboutme_bg_color || texts.about_bg_color }
+      }
     >
+      {/* SECTION GRADIENT SHADOW OVERLAY */}
+      <SectionGradientShadow 
+        sectionKey="about_story" 
+        webTexts={cvData.webTexts} 
+        theme={theme} 
+        accentHex={getThemeColorPalette(cvData.layoutSettings?.themeColor || 'blue').primary}
+      />
       {/* Absolute Header Background Image Band */}
       {backgroundImageUrl && (
         <div className="absolute top-0 left-0 right-0 h-[480px] pointer-events-none overflow-hidden z-0">
@@ -201,6 +216,9 @@ export default function AboutMeStoryPage({
           isDark ? 'bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)]' : 'bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)]'
         }`} style={{ backgroundSize: '24px 24px' }} />
       )}
+
+      {/* FLOATING DECORATIVE ASSETS OVERLAY */}
+      <FloatingAssetsOverlay sectionId="about_story" assets={cvData.floatingAssets} />
 
       {/* FULL-PAGE 3D PHYSICS LANYARD CANVAS (Layered ABOVE feature points, but BELOW header/title) */}
       <div className="absolute inset-0 w-full h-full z-20 pointer-events-auto overflow-hidden">

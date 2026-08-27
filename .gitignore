@@ -3,6 +3,8 @@ build/
 dist/
 coverage/
 agent/
+.vite/
+.git/
 .DS_Store
 *.log
 bun.lock

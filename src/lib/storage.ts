@@ -40,10 +40,37 @@ export async function fetchCVData(mode: 'live' | 'preview' = 'live'): Promise<CV
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && typeof parsed === 'object') {
+          // Ensure layoutSettings.sectionOrder has all valid sections
+          const defaultSections = ['arsenal', 'education', 'experience', 'methodology'];
+          const cachedLayout = parsed.layoutSettings || {};
+          let cleanSectionOrder = Array.isArray(cachedLayout.sectionOrder) && cachedLayout.sectionOrder.length > 0
+            ? cachedLayout.sectionOrder
+            : defaultSections;
+          
+          // Make sure all default sections are present in cleanSectionOrder
+          defaultSections.forEach(sec => {
+            if (!cleanSectionOrder.includes(sec)) {
+              cleanSectionOrder.push(sec);
+            }
+          });
+
+          const sanitizedLayoutSettings = {
+            ...DEFAULT_CV_DATA.layoutSettings,
+            ...cachedLayout,
+            sectionOrder: cleanSectionOrder
+          };
+
           // Merge with DEFAULT_CV_DATA to ensure any new keys/fields are safely populated
           return {
             ...DEFAULT_CV_DATA,
             ...parsed,
+            layoutSettings: sanitizedLayoutSettings,
+            headerContacts: (Array.isArray(parsed.headerContacts) && parsed.headerContacts.length > 0)
+              ? parsed.headerContacts
+              : DEFAULT_CV_DATA.headerContacts,
+            footerSocials: (Array.isArray(parsed.footerSocials) && parsed.footerSocials.length > 0)
+              ? parsed.footerSocials
+              : DEFAULT_CV_DATA.footerSocials,
             webTexts: {
               ...DEFAULT_WEB_TEXTS,
               ...(parsed.webTexts || {})
@@ -57,6 +84,19 @@ export async function fetchCVData(mode: 'live' | 'preview' = 'live'): Promise<CV
   }
 
   return DEFAULT_CV_DATA;
+}
+
+/**
+ * Resets local draft data from localStorage and returns a clean clone of DEFAULT_CV_DATA
+ */
+export function resetCVDataToDefault(): CVData {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('bi-portfolio-cv-data');
+  } catch (err) {
+    console.warn('Failed to clear localStorage on reset:', err);
+  }
+  return JSON.parse(JSON.stringify(DEFAULT_CV_DATA));
 }
 
 /**

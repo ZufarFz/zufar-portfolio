@@ -8,7 +8,10 @@ import {
 } from 'lucide-react';
 import { CVData } from '../types';
 import BackgroundTextures from './BackgroundTextures';
+import FloatingAssetsOverlay from './FloatingAssetsOverlay';
 import SkillsArsenal from './SkillsArsenal';
+import SectionGradientShadow from './SectionGradientShadow';
+import { getThemeColorPalette } from '../lib/themeUtils';
 
 const IconMap: Record<string, any> = {
   Cpu, Flame, Smile, GraduationCap, Briefcase, Award, Heart, 
@@ -330,6 +333,10 @@ export default function AboutMeSubPages({
     const subpageCustomSvg = cvData.webTexts?.[`${prefix}_bg_custom_svg`] || cvData.webTexts?.[`${prefix}_custom_svg`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_custom_svg`] || cvData.webTexts?.[`about_subpage_${prefix}_custom_svg`] || cvData.webTexts?.about_subpages_custom_svg;
     const subpageCustomUrl = cvData.webTexts?.[`${prefix}_bg_custom_url`] || cvData.webTexts?.[`${prefix}_custom_url`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_custom_url`] || cvData.webTexts?.[`about_subpage_${prefix}_custom_url`] || cvData.webTexts?.about_subpages_custom_url;
 
+    const subpageBgColorVal = isDark
+      ? (cvData.webTexts?.[`${prefix}_bg_color_dark`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_color_dark`] || cvData.webTexts?.about_subpages_bg_color_dark)
+      : (cvData.webTexts?.[`${prefix}_bg_color`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_color`] || cvData.webTexts?.about_subpages_bg_color);
+
     return (
       <motion.div 
         initial={{ opacity: 0 }}
@@ -337,7 +344,15 @@ export default function AboutMeSubPages({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="min-h-screen pb-16 font-sans relative overflow-hidden"
+        style={subpageBgColorVal ? { backgroundColor: subpageBgColorVal } : undefined}
       >
+        {/* SECTION GRADIENT SHADOW OVERLAY */}
+        <SectionGradientShadow 
+          sectionKey={prefix} 
+          webTexts={cvData.webTexts} 
+          theme={theme} 
+          accentHex={getThemeColorPalette(cvData.layoutSettings?.themeColor || 'blue').primary}
+        />
         {/* Background Texture Overlay */}
         {subpageBgStyle && subpageBgStyle !== 'none' && (
           <BackgroundTextures
@@ -350,6 +365,8 @@ export default function AboutMeSubPages({
             customBgUrl={subpageCustomUrl || undefined}
           />
         )}
+        {/* Floating Decorative Assets Overlay */}
+        <FloatingAssetsOverlay sectionId={prefix} assets={cvData.floatingAssets} />
         {/* Absolute Header Background Image Band */}
         <div className="absolute top-0 left-0 right-0 h-[540px] pointer-events-none overflow-hidden z-0">
           <img 
