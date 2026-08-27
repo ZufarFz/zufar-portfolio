@@ -2125,7 +2125,7 @@ export default function App() {
           />
           
           <div 
-            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 md:py-20 lg:py-24 grid grid-cols-1 md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 gap-y-6 items-center text-center md:text-left relative z-10 w-full"
+            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 md:py-8 lg:py-10 grid grid-cols-1 md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 gap-y-6 items-center text-center md:text-left relative z-10 w-full min-h-[calc(100vh-4rem)] flex-1"
             style={{
               gridTemplateAreas: isMobile 
                 ? `"title" "image" "desc"` 
@@ -2167,133 +2167,87 @@ export default function App() {
 
             </div>
 
-            {/* 2. Image/Gambar in the center dengan frame lingkar biru dan badge - Posisi di tengah */}
+            {/* 2. Image/Gambar - ABSOLUTE POSITIONED, NO CONTAINER */}
             <motion.div 
-              initial={{ opacity: 0, y: isMobile ? 10 : 20, scale: isMobile ? 0.99 : 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: isMobile ? 0.45 : 0.7, ease: "easeOut", delay: isMobile ? 0.1 : 0.3 }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
               style={{ gridArea: 'image' }}
-              className="w-full flex flex-col items-center justify-center mb-5 md:mb-0 relative"
+              className="relative pointer-events-none"
             >
-              <div className="relative w-full max-w-[420px] sm:max-w-[500px] md:max-w-[560px] lg:max-w-[640px] xl:max-w-[700px]">
-                {/* SVG Lingkaran dengan Gradasi Radial - Blue Sphere Effect */}
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0" 
-                  width="70%"
-                  height="70%"
-                  viewBox="0 0 500 500"
-                  preserveAspectRatio="xMidYMid meet"
-                >
-                  <defs>
-                    {/* Gradien Radial untuk efek pencahayaan halus */}
-                    <radialGradient id="blueSphere" cx="42%" cy="38%" r="55%" fx="42%" fy="38%">
-                      <stop offset="0%" stopColor="#6ba0e6" />
-                      <stop offset="50%" stopColor="#4a7bc7" />
-                      <stop offset="100%" stopColor="#3661a3" />
-                    </radialGradient>
-                  </defs>
-                  
-                  {/* Lingkaran dengan efek sphere */}
-                  <circle 
-                    cx="250" 
-                    cy="250" 
-                    r="220" 
-                    fill="url(#blueSphere)"
-                  />
-                </svg>
-                
-                {/* Fading Halus di Bagian Bawah Frame */}
-                <div className={`absolute inset-0 rounded-[2.5rem] md:rounded-[3rem] lg:rounded-[3.5rem] pointer-events-none bg-gradient-to-t z-10 ${
-                  theme === 'dark' 
-                    ? 'from-slate-900/30 via-slate-900/10 to-transparent' 
-                    : 'from-white/30 via-white/10 to-transparent'
-                }`}></div>
-                
-                {/* Container Gambar */}
-                {(() => {
-                  const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                  const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '40';
-                  const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '95';
-                  const radialX = activeCVData.webTexts?.home_image_radial_x || '80';
-                  const radialY = activeCVData.webTexts?.home_image_radial_y || '80';
-
-                  let imageWrapperStyle: React.CSSProperties = {};
-                  let auraGlowElement: React.ReactNode = null;
-
-                  const radialShape = `ellipse ${radialX}% ${radialY}% at center`;
-
-                  if (maskStyle === 'fade_bottom') {
-                    imageWrapperStyle = {
-                      maskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                      WebkitMaskImage: `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                    };
-                  } else if (maskStyle === 'fade_circle') {
-                    imageWrapperStyle = {
-                      maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                      WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                    };
-                  } else if (maskStyle === 'fade_edge') {
-                    imageWrapperStyle = {
-                      maskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                      WebkitMaskImage: `radial-gradient(${radialShape}, black ${fadeDepth}%, transparent ${fadeWidth}%)`,
-                    };
-                  } else if (maskStyle === 'fade_glow_aura') {
-                    auraGlowElement = (
-                      <div className={`absolute inset-0 rounded-full blur-3xl opacity-35 -z-10 ${isMobile ? '' : 'animate-pulse'} ${
-                        theme === 'dark' ? 'bg-blue-500/35' : 'bg-blue-600/25'
-                      }`} style={{ transform: 'scale(0.85)' }} />
-                    );
-                  }
-
-                  return (
-                    <div 
-                      className={`relative w-full aspect-square group transition-all duration-300 ease-out hover:scale-102 cursor-pointer ${isPng ? '' : 'hover:shadow-2xl'}`}
-                      onClick={() => scrollToSection('profil')}
-                      title="Buka Halaman Tentang Saya (Story)"
-                    >
-                      {/* Aura Glow Background */}
-                      {auraGlowElement}
-
-                      {/* Image Wrapper dengan efek fading */}
-                      <div 
-                        className={`w-full h-full rounded-2xl md:rounded-3xl transition-all overflow-hidden relative flex items-center justify-center ${
-                          isPng 
-                            ? 'bg-transparent border-transparent' 
-                            : 'shadow-xl'
-                        }`}
-                        style={imageWrapperStyle}
-                      >
-                        {currentProfileImageUrl ? (
-                          <img 
-                            className={`w-full h-full transition-transform duration-700 ease-out select-none pointer-events-none ${
-                              isPng ? 'object-contain' : 'object-cover grayscale-[10%] group-hover:scale-105'
-                            }`}
-                            referrerPolicy="no-referrer"
-                            alt="Professional Portfolio Visual" 
-                            src={currentProfileImageUrl}
-                            style={{
-                              transform: `scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
-                              transformOrigin: 'center center'
-                            }}
-                          />
-                        ) : (
-                          <div className={`text-center p-6 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                            <p className="text-xs font-mono">Belum ada gambar</p>
-                          </div>
-                        )}
-                        
-                        {/* Overlay Fading Halus di Bawah Gambar */}
-                        <div className={`absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t ${
-                          theme === 'dark' 
-                            ? 'from-slate-900/90 via-slate-900/40 to-transparent' 
-                            : 'from-white/90 via-white/40 to-transparent'
-                        } pointer-events-none`}></div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
+              {/* SVG Lingkaran dengan Gradasi Radial - Blue Sphere Effect */}
+              <svg 
+                xmlns="http://www.w3.org/2000/svg"
+                className="absolute left-1/2 top-1/2 pointer-events-none z-0" 
+                width="600"
+                height="600"
+                viewBox="0 0 500 500"
+                preserveAspectRatio="xMidYMid meet"
+                style={{
+                  transform: `translate(-50%, -50%) scale(${(activeCVData as any).homeImageCircleScale ?? 1}) translate(${((activeCVData as any).homeImageCircleX ?? 0) * 2}px, ${((activeCVData as any).homeImageCircleY ?? 0) * 2}px)`
+                }}
+              >
+                <defs>
+                  <radialGradient id="blueSphere" cx="42%" cy="38%" r="55%" fx="42%" fy="38%">
+                    <stop offset="0%" stopColor="#6ba0e6" />
+                    <stop offset="50%" stopColor="#4a7bc7" />
+                    <stop offset="100%" stopColor="#3661a3" />
+                  </radialGradient>
+                </defs>
+                <circle 
+                  cx="250" 
+                  cy="250" 
+                  r="220" 
+                  fill="url(#blueSphere)"
+                />
+              </svg>
+              
+              {/* Image - ABSOLUTE, NO WRAPPER */}
+              {currentProfileImageUrl && (
+                <img 
+                  className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-transform duration-700 ease-out select-none ${
+                    isPng ? 'object-contain' : 'object-cover'
+                  }`}
+                  onClick={() => scrollToSection('profil')}
+                  title="Buka Halaman Tentang Saya (Story)"
+                  referrerPolicy="no-referrer"
+                  alt="Professional Portfolio Visual" 
+                  src={currentProfileImageUrl}
+                  style={{
+                    width: '600px',
+                    height: '600px',
+                    transform: `translate(-50%, -50%) scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
+                    transformOrigin: 'center center',
+                    opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
+                    maskImage: (() => {
+                      const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                      const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                      const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                      if (maskStyle === 'fade_bottom') {
+                        return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                      } else if (maskStyle === 'fade_circle') {
+                        return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                      } else if (maskStyle === 'fade_edge') {
+                        return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                      }
+                      return 'none';
+                    })(),
+                    WebkitMaskImage: (() => {
+                      const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                      const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                      const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                      if (maskStyle === 'fade_bottom') {
+                        return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                      } else if (maskStyle === 'fade_circle') {
+                        return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                      } else if (maskStyle === 'fade_edge') {
+                        return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                      }
+                      return 'none';
+                    })()
+                  }}
+                />
+              )}
             </motion.div>
 
             {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi */}

@@ -206,6 +206,10 @@ export interface CVData {
   homeImageScale?: number;
   homeImageX?: number;
   homeImageY?: number;
+  homeImageFade?: number;
+  homeImageCircleScale?: number;
+  homeImageCircleX?: number;
+  homeImageCircleY?: number;
   aboutStoryImageScale?: number;
   aboutStoryImageX?: number;
   aboutStoryImageY?: number;

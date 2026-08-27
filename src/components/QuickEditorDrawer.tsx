@@ -2379,6 +2379,150 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                               />
                             </div>
                           </div>
+
+                          {/* Fade, Circle Size & Position Controls */}
+                          <div className="pt-2 border-t border-slate-800 space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                  <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> Fade Gambar:</span>
+                                  <span className="font-mono text-purple-400">{((localData as any).homeImageFade ?? 0).toFixed(2)}</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  value={(localData as any).homeImageFade ?? 0}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    handleUpdate(prev => ({ ...prev, homeImageFade: val } as any));
+                                  }}
+                                  className="w-full accent-purple-500 cursor-pointer"
+                                />
+                              </div>
+                              <div>
+                                <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                  <span className="flex items-center gap-1"><Target className="w-3 h-3" /> Lingkaran SVG Scale:</span>
+                                  <span className="font-mono text-purple-400">{((localData as any).homeImageCircleScale ?? 1).toFixed(2)}x</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0.5"
+                                  max="2.5"
+                                  step="0.05"
+                                  value={(localData as any).homeImageCircleScale ?? 1}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    handleUpdate(prev => ({ ...prev, homeImageCircleScale: val } as any));
+                                  }}
+                                  className="w-full accent-purple-500 cursor-pointer"
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                  <span className="flex items-center gap-1"><Move className="w-3 h-3" /> Lingkaran Geser X:</span>
+                                  <span className="font-mono text-purple-400">{((localData as any).homeImageCircleX ?? 0)}px</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="-150"
+                                  max="150"
+                                  step="1"
+                                  value={(localData as any).homeImageCircleX ?? 0}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    handleUpdate(prev => ({ ...prev, homeImageCircleX: val } as any));
+                                  }}
+                                  className="w-full accent-purple-500 cursor-pointer"
+                                />
+                              </div>
+                              <div>
+                                <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                  <span className="flex items-center gap-1"><Move className="w-3 h-3" /> Lingkaran Geser Y:</span>
+                                  <span className="font-mono text-purple-400">{((localData as any).homeImageCircleY ?? 0)}px</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="-150"
+                                  max="150"
+                                  step="1"
+                                  value={(localData as any).homeImageCircleY ?? 0}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    handleUpdate(prev => ({ ...prev, homeImageCircleY: val } as any));
+                                  }}
+                                  className="w-full accent-purple-500 cursor-pointer"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Mask Style Controls */}
+                            <div className="pt-4 border-t border-slate-800 space-y-3">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                <span>Gaya Fade Gambar:</span>
+                                <span className="font-mono text-purple-400">
+                                  {(localData.webTexts?.home_image_mask_style || 'normal').replace('_', ' ')}
+                                </span>
+                              </div>
+                              <select
+                                onChange={(e) => {
+                                  handleWebTextChange('home_image_mask_style', e.target.value, editLang);
+                                }}
+                                className="w-full px-3 py-2 rounded border bg-slate-800/20 text-slate-200 focus:border-emerald-500"
+                              >
+                                <option value="normal">Normal</option>
+                                <option value="fade_bottom">Fade Bawah</option>
+                                <option value="fade_circle">Fade Lingkaran</option>
+                                <option value="fade_edge">Fade Tepi</option>
+                                <option value="fade_glow_aura">Fade Aura Glow</option>
+                              </select>
+                            </div>
+                            
+                            {/* Fade Depth Control */}
+                            <div className="pt-4 border-t border-slate-800 space-y-3">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                <span>Kedalaman Fade:</span>
+                                <span className="font-mono text-purple-400">
+                                  {localData.webTexts?.home_image_fade_depth || '66'}%
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={parseInt(localData.webTexts?.home_image_fade_depth || '66')}
+                                onChange={(e) => {
+                                  handleWebTextChange('home_image_fade_depth', e.target.value, editLang);
+                                }}
+                                className="w-full accent-purple-500 cursor-pointer"
+                              />
+                            </div>
+                            
+                            {/* Fade Width Control */}
+                            <div className="pt-4 border-t border-slate-800 space-y-3">
+                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                <span>Lebar Fade:</span>
+                                <span className="font-mono text-purple-400">
+                                  {localData.webTexts?.home_image_fade_width || '84'}%
+                                </span>
+                              </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={parseInt(localData.webTexts?.home_image_fade_width || '84')}
+                                  onChange={(e) => {
+                                    handleWebTextChange('home_image_fade_width', e.target.value, editLang);
+                                  }}
+                                  className="w-full accent-purple-500 cursor-pointer"
+                                />
+                            </div>
+                          </div>
                         </div>
                       </>
                     )}
