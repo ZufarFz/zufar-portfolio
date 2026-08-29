@@ -104,6 +104,27 @@ function formatSocialLink(link: string | undefined, platform: string, defaultVal
   return getAbsoluteSocialUrl(link, platform);
 }
 
+// Helper to render active nav tab background
+function getActiveTabStyle(active: boolean, theme: 'light' | 'dark', activeCVData: CVData) {
+  if (!active) return undefined;
+  
+  const opacity = parseFloat(activeCVData.webTexts?.navbar_active_bg_opacity || '0.6');
+  const hexColor = theme === 'dark' 
+    ? (activeCVData.webTexts?.navbar_active_bg_color_dark || '#064e3b')
+    : (activeCVData.webTexts?.navbar_active_bg_color || '#d1fae5');
+  
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  
+  return {
+    color: theme === 'dark' 
+      ? (activeCVData.webTexts?.navbar_active_color_dark || '#34d399')
+      : (activeCVData.webTexts?.navbar_active_color || '#047857'),
+    backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`
+  };
+}
+
 interface SocialFooterButtonProps {
   key?: string | number;
   s: any;
@@ -1567,13 +1588,12 @@ export default function App() {
                             onClick={() => scrollToSection(section)}
                             className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3 py-1.5 rounded-full border relative ${
                               active 
-                                ? (theme === 'dark' 
-                                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-xs' 
-                                    : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10 shadow-xs') 
+                                ? 'border-transparent shadow-xs' 
                                 : (theme === 'dark' 
                                     ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]' 
                                     : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
                             }`}
+                            style={getActiveTabStyle(active, theme, activeCVData)}
                           >
                             {section}
                           </button>
@@ -1790,13 +1810,12 @@ export default function App() {
                             }}
                             className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-3 px-4 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
                               active
-                                ? (theme === 'dark'
-                                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                    : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10')
+                                ? 'border-transparent'
                                 : (theme === 'dark'
                                     ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
                                     : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
                             }`}
+                            style={getActiveTabStyle(active, theme, activeCVData)}
                           >
                             <span>{section}</span>
                             {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
@@ -2029,20 +2048,19 @@ export default function App() {
                                 scrollToSection(section);
                                 setMobileMenuOpen(false);
                               }}
-                              className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-2.5 px-3 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
-                                active
-                                  ? (theme === 'dark'
-                                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                      : 'text-emerald-700 bg-emerald-500/10 border-emerald-500/10')
-                                  : (theme === 'dark'
-                                      ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
-                                      : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
-                              }`}
-                            >
-                              <span className="flex items-center gap-2.5">
-                                {getIcon(section)}
-                                {section}
-                              </span>
+                                className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-2.5 px-3 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
+                                  active
+                                    ? 'border-transparent'
+                                    : (theme === 'dark'
+                                        ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
+                                        : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                                }`}
+                            style={getActiveTabStyle(active, theme, activeCVData)}
+                         >
+                           <span className="flex items-center gap-2.5">
+                             {getIcon(section)}
+                             {section}
+                           </span>
                               {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                             </button>
                           );
@@ -2149,17 +2167,24 @@ export default function App() {
           >
             {/* 1. Greeting, Title/Judul, Description & CTA Buttons (Fluid Responsive Sizing) */}
             <div style={{ gridArea: 'title' }} className="text-center md:text-left flex flex-col justify-center max-w-3xl md:max-w-none relative z-20">
-              {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 - Fluid Dynamic Scaling */}
+               {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 - Fluid Dynamic Scaling */}
               <motion.div 
                 initial={{ opacity: 0, y: isMobile ? 10 : 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: isMobile ? 0.4 : 0.5, delay: isMobile ? 0.05 : 0.15, ease: "easeOut" }}
-                className={`font-bold text-[clamp(1.25rem,2.5vw,3rem)] tracking-widest uppercase mb-1 sm:mb-2 transition-colors duration-200 ${
+                className={`font-bold text-[clamp(1.25rem,2.5vw,3rem)] tracking-widest uppercase mb-1 sm:mb-2 transition-colors duration-200 whitespace-nowrap ${
                   theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`}
                 style={{ fontFamily: "'VT323', monospace" }}
               >
-                <TypewriterText name={activeCVData.nickname || activeCVData.name || "ZUFA"} lang={lang} />
+                <TypewriterText 
+                  name={
+                    (activeCVData.webTexts?.hero_name_source === 'fullname') 
+                      ? (activeCVData.name || activeCVData.nickname || "ZUFA") 
+                      : (activeCVData.nickname || activeCVData.name || "ZUFA")
+                  } 
+                  lang={lang} 
+                />
               </motion.div>
               
               {/* Main Title (misal Junior Data Analyst) - Mepet ke bawah dengan deskripsi - Fluid Responsive */}
@@ -2200,28 +2225,28 @@ export default function App() {
                 {/* Tombol Utama - Biru Solid "Hubungi Saya" */}
                 <button
                   onClick={() => scrollToSection('contact')}
-                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                    theme === 'dark' 
-                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
-                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
-                  }`}
-                >
-                  <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Hubungi Saya</span>
-                </button>
-                
-                {/* Tombol Sekunder - Biru Solid "Download Resume" - Warna Putih */}
-                <button
-                  onClick={() => {
-                    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
-                    setCvModalDirectDownload(isMobileViewport);
-                    setCvModalOpen(true);
-                  }}
-                  className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-lg flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                    theme === 'dark' 
-                      ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
-                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40'
-                  }`}
+                    className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-full flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
+                      theme === 'dark' 
+                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                    }`}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>Hubungi Saya</span>
+                  </button>
+                  
+                  {/* Tombol Sekunder - Biru Solid "Download Resume" - Warna Putih */}
+                  <button
+                    onClick={() => {
+                      const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+                      setCvModalDirectDownload(isMobileViewport);
+                      setCvModalOpen(true);
+                    }}
+                    className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-full flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
+                      theme === 'dark' 
+                        ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
+                        : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40'
+                    }`}
                 >
                   <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>Download Resume</span>
@@ -2320,38 +2345,38 @@ export default function App() {
               )}
             </motion.div>
 
-            {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi (Posisi agak ke bawah) */}
+            {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi (Posisi agak ke atas) */}
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
               style={{ gridArea: 'badge' }}
-              className="hidden md:flex flex-col gap-1.5 items-start text-left justify-start self-start pt-8 md:pt-10 lg:pt-14 xl:pt-20"
+              className="hidden md:flex flex-col gap-1.5 items-start text-left justify-start self-start pt-10 md:pt-12 lg:pt-14 xl:pt-16 relative z-30"
             >
               {/* OPEN TO WORK - Bold warna hitam/putih dengan fluid scaling */}
               <div className="flex items-center gap-1.5">
                 <span className={`font-sans text-[clamp(0.75rem,1.1vw,1.15rem)] font-black uppercase tracking-[0.15em] italic transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}>
-                  OPEN TO WORK
+                  {activeCVData.webTexts?.hero_badge || "OPEN TO WORK"}
                 </span>
               </div>
               
-              {/* Tahun 2026 - Font Black Ops One, lebih besar dan bold fluid */}
+              {/* Tahun - Font Black Ops One, lebih besar dan bold fluid */}
               <span 
                 className={`font-black text-[clamp(2.75rem,4.75vw,5.25rem)] leading-none transition-colors duration-200 ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}
                 style={{ fontFamily: "'Black Ops One', cursive" }}
               >
-                2026
+                {activeCVData.webTexts?.hero_year || "2026"}
               </span>
               
               {/* Lokasi - Bold dan hitam/putih fluid */}
               <span className={`font-sans font-black text-[clamp(0.875rem,1.2vw,1.35rem)] italic uppercase tracking-wider transition-colors duration-200 ${
                 theme === 'dark' ? 'text-white' : 'text-black'
               }`}>
-                {activeCVData.location || "Indonesia"}
+                {activeCVData.webTexts?.hero_location || "Klaten, Jawa Tengah"}
               </span>
             </motion.div>
           </div>

@@ -369,6 +369,9 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
       key.includes('_bg_color') ||
       key.includes('_card_bg_color') ||
       key.includes('_navbar_bg_color') ||
+      key.includes('_navbar_active_color') ||
+      key.includes('_navbar_active_bg_color') ||
+      key.includes('_navbar_active_bg_opacity') ||
       key.includes('_header_bg') ||
       key.includes('_image_mask') ||
       key.includes('_image_fade') ||
@@ -2728,6 +2731,111 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                               className={inputClass}
                             />
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Active Tab Highlight Colors */}
+                      <div className="pt-3 border-t border-slate-700/50 space-y-3">
+                        <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Warna & Kontainer Sorotan Tab Aktif</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                              Warna Teks Tab Aktif (Terang)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={localData.webTexts?.navbar_active_color?.startsWith('#') ? localData.webTexts.navbar_active_color : '#047857'}
+                                onChange={(e) => handleWebTextChange('navbar_active_color', e.target.value, editLang)}
+                                className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={localData.webTexts?.navbar_active_color || ''}
+                                onChange={(e) => handleWebTextChange('navbar_active_color', e.target.value, editLang)}
+                                className={inputClass}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                              Warna Teks Tab Aktif (Gelap)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={localData.webTexts?.navbar_active_color_dark?.startsWith('#') ? localData.webTexts.navbar_active_color_dark : '#34d399'}
+                                onChange={(e) => handleWebTextChange('navbar_active_color_dark', e.target.value, editLang)}
+                                className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={localData.webTexts?.navbar_active_color_dark || ''}
+                                onChange={(e) => handleWebTextChange('navbar_active_color_dark', e.target.value, editLang)}
+                                className={inputClass}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                              Warna Kontainer Tab (Terang)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={localData.webTexts?.navbar_active_bg_color?.startsWith('#') ? localData.webTexts.navbar_active_bg_color : '#d1fae5'}
+                                onChange={(e) => handleWebTextChange('navbar_active_bg_color', e.target.value, editLang)}
+                                className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={localData.webTexts?.navbar_active_bg_color || ''}
+                                onChange={(e) => handleWebTextChange('navbar_active_bg_color', e.target.value, editLang)}
+                                className={inputClass}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                              Warna Kontainer Tab (Gelap)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={localData.webTexts?.navbar_active_bg_color_dark?.startsWith('#') ? localData.webTexts.navbar_active_bg_color_dark : '#064e3b'}
+                                onChange={(e) => handleWebTextChange('navbar_active_bg_color_dark', e.target.value, editLang)}
+                                className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
+                              />
+                              <input
+                                type="text"
+                                value={localData.webTexts?.navbar_active_bg_color_dark || ''}
+                                onChange={(e) => handleWebTextChange('navbar_active_bg_color_dark', e.target.value, editLang)}
+                                className={inputClass}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 mb-1">
+                            <span>Transparansi Kontainer Sorotan Tab:</span>
+                            <span className="font-mono text-emerald-400">{Math.round(parseFloat(localData.webTexts?.navbar_active_bg_opacity || '0.6') * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.05"
+                            max="1.0"
+                            step="0.05"
+                            value={parseFloat(localData.webTexts?.navbar_active_bg_opacity || '0.6')}
+                            onChange={(e) => handleWebTextChange('navbar_active_bg_opacity', e.target.value, editLang)}
+                            className="w-full accent-emerald-500 cursor-pointer h-2 bg-slate-800 rounded"
+                          />
                         </div>
                       </div>
                     </div>
@@ -5250,6 +5358,56 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Hero / Home ({editLang.toUpperCase()})</span>
                   </h4>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Sumber Nama Hero
+                  </label>
+                  <select
+                    value={localData.webTexts?.hero_name_source || 'nickname'}
+                    onChange={(e) => handleWebTextChange('hero_name_source', e.target.value, editLang)}
+                    className={inputClass}
+                  >
+                    <option value="nickname">Nama Panggilan (Nickname)</option>
+                    <option value="fullname">Nama Lengkap (Full Name)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Hero Badge ({editLang.toUpperCase()})
+                  </label>
+                  <input
+                    type="text"
+                    value={getWebText('hero_badge', editLang)}
+                    onChange={(e) => handleWebTextChange('hero_badge', e.target.value, editLang)}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Tahun ({editLang.toUpperCase()})
+                  </label>
+                  <input
+                    type="text"
+                    value={getWebText('hero_year', editLang)}
+                    onChange={(e) => handleWebTextChange('hero_year', e.target.value, editLang)}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Wilayah ({editLang.toUpperCase()})
+                  </label>
+                  <input
+                    type="text"
+                    value={getWebText('hero_location', editLang)}
+                    onChange={(e) => handleWebTextChange('hero_location', e.target.value, editLang)}
+                    className={inputClass}
+                  />
                 </div>
 
                 <div>
