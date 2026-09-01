@@ -170,30 +170,31 @@ function Band({
     }
 
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
+    canvas.width = 2048;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     if (!ctx) return rawTexture;
 
     // Dark sleek lanyard strap background
     ctx.fillStyle = '#090d16';
-    ctx.fillRect(0, 0, 1024, 128);
+    ctx.fillRect(0, 0, 2048, 128);
 
     // Subtle edge borders/stitching
     ctx.fillStyle = '#334155';
-    ctx.fillRect(0, 0, 1024, 8);
-    ctx.fillRect(0, 120, 1024, 8);
+    ctx.fillRect(0, 0, 2048, 8);
+    ctx.fillRect(0, 120, 2048, 8);
 
     // Large Bold Typography with generous spacing between repetitions
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 68px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = '900 82px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textBaseline = 'middle';
 
-    const textToDraw = `   ✦   ${lanyardText.toUpperCase()}   ✦   `;
-    const textWidth = ctx.measureText(textToDraw).width || 600;
+    // Generous spacing between repetitions with clean bullet & diamond glyphs
+    const textToDraw = `        ✦   ${lanyardText.toUpperCase()}   ✦        `;
+    const textWidth = ctx.measureText(textToDraw).width || 800;
     
     // Draw repeating text across canvas width with generous spacing
-    const repeats = Math.ceil(1024 / textWidth) + 1;
+    const repeats = Math.ceil(2048 / textWidth) + 2;
     for (let i = 0; i < repeats; i++) {
       ctx.fillText(textToDraw, i * textWidth, 64);
     }
@@ -328,20 +329,25 @@ function Band({
           // Cursor Top (y > 0) -> tilts top edge inwards/backwards
           // Cursor Bottom (y < 0) -> tilts bottom edge inwards
           // Corners -> seamless diagonal pitch, yaw & roll combination
-          const tiltSensitivityX = 0.52;
-          const tiltSensitivityY = 0.65;
+          const tiltSensitivityX = 0.58;
+          const tiltSensitivityY = 0.70;
           targetEulerY = THREE.MathUtils.clamp(pointerRef.current.x * tiltSensitivityY, -0.65, 0.65);
           targetEulerX = THREE.MathUtils.clamp(pointerRef.current.y * tiltSensitivityX, -0.55, 0.55);
-          targetEulerZ = THREE.MathUtils.clamp(-pointerRef.current.x * pointerRef.current.y * 0.15, -0.2, 0.2);
+          targetEulerZ = THREE.MathUtils.clamp(-pointerRef.current.x * pointerRef.current.y * 0.2, -0.25, 0.25);
+        } else {
+          // Subtle organic idle breathing / floating micro-tilt when not hovered
+          const idleTime = state.clock.elapsedTime;
+          targetEulerY = Math.sin(idleTime * 1.2) * 0.035;
+          targetEulerX = Math.cos(idleTime * 0.9) * 0.025;
         }
 
-        const springTorqueY = -Math.sin(euler.y - targetEulerY) * (hovered ? 8.0 : 4.0);
-        const springTorqueX = -Math.sin(euler.x - targetEulerX) * (hovered ? 7.0 : 2.5);
-        const springTorqueZ = -Math.sin(euler.z - targetEulerZ) * (hovered ? 5.0 : 3.0);
+        const springTorqueY = -Math.sin(euler.y - targetEulerY) * (hovered ? 9.5 : 4.5);
+        const springTorqueX = -Math.sin(euler.x - targetEulerX) * (hovered ? 8.5 : 3.0);
+        const springTorqueZ = -Math.sin(euler.z - targetEulerZ) * (hovered ? 6.0 : 3.5);
 
-        newAngY = ang.y * 0.95 + springTorqueY * delta;
-        newAngX = ang.x * 0.94 + springTorqueX * delta;
-        newAngZ = ang.z * 0.94 + springTorqueZ * delta;
+        newAngY = ang.y * 0.94 + springTorqueY * delta;
+        newAngX = ang.x * 0.93 + springTorqueX * delta;
+        newAngZ = ang.z * 0.93 + springTorqueZ * delta;
       }
 
       card.current.setAngvel({ x: newAngX, y: newAngY, z: newAngZ });

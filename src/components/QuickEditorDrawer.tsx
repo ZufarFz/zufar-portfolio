@@ -72,6 +72,9 @@ import { saveCVData, uploadFileToStorage, resetCVDataToDefault } from '../lib/st
 import { DEFAULT_CV_DATA, DEFAULT_WEB_TEXTS, ID_TRANSLATIONS } from '../data/portfolioData';
 import BackgroundPatternSelector from './BackgroundPatternSelector';
 import TechLogo from './TechLogo';
+import ThemeTemplateStudio from './ThemeTemplateStudio';
+import { HERO_THEME_TEMPLATES } from '../data/themeTemplates';
+import { HERO_LAYOUT_TEMPLATES, LayoutTemplate } from '../data/layoutTemplates';
 
 interface QuickEditorDrawerProps {
   isOpen: boolean;
@@ -102,7 +105,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   const [localData, setLocalData] = useState<CVData>(cvData);
   const [editLang, setEditLang] = useState<'id' | 'en'>(currentLang);
   const [editorMode, setEditorMode] = useState<'id' | 'en' | 'assets'>('id');
-  const [assetTab, setAssetTab] = useState<'bg_patterns' | 'floating_assets' | 'bg_shadows' | 'bg_colors' | 'images' | 'idcard'>('bg_patterns');
+  const [assetTab, setAssetTab] = useState<'templates' | 'bg_patterns' | 'floating_assets' | 'bg_shadows' | 'bg_colors' | 'images' | 'idcard' | 'gooey_cursor'>('templates');
   const [activeBgSection, setActiveBgSection] = useState<string>('home');
   const [appliedAllNotice, setAppliedAllNotice] = useState<boolean>(false);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
@@ -339,6 +342,107 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   };
 
   // ============================================================================
+  // TEMPLATE & PRESET STUDIO HANDLERS
+  // ============================================================================
+  const handleApplyThemeTemplate = (patch: Record<string, string>, themeAccent?: string) => {
+    handleUpdate((prev) => {
+      const newTexts = { ...(prev.webTexts || {}), ...patch };
+      const currentLayout = prev.layoutSettings || {
+        themeColor: 'rose',
+        fontSize: 'standard',
+        spacing: 'standard',
+        layoutStyle: 'left-sidebar',
+        fontFamily: 'sans',
+        sectionOrder: []
+      };
+      const newLayout = {
+        ...currentLayout,
+        ...(themeAccent ? { themeColor: themeAccent as any } : {})
+      };
+      return {
+        ...prev,
+        webTexts: newTexts,
+        layoutSettings: newLayout
+      };
+    });
+  };
+
+  const handleApplyLayoutTemplate = (layout: LayoutTemplate) => {
+    handleUpdate((prev) => {
+      const targetSec = layout.category || 'home';
+      const nonSecAssets = (prev.floatingAssets || []).filter(a => a.section !== targetSec);
+      const updatedAssets = [...nonSecAssets, ...layout.floatingAssets];
+      const newTexts = {
+        ...(prev.webTexts || {}),
+        ...(layout.webTextsConfig || {})
+      };
+      return {
+        ...prev,
+        floatingAssets: updatedAssets,
+        webTexts: newTexts
+      };
+    });
+  };
+
+  const handleApplyFullZenPreset = () => {
+    const asahiTheme = HERO_THEME_TEMPLATES.find(t => t.id === 'hero-asahi-tsukimi');
+    const zenLayout = HERO_LAYOUT_TEMPLATES.find(l => l.id === 'hero-zen-asahi-composition');
+    if (!asahiTheme || !zenLayout) return;
+
+    handleUpdate((prev) => {
+      const nonHomeAssets = (prev.floatingAssets || []).filter(a => a.section !== 'home');
+      const mergedAssets = [...nonHomeAssets, ...zenLayout.floatingAssets];
+      const newTexts = {
+        ...(prev.webTexts || {}),
+        ...asahiTheme.webTextsPatch,
+        ...(zenLayout.webTextsConfig || {})
+      };
+      const currentLayout = prev.layoutSettings || {
+        themeColor: 'rose',
+        fontSize: 'standard',
+        spacing: 'standard',
+        layoutStyle: 'left-sidebar',
+        fontFamily: 'sans',
+        sectionOrder: []
+      };
+      const newLayout = {
+        ...currentLayout,
+        themeColor: (asahiTheme.themeAccent || 'rose') as any
+      };
+      return {
+        ...prev,
+        floatingAssets: mergedAssets,
+        webTexts: newTexts,
+        layoutSettings: newLayout
+      };
+    });
+  };
+
+  const handleAddSingleAsset = (asset: Partial<FloatingAsset>) => {
+    const newAsset: FloatingAsset = {
+      id: asset.id || `asset_${Date.now()}`,
+      name: asset.name || 'Ornamen SVG Baru',
+      section: asset.section || activeBgSection || 'home',
+      type: asset.type || 'svg',
+      content: asset.content || '',
+      color: asset.color,
+      width: asset.width || 200,
+      x: asset.x ?? 50,
+      y: asset.y ?? 50,
+      rotation: asset.rotation || 0,
+      opacity: asset.opacity ?? 0.9,
+      zIndex: asset.zIndex || 8,
+      layer: asset.layer || 'above_image',
+      animation: asset.animation || 'float',
+      flipX: asset.flipX || false
+    };
+    handleUpdate((prev) => ({
+      ...prev,
+      floatingAssets: [...(prev.floatingAssets || []), newAsset]
+    }));
+  };
+
+  // ============================================================================
   // BILINGUAL WEBTEXTS ENGINE
   // ============================================================================
   const getWebText = (key: string, targetLang: 'id' | 'en'): string => {
@@ -446,6 +550,62 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
     });
   };
 
+  // Helper to render dual-mode (Light/Dark) color picker controls for individual text fields
+  const renderColorControls = (
+    lightKey: string,
+    darkKey: string,
+    label: string = 'Warna Teks',
+    defaultLightHex: string = '#0f172a',
+    defaultDarkHex: string = '#ffffff'
+  ) => {
+    const rawLight = getWebText(lightKey, editLang);
+    const rawDark = getWebText(darkKey, editLang);
+    const currentLight = rawLight && rawLight.trim() !== '' ? rawLight : defaultLightHex;
+    const currentDark = rawDark && rawDark.trim() !== '' ? rawDark : defaultDarkHex;
+
+    return (
+      <div className="flex flex-wrap items-center gap-2.5 pt-1 pb-1">
+        <div className="flex items-center gap-1.5 bg-slate-800/80 dark:bg-slate-900/80 border border-slate-700/60 rounded-lg px-2 py-1 shadow-xs">
+          <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="text-[10px] text-slate-300 font-medium whitespace-nowrap">Terang:</span>
+          <input
+            type="color"
+            value={currentLight.startsWith('#') ? currentLight : defaultLightHex}
+            onChange={(e) => handleWebTextChange(lightKey, e.target.value, editLang)}
+            className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
+            title={`Pilih warna ${label} (Mode Terang)`}
+          />
+          <input
+            type="text"
+            value={currentLight}
+            onChange={(e) => handleWebTextChange(lightKey, e.target.value, editLang)}
+            className="w-18 text-[10px] font-mono bg-slate-950/70 border border-slate-700/50 rounded px-1.5 py-0.5 text-slate-200 focus:outline-hidden"
+            placeholder={defaultLightHex}
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-slate-800/80 dark:bg-slate-900/80 border border-slate-700/60 rounded-lg px-2 py-1 shadow-xs">
+          <Moon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+          <span className="text-[10px] text-slate-300 font-medium whitespace-nowrap">Gelap:</span>
+          <input
+            type="color"
+            value={currentDark.startsWith('#') ? currentDark : defaultDarkHex}
+            onChange={(e) => handleWebTextChange(darkKey, e.target.value, editLang)}
+            className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
+            title={`Pilih warna ${label} (Mode Gelap)`}
+          />
+          <input
+            type="text"
+            value={currentDark}
+            onChange={(e) => handleWebTextChange(darkKey, e.target.value, editLang)}
+            className="w-18 text-[10px] font-mono bg-slate-950/70 border border-slate-700/50 rounded px-1.5 py-0.5 text-slate-200 focus:outline-hidden"
+            placeholder={defaultDarkHex}
+          />
+        </div>
+      </div>
+    );
+  };
+
   // ============================================================================
   // BILINGUAL LIST PAIR HELPERS (Education, Sections, Projects, Experiences, etc.)
   // ============================================================================
@@ -545,7 +705,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
       const currentList = (prev[listKey] as any[] || []);
       const pairs = getBilingualPairs(currentList);
       
-      const sharedFields = ['customSvg', 'svgUrl', 'category', 'showOnWeb', 'showOnCV', 'level', 'icon', 'year', 'period'];
+      const sharedFields = ['customSvg', 'svgUrl', 'category', 'showOnWeb', 'showOnCV', 'level', 'icon', 'year', 'period', 'image', 'projectUrl', 'tags', 'tools'];
 
       const updatedPairs = pairs.map(pair => {
         if (pair.baseId === baseId) {
@@ -693,8 +853,8 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   // Helper for Case Studies
   const bilingualProjects = getBilingualPairs<CaseStudy>(
     localData.caseStudies,
-    (baseId) => ({ id: `${baseId}-en`, title: 'Project Title', category: 'Analytics', description: '', impactMetric: '' }),
-    (baseId) => ({ id: `${baseId}-id`, title: 'Judul Proyek', category: 'Analitika', description: '', impactMetric: '' })
+    (baseId) => ({ id: `${baseId}-en`, title: 'Project Title', shortDescription: '', description: '', tags: [], image: '', tools: [] }),
+    (baseId) => ({ id: `${baseId}-id`, title: 'Judul Proyek', shortDescription: '', description: '', tags: [], image: '', tools: [] })
   );
 
   // Helper for Experiences
@@ -1377,6 +1537,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
               <div className="flex items-center gap-1 overflow-x-auto">
                 <button
                   type="button"
+                  onClick={() => setAssetTab('templates')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                    assetTab === 'templates'
+                      ? 'bg-gradient-to-r from-rose-600 via-purple-600 to-indigo-600 text-white shadow-sm ring-1 ring-rose-400/50'
+                      : 'text-rose-400 hover:text-rose-200 bg-rose-950/30'
+                  }`}
+                >
+                  <span>🎴 Template &amp; Preset</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setAssetTab('bg_patterns')}
                   className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
                     assetTab === 'bg_patterns'
@@ -1441,6 +1612,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 >
                   <span>🪪 ID Card</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setAssetTab('gooey_cursor')}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                    assetTab === 'gooey_cursor'
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-1 ring-emerald-400/50'
+                      : 'text-emerald-400 hover:text-emerald-200 bg-emerald-950/30'
+                  }`}
+                >
+                  <span>✨ Gooey Cursor</span>
+                </button>
               </div>
             </div>
           )}
@@ -1453,6 +1635,19 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
             {/* ==================================================================== */}
             {editorMode === 'assets' ? (
               <div className="space-y-6">
+                {/* 0. TEMPLATES & PRESETS STUDIO */}
+                {assetTab === 'templates' && (
+                  <ThemeTemplateStudio
+                    cvData={localData}
+                    activeSection={activeBgSection}
+                    isDark={isDark}
+                    onApplyTheme={handleApplyThemeTemplate}
+                    onApplyLayout={handleApplyLayoutTemplate}
+                    onApplyFullZenPreset={handleApplyFullZenPreset}
+                    onAddSingleAsset={handleAddSingleAsset}
+                  />
+                )}
+
                 {/* 1. POLA SVG & TEKSTUR BACKGROUND */}
                 {assetTab === 'bg_patterns' && (
                   <div className="space-y-5">
@@ -1958,7 +2153,10 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                                 {/* Ukuran Lebar (Width in px) dengan Slider Besar & Input Angka & Preset */}
                                 <div className="space-y-1.5">
                                   <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
-                                    <span>Ukuran Besar / Kecil:</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span>Ukuran Besar / Kecil:</span>
+                                      <span className="text-[9px] text-emerald-400 font-normal bg-emerald-950/40 px-1 rounded border border-emerald-500/20">⚡ Responsif Layar</span>
+                                    </div>
                                     <div className="flex items-center gap-1">
                                       <input
                                         type="number"
@@ -2457,231 +2655,6 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           </div>
                         );
                       })()}
-                    </div>
-
-                    {/* HERO CIRCLE SVG THEME CUSTOMIZER */}
-                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                        <div className="flex items-center gap-2">
-                          <Palette className="w-4 h-4 text-purple-400" />
-                          <span className="font-bold text-xs text-slate-200">
-                            Warna Lingkaran SVG Hero (Per Tema)
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-purple-400 font-mono">
-                          Mode Terang & Gelap
-                        </span>
-                      </div>
-
-                      {/* Sync with Theme Accent Switch */}
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-purple-950/30 border border-purple-500/20">
-                        <div>
-                          <span className="text-xs font-bold text-purple-200 block">
-                            Ikuti Warna Aksen Tema Otomatis
-                          </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
-                            Jika aktif, lingkaran SVG akan menyelaraskan warnanya otomatis dengan tema aktif
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const current = localData.webTexts?.home_circle_sync_accent === 'true';
-                            handleWebTextChange('home_circle_sync_accent', current ? 'false' : 'true', editLang);
-                          }}
-                          className={`w-11 h-6 rounded-full transition-colors cursor-pointer p-0.5 flex items-center ${
-                            localData.webTexts?.home_circle_sync_accent === 'true' ? 'bg-purple-600 justify-end' : 'bg-slate-700 justify-start'
-                          }`}
-                        >
-                          <span className="w-5 h-5 rounded-full bg-white shadow-md" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Light Mode Circle Colors */}
-                        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                              <Sun className="w-3.5 h-3.5" />
-                              <span>Lingkaran (Mode Terang)</span>
-                            </span>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div>
-                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Awal (Atas / Pusat):</span>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={localData.webTexts?.home_circle_color_light || '#6ba0e6'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_light', e.target.value, editLang)}
-                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
-                                />
-                                <input
-                                  type="text"
-                                  value={localData.webTexts?.home_circle_color_light || '#6ba0e6'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_light', e.target.value, editLang)}
-                                  className={inputClass}
-                                  placeholder="#6ba0e6"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Akhir (Bawah / Luar):</span>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={localData.webTexts?.home_circle_color_light_end || '#3661a3'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_light_end', e.target.value, editLang)}
-                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
-                                />
-                                <input
-                                  type="text"
-                                  value={localData.webTexts?.home_circle_color_light_end || '#3661a3'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_light_end', e.target.value, editLang)}
-                                  className={inputClass}
-                                  placeholder="#3661a3"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Light Presets */}
-                            <div className="flex flex-wrap gap-1 pt-1">
-                              {[
-                                { name: 'Royal Blue', start: '#6ba0e6', end: '#3661a3' },
-                                { name: 'Indigo', start: '#818cf8', end: '#4338ca' },
-                                { name: 'Emerald', start: '#34d399', end: '#059669' },
-                                { name: 'Rose', start: '#fb7185', end: '#e11d48' },
-                                { name: 'Amber', start: '#fbbf24', end: '#d97706' },
-                                { name: 'Slate', start: '#94a3b8', end: '#475569' }
-                              ].map((p) => (
-                                <button
-                                  key={p.name}
-                                  type="button"
-                                  onClick={() => {
-                                    handleWebTextChange('home_circle_color_light', p.start, editLang);
-                                    handleWebTextChange('home_circle_color_light_end', p.end, editLang);
-                                  }}
-                                  className="px-2 py-0.5 rounded text-[9.5px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                                >
-                                  {p.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Dark Mode Circle Colors */}
-                        <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
-                              <Moon className="w-3.5 h-3.5" />
-                              <span>Lingkaran (Mode Gelap)</span>
-                            </span>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div>
-                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Awal (Atas / Pusat):</span>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={localData.webTexts?.home_circle_color_dark || '#3b82f6'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_dark', e.target.value, editLang)}
-                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
-                                />
-                                <input
-                                  type="text"
-                                  value={localData.webTexts?.home_circle_color_dark || '#3b82f6'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_dark', e.target.value, editLang)}
-                                  className={inputClass}
-                                  placeholder="#3b82f6"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <span className="text-[10px] text-slate-400 block mb-1 font-semibold">Warna Akhir (Bawah / Luar):</span>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="color"
-                                  value={localData.webTexts?.home_circle_color_dark_end || '#0f172a'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_dark_end', e.target.value, editLang)}
-                                  className="w-8 h-8 rounded border border-slate-700 cursor-pointer p-0.5 bg-transparent"
-                                />
-                                <input
-                                  type="text"
-                                  value={localData.webTexts?.home_circle_color_dark_end || '#0f172a'}
-                                  onChange={(e) => handleWebTextChange('home_circle_color_dark_end', e.target.value, editLang)}
-                                  className={inputClass}
-                                  placeholder="#0f172a"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Dark Presets */}
-                            <div className="flex flex-wrap gap-1 pt-1">
-                              {[
-                                { name: 'Deep Blue', start: '#3b82f6', end: '#0f172a' },
-                                { name: 'Neon Purple', start: '#a855f7', end: '#1e1b4b' },
-                                { name: 'Emerald', start: '#10b981', end: '#022c22' },
-                                { name: 'Crimson', start: '#f43f5e', end: '#4c0519' },
-                                { name: 'Amber', start: '#f59e0b', end: '#451a03' },
-                                { name: 'Charcoal', start: '#475569', end: '#090d16' }
-                              ].map((p) => (
-                                <button
-                                  key={p.name}
-                                  type="button"
-                                  onClick={() => {
-                                    handleWebTextChange('home_circle_color_dark', p.start, editLang);
-                                    handleWebTextChange('home_circle_color_dark_end', p.end, editLang);
-                                  }}
-                                  className="px-2 py-0.5 rounded text-[9.5px] font-medium border border-slate-700 bg-slate-800 text-slate-300 hover:text-white cursor-pointer"
-                                >
-                                  {p.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Circle Style & Opacity */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
-                        <div>
-                          <label className="block text-[10.5px] font-bold text-slate-300 mb-1">
-                            Gaya Visual Lingkaran:
-                          </label>
-                          <select
-                            value={localData.webTexts?.home_circle_style || 'sphere'}
-                            onChange={(e) => handleWebTextChange('home_circle_style', e.target.value, editLang)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-200 text-xs focus:border-purple-500"
-                          >
-                            <option value="sphere">🌐 3D Sphere Radial (Default)</option>
-                            <option value="linear">🎨 Linear 45° Gradient</option>
-                            <option value="flat">⬛ Solid Flat Fill</option>
-                            <option value="outline">⭕ Glowing Neon Outline</option>
-                          </select>
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-[10.5px] font-bold text-slate-300 mb-1">
-                            <span>Kepekatan Lingkaran:</span>
-                            <span className="font-mono text-purple-400">
-                              {Math.round(parseFloat(localData.webTexts?.home_circle_opacity || '1') * 100)}%
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.1"
-                            max="1.0"
-                            step="0.05"
-                            value={parseFloat(localData.webTexts?.home_circle_opacity || '1')}
-                            onChange={(e) => handleWebTextChange('home_circle_opacity', e.target.value, editLang)}
-                            className="w-full accent-purple-500 cursor-pointer h-2 bg-slate-800 rounded"
-                          />
-                        </div>
-                      </div>
                     </div>
 
                     {/* Navbar Colors */}
@@ -4330,6 +4303,252 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* 5. EFEK GOOEY CURSOR (LIGHTSWIND STYLE) */}
+                {assetTab === 'gooey_cursor' && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20">
+                      <div>
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Gooey Liquid Metaball Cursor</span>
+                        </h4>
+                        <p className="text-[10.5px] text-slate-400 mt-0.5">
+                          Efek cairan metaballs SVG yang interaktif &amp; reaktif mengikuti gerakan mouse (Lightswind Style)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Toggle Aktif / Nonaktif */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-bold text-slate-200">Status Efek Kursor</p>
+                          <p className="text-[10px] text-slate-400">Aktifkan efek kursor cairan metaball di seluruh website</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = localData.webTexts?.enable_gooey_cursor !== 'false';
+                            handleWebTextChange('enable_gooey_cursor', current ? 'false' : 'true', editLang);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                            localData.webTexts?.enable_gooey_cursor !== 'false'
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${localData.webTexts?.enable_gooey_cursor !== 'false' ? 'bg-emerald-300 animate-pulse' : 'bg-slate-500'}`} />
+                          <span>{localData.webTexts?.enable_gooey_cursor !== 'false' ? 'Aktif' : 'Nonaktif'}</span>
+                        </button>
+                      </div>
+
+                      {/* Tampilan Kepala Kursor (Mata Ulat / Polos / Titik) */}
+                      <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold text-slate-200">Tampilan Kepala Kursor</p>
+                            <p className="text-[10px] text-slate-400">Pilih gaya indikator di ujung kepala cairan</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { id: 'eyes', label: '🐛 Mata Ulat', desc: 'Mata adaptif gerak' },
+                            { id: 'none', label: '💧 Polos', desc: 'Tanpa titik/mata' },
+                            { id: 'dot', label: '🎯 Titik Pusat', desc: 'Titik tengah klasik' }
+                          ].map((styleOption) => {
+                            const activeStyle = (localData.webTexts?.gooey_head_style || 'eyes') === styleOption.id;
+                            return (
+                              <button
+                                key={styleOption.id}
+                                type="button"
+                                onClick={() => {
+                                  handleWebTextChange('gooey_head_style', styleOption.id, editLang);
+                                }}
+                                className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                                  activeStyle
+                                    ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 shadow-sm ring-1 ring-emerald-500/50'
+                                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                                }`}
+                              >
+                                <p className="text-[11px] font-bold leading-tight">{styleOption.label}</p>
+                                <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{styleOption.desc}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Sembunyikan Kursor Bawaan Sistem */}
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                        <div>
+                          <p className="text-xs font-bold text-slate-200">Sembunyikan Kursor Bawaan</p>
+                          <p className="text-[10px] text-slate-400">Sembunyikan panah kursor bawaan OS dan hanya tampilkan bola cairan</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = localData.webTexts?.gooey_hide_default_cursor === 'true';
+                            handleWebTextChange('gooey_hide_default_cursor', current ? 'false' : 'true', editLang);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                            localData.webTexts?.gooey_hide_default_cursor === 'true'
+                              ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-sm'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          <span>{localData.webTexts?.gooey_hide_default_cursor === 'true' ? 'Disembunyikan' : 'Tampilkan Asli'}</span>
+                        </button>
+                      </div>
+
+                      {/* Efek Splash Klik */}
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                        <div>
+                          <p className="text-xs font-bold text-slate-200">Efek Splash Cairan Saat Klik</p>
+                          <p className="text-[10px] text-slate-400">Percikan droplet cairan metaball yang memancar keluar saat mouse ditekan/klik</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = localData.webTexts?.gooey_cursor_splash !== 'false';
+                            handleWebTextChange('gooey_cursor_splash', current ? 'false' : 'true', editLang);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                            localData.webTexts?.gooey_cursor_splash !== 'false'
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>{localData.webTexts?.gooey_cursor_splash !== 'false' ? 'Splash Aktif' : 'Splash Nonaktif'}</span>
+                        </button>
+                      </div>
+
+                      {/* Membesar Saat Hover Objek */}
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
+                        <div>
+                          <p className="text-xs font-bold text-slate-200">Membesar Saat Menyorot Objek</p>
+                          <p className="text-[10px] text-slate-400">Perbesar ukuran lingkaran saat kursor berada di atas tombol atau tautan yang bisa diklik</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = localData.webTexts?.gooey_cursor_hover_scale === 'true';
+                            handleWebTextChange('gooey_cursor_hover_scale', current ? 'false' : 'true', editLang);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                            localData.webTexts?.gooey_cursor_hover_scale === 'true'
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700'
+                          }`}
+                        >
+                          <span>{localData.webTexts?.gooey_cursor_hover_scale === 'true' ? 'Membesar (Aktif)' : 'Ukuran Tetap (Nonaktif)'}</span>
+                        </button>
+                      </div>
+
+                      {/* Slider Besaran / Tebal Kursor */}
+                      <div className="space-y-1.5 pt-3 border-t border-slate-800/80">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-300">Besaran / Tebal Lingkaran Kursor</span>
+                          <span className="font-mono text-emerald-400 font-bold">
+                            {localData.webTexts?.gooey_cursor_size || '18'}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="45"
+                          step="1"
+                          value={parseInt(localData.webTexts?.gooey_cursor_size || '18', 10)}
+                          onChange={(e) => {
+                            handleWebTextChange('gooey_cursor_size', e.target.value, editLang);
+                          }}
+                          className="w-full accent-emerald-500 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+                          <span>10px (Kecil/Halus)</span>
+                          <span>18px (Default)</span>
+                          <span>45px (Tebal/Ekstra Besar)</span>
+                        </div>
+                      </div>
+
+                      {/* Slider Transparansi / Opacity */}
+                      <div className="space-y-1.5 pt-3 border-t border-slate-800/80">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-300">Transparansi / Opacity Kursor</span>
+                          <span className="font-mono text-emerald-400 font-bold">
+                            {Math.round(parseFloat(localData.webTexts?.gooey_cursor_opacity || '0.8') * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.2"
+                          max="1.0"
+                          step="0.05"
+                          value={parseFloat(localData.webTexts?.gooey_cursor_opacity || '0.8')}
+                          onChange={(e) => {
+                            handleWebTextChange('gooey_cursor_opacity', e.target.value, editLang);
+                          }}
+                          className="w-full accent-emerald-500 cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+                          <span>20% (Sangat Transparan)</span>
+                          <span>80% (Default)</span>
+                          <span>100% (Solid Pekat)</span>
+                        </div>
+                      </div>
+
+                      {/* Info box */}
+                      <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/20 text-[11px] text-slate-300 space-y-1.5">
+                        <p className="font-semibold text-emerald-400 flex items-center gap-1">
+                          <span>💡 Keunggulan Efek Gooey Cursor:</span>
+                        </p>
+                        <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-[10.5px]">
+                          <li>Metaballs dinamis dengan SVG <code className="text-emerald-300">feGaussianBlur</code> &amp; <code className="text-emerald-300">feColorMatrix</code>.</li>
+                          <li>Membesar otomatis saat hover di atas tombol, tautan, dan kartu portofolio.</li>
+                          <li>Otomatis dinonaktifkan pada perangkat layar sentuh/HP agar navigasi tetap nyaman.</li>
+                        </ul>
+                      </div>
+
+                      {/* Color controls */}
+                      <div className="space-y-3 pt-2 border-t border-slate-800/80">
+                        <label className="block text-[11px] font-bold text-slate-300">
+                          Warna Kursor (Light &amp; Dark Mode)
+                        </label>
+                        {renderColorControls('gooey_cursor_color', 'gooey_cursor_color_dark', 'Warna Cairan Kursor', '#059669', '#10b981')}
+
+                        <div className="pt-2">
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                            Preset Warna Cepat:
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { label: 'Emerald', light: '#059669', dark: '#10b981' },
+                              { label: 'Cyan', light: '#0891b2', dark: '#06b6d4' },
+                              { label: 'Rose', light: '#e11d48', dark: '#f43f5e' },
+                              { label: 'Amber', light: '#d97706', dark: '#f59e0b' },
+                              { label: 'Violet', light: '#7c3aed', dark: '#8b5cf6' },
+                              { label: 'Sapphire', light: '#2563eb', dark: '#3b82f6' }
+                            ].map((preset) => (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                onClick={() => {
+                                  handleWebTextChange('gooey_cursor_color', preset.light, editLang);
+                                  handleWebTextChange('gooey_cursor_color_dark', preset.dark, editLang);
+                                }}
+                                className="px-2 py-1 rounded-md text-[10px] font-medium border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                              >
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: preset.dark }} />
+                                <span>{preset.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : null}
 
@@ -4370,6 +4589,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       placeholder="My Academic & Scientific Foundations"
                       className={inputClass}
                     />
+                    {renderColorControls('education_title_color', 'education_title_color_dark', 'Judul Pendidikan')}
                   </div>
 
                   <div>
@@ -4383,6 +4603,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       placeholder="Tuliskan pengantar pendidikan..."
                       className={textareaClass}
                     />
+                    {renderColorControls('education_intro_color', 'education_intro_color_dark', 'Intro Pendidikan', '#475569', '#94a3b8')}
                   </div>
 
                   <div>
@@ -4574,6 +4795,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       placeholder="My Core Personality & Work Ethics"
                       className={inputClass}
                     />
+                    {renderColorControls('personality_title_color', 'personality_title_color_dark', 'Judul Kepribadian')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">Intro / Pengantar ({editLang.toUpperCase()})</label>
@@ -4583,6 +4805,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('personality_intro', e.target.value, editLang)}
                       className={textareaClass}
                     />
+                    {renderColorControls('personality_intro_color', 'personality_intro_color_dark', 'Intro Kepribadian', '#475569', '#94a3b8')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">URL Background Cover Banner</label>
@@ -4695,6 +4918,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('hobbies_title', e.target.value, editLang)}
                       className={inputClass}
                     />
+                    {renderColorControls('hobbies_title_color', 'hobbies_title_color_dark', 'Judul Hobi')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">Intro ({editLang.toUpperCase()})</label>
@@ -4704,6 +4928,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('hobbies_intro', e.target.value, editLang)}
                       className={textareaClass}
                     />
+                    {renderColorControls('hobbies_intro_color', 'hobbies_intro_color_dark', 'Intro Hobi', '#475569', '#94a3b8')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">URL Background Cover Banner</label>
@@ -4816,6 +5041,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('career_journey_title', e.target.value, editLang)}
                       className={inputClass}
                     />
+                    {renderColorControls('career_journey_title_color', 'career_journey_title_color_dark', 'Judul Karir')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">Intro ({editLang.toUpperCase()})</label>
@@ -4825,6 +5051,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('career_journey_intro', e.target.value, editLang)}
                       className={textareaClass}
                     />
+                    {renderColorControls('career_journey_intro_color', 'career_journey_intro_color_dark', 'Intro Karir', '#475569', '#94a3b8')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">URL Background Cover Banner</label>
@@ -4949,6 +5176,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('career_goals_title', e.target.value, editLang)}
                       className={inputClass}
                     />
+                    {renderColorControls('career_goals_title_color', 'career_goals_title_color_dark', 'Judul Target Karir')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">Intro ({editLang.toUpperCase()})</label>
@@ -4958,6 +5186,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('career_goals_intro', e.target.value, editLang)}
                       className={textareaClass}
                     />
+                    {renderColorControls('career_goals_intro_color', 'career_goals_intro_color_dark', 'Intro Target Karir', '#475569', '#94a3b8')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">URL Background Cover Banner</label>
@@ -5265,6 +5494,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('projects_title', e.target.value, editLang)}
                       className={inputClass}
                     />
+                    {renderColorControls('projects_title_color', 'projects_title_color_dark', 'Judul Projects')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">Subtitle Section Projects ({editLang.toUpperCase()})</label>
@@ -5274,6 +5504,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('projects_subtitle', e.target.value, editLang)}
                       className={textareaClass}
                     />
+                    {renderColorControls('projects_subtitle_color', 'projects_subtitle_color_dark', 'Subtitle Projects', '#475569', '#94a3b8')}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-1">URL Background Cover Banner</label>
@@ -5283,6 +5514,20 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       onChange={(e) => handleWebTextChange('projects_header_bg', e.target.value, 'en')}
                       className={inputClass}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">📐 Template Layout Kontainer Proyek</label>
+                    <select
+                      value={localData.webTexts?.projects_layout_type || 'card_full'}
+                      onChange={(e) => handleWebTextChange('projects_layout_type', e.target.value, 'en')}
+                      className={inputClass}
+                    >
+                      <option value="card_full">Template 1: Classic Card (Gambar, Judul &amp; Deskripsi)</option>
+                      <option value="minimal_popup">Template 2: Minimal Card (Gambar &amp; Judul) + Pop-Up Detail</option>
+                    </select>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Template 1 menampilkan deskripsi pada kartu. Template 2 hanya menampilkan Gambar &amp; Judul lalu membuka Pop-Up besar saat diklik.
+                    </p>
                   </div>
                 </div>
 
@@ -5297,8 +5542,34 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       <div key={pair.baseId} className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] font-bold text-emerald-400 font-mono">
-                            #{idx + 1} {item?.category || 'Studi Kasus'}
+                            #{idx + 1} {item?.title || 'Studi Kasus'}
                           </span>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">
+                            Link / URL Gambar Proyek
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={item?.image || ''}
+                              placeholder="https://images.unsplash.com/..."
+                              onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'image', e.target.value)}
+                              className={`${inputClass} flex-1`}
+                            />
+                            {item?.image && (
+                              <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-700/60 shrink-0 bg-slate-950">
+                                <img
+                                  src={item.image}
+                                  alt="Preview"
+                                  referrerPolicy="no-referrer"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div>
@@ -5311,31 +5582,26 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Kategori ({editLang.toUpperCase()})</label>
-                            <input
-                              type="text"
-                              value={item?.category || ''}
-                              onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'category', e.target.value)}
-                              className={inputClass}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Metrik Dampak (Impact)</label>
-                            <input
-                              type="text"
-                              value={item?.impactMetric || ''}
-                              onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'impactMetric', e.target.value)}
-                              className={inputClass}
-                            />
-                          </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">
+                            Deskripsi Singkat (Tampil di Home Card) ({editLang.toUpperCase()})
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="Ringkasan 1-2 baris untuk kartu halaman utama..."
+                            value={item?.shortDescription || ''}
+                            onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'shortDescription', e.target.value)}
+                            className={textareaClass}
+                          />
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Deskripsi Singkat ({editLang.toUpperCase()})</label>
+                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">
+                            Deskripsi Lengkap (Tampil di Pop-Up & All Projects) ({editLang.toUpperCase()})
+                          </label>
                           <textarea
-                            rows={3}
+                            rows={4}
+                            placeholder="Narasi studi kasus lengkap..."
                             value={item?.description || ''}
                             onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'description', e.target.value)}
                             className={textareaClass}
@@ -5384,6 +5650,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('hero_badge', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('hero_badge_color', 'hero_badge_color_dark', 'Hero Badge', '#059669', '#34d399')}
                 </div>
 
                 <div>
@@ -5396,6 +5663,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('hero_year', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('hero_year_color', 'hero_year_color_dark', 'Tahun', '#64748b', '#94a3b8')}
                 </div>
 
                 <div>
@@ -5408,6 +5676,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('hero_location', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('hero_location_color', 'hero_location_color_dark', 'Wilayah', '#64748b', '#94a3b8')}
                 </div>
 
                 <div>
@@ -5421,6 +5690,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     placeholder="Contoh: Turning Raw Data\ninto Enterprise Decisions"
                     className={textareaClass}
                   />
+                  {renderColorControls('hero_title_color', 'hero_title_color_dark', 'Judul Utama Hero', '#0f172a', '#ffffff')}
                 </div>
 
                 <div>
@@ -5434,6 +5704,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     placeholder="Deskripsi singkat spesialisasi Anda..."
                     className={textareaClass}
                   />
+                  {renderColorControls('hero_subtitle_color', 'hero_subtitle_color_dark', 'Deskripsi Hero', '#475569', '#94a3b8')}
                 </div>
               </div>
             )}
@@ -5458,6 +5729,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('about_story_title', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('about_story_title_color', 'about_story_title_color_dark', 'Judul Kisah')}
                 </div>
 
                 <div>
@@ -5468,6 +5740,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('about_story_intro', e.target.value, editLang)}
                     className={textareaClass}
                   />
+                  {renderColorControls('about_story_intro_color', 'about_story_intro_color_dark', 'Pengantar Kisah', '#475569', '#94a3b8')}
                 </div>
 
                 <div className="pt-2">
@@ -5614,6 +5887,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('skills_title', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('skills_title_color', 'skills_title_color_dark', 'Judul Skills')}
                 </div>
 
                 <div>
@@ -5624,6 +5898,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('skills_subtitle', e.target.value, editLang)}
                     className={textareaClass}
                   />
+                  {renderColorControls('skills_subtitle_color', 'skills_subtitle_color_dark', 'Subtitle Skills', '#475569', '#94a3b8')}
                 </div>
 
                 <div>
@@ -5635,6 +5910,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     placeholder="Dikelompokkan jadi beberapa kategori: yang mengolah data, menjalankan otomasi, dan visualisasi..."
                     className={textareaClass}
                   />
+                  {renderColorControls('skills_home_group_desc_color', 'skills_home_group_desc_color_dark', 'Deskripsi Ringkasan Kategori', '#475569', '#94a3b8')}
                 </div>
 
                 {/* ================================================================ */}
@@ -6002,6 +6278,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('experience_title', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('experience_title_color', 'experience_title_color_dark', 'Judul Experience')}
                 </div>
 
                 <div>
@@ -6012,6 +6289,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('experience_subtitle', e.target.value, editLang)}
                     className={textareaClass}
                   />
+                  {renderColorControls('experience_subtitle_color', 'experience_subtitle_color_dark', 'Subtitle Experience', '#475569', '#94a3b8')}
                 </div>
               </div>
             )}
@@ -6036,6 +6314,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('contact_title', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('contact_title_color', 'contact_title_color_dark', 'Judul Contact')}
                 </div>
 
                 <div>
@@ -6046,6 +6325,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('contact_subtitle', e.target.value, editLang)}
                     className={textareaClass}
                   />
+                  {renderColorControls('contact_subtitle_color', 'contact_subtitle_color_dark', 'Subtitle Contact', '#475569', '#94a3b8')}
                 </div>
               </div>
             )}
@@ -6083,6 +6363,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('title', e.target.value, editLang)}
                     className={inputClass}
                   />
+                  {renderColorControls('title_color', 'title_color_dark', 'Warna Posisi/Job Title', '#059669', '#34d399')}
                 </div>
 
                 <div>
@@ -6093,6 +6374,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     onChange={(e) => handleWebTextChange('aboutMe', e.target.value, editLang)}
                     className={textareaClass}
                   />
+                  {renderColorControls('aboutMe_color', 'aboutMe_color_dark', 'Warna Ringkasan/About Me', '#475569', '#94a3b8')}
                 </div>
               </div>
             )}

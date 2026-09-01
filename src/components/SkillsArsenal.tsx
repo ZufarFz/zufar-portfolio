@@ -358,7 +358,7 @@ export default function SkillsArsenal({
               <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-700 pointer-events-none" />
               
               {/* Circle Body with Radial Texture */}
-              <div className="relative w-44 h-44 sm:w-48 sm:h-48 rounded-full bg-gradient-to-b from-[#1e40af] via-[#1e3a8a] to-[#0f172a] p-1.5 shadow-2xl flex items-center justify-center border border-blue-400/40 overflow-hidden shrink-0">
+              <div className="relative w-36 h-36 sm:w-42 sm:h-42 rounded-full bg-gradient-to-b from-[#1e40af] via-[#1e3a8a] to-[#0f172a] p-1.5 shadow-2xl flex items-center justify-center border border-blue-400/40 overflow-hidden shrink-0">
                 {/* Japanese Wave Pattern Overlay */}
                 <div 
                   className="absolute inset-0 opacity-15 pointer-events-none"
@@ -369,24 +369,38 @@ export default function SkillsArsenal({
                 />
 
                 {/* Inner Content Stack */}
-                <div className="flex flex-col items-center justify-center text-center relative z-10 select-none px-3">
-                  <span className="font-mono text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md leading-none">
+                <div className="flex flex-col items-center justify-center text-center relative z-10 px-3 select-none">
+                  <span className="font-mono text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-md leading-none">
                     {totalCount}
                   </span>
                   
-                  <span className="font-sans font-black text-[11px] sm:text-xs tracking-[0.18em] uppercase text-white/95 mt-2 leading-tight">
+                  <span className="font-sans font-black text-[10px] sm:text-[11px] tracking-[0.16em] uppercase text-white/95 mt-1.5 leading-tight">
                     {lang === 'id' ? 'SKILL UTAMA' : 'CORE SKILLS'}
                   </span>
 
-                  <span className="font-sans text-[9.5px] text-blue-200/90 tracking-wide font-medium mt-0.5">
+                  <span className="font-sans text-[9px] text-blue-200/90 tracking-wide font-medium mt-0.5">
                     {lang === 'id' ? 'Keahlian Andalan' : 'Mastered Stack'}
                   </span>
 
-                  <div className="mt-2 px-2.5 py-0.5 rounded-full bg-blue-500/25 border border-blue-300/30 backdrop-blur-xs">
-                    <span className="font-sans text-[8.5px] font-semibold text-blue-200 tracking-wider">
-                      主力スキル
+                  {/* Clean transparent "See Detail" link without box container */}
+                  {onNavigateToAboutMe ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigateToAboutMe();
+                      }}
+                      className="mt-1.5 inline-flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-blue-200/90 hover:text-emerald-300 transition-colors duration-150 cursor-pointer bg-transparent border-0 p-0 shadow-none focus:outline-none"
+                      title={lang === 'id' ? 'Lihat rincian keahlian lengkap' : 'See full skills details'}
+                    >
+                      <span>{lang === 'id' ? 'Lihat Detail' : 'See Detail'}</span>
+                      <ExternalLink className="w-2 h-2 opacity-75 group-hover:opacity-100" />
+                    </button>
+                  ) : (
+                    <span className="mt-1.5 text-[8px] font-bold tracking-widest uppercase text-blue-200/80">
+                      {lang === 'id' ? 'Lihat Detail' : 'See Detail'}
                     </span>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -397,70 +411,39 @@ export default function SkillsArsenal({
             }`}>
               {displayGroupDesc}
             </p>
-
-            {/* Jump to About Me / Skills Details Link */}
-            {onNavigateToAboutMe && (
-              <button
-                type="button"
-                onClick={onNavigateToAboutMe}
-                className={`mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer border ${
-                  isDark
-                    ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/60 hover:bg-emerald-900/60 hover:text-white'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-900'
-                }`}
-              >
-                <span>{lang === 'id' ? 'Eksplorasi Keahlian Lengkap' : 'Explore Full Skills Guide'}</span>
-                <ExternalLink className="w-3 h-3" />
-              </button>
-            )}
-			</motion.div>
+          </motion.div>
             
           {/* RIGHT COLUMN: Categorized Sections with Clean SVG Logo + Name */}
           {/* ================================================================ */}
-          <div className="lg:col-span-8 xl:col-span-8.5 space-y-8 sm:space-y-10 w-full">
+          <div className="lg:col-span-8 xl:col-span-8.5 space-y-4 sm:space-y-5.5 w-full">
             {groupedCategories.map((group, groupIdx) => {
               const formattedNumber = String(groupIdx + 1).padStart(2, '0');
 
               return (
                 <motion.div
                   key={group.id}
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.1 }}
-                  transition={{ duration: 0.6, delay: groupIdx * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-2 sm:space-y-3"
+                  transition={{ duration: 0.5, delay: groupIdx * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-1.5 sm:space-y-2"
                 >
-                  {/* Category Header Bar */}
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
+                  {/* Category Header Bar (Clean, without See Detail) */}
+                  <div className="flex items-center pb-1 sm:pb-1.5 border-b border-slate-200/80 dark:border-slate-800">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-black tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <span className="font-mono text-[11px] sm:text-xs font-black tracking-wider text-emerald-600 dark:text-emerald-400">
                         {formattedNumber}
                       </span>
-                      <h3 className={`font-sans font-extrabold text-xs sm:text-sm tracking-wider uppercase ${
+                      <h3 className={`font-sans font-extrabold text-[11px] sm:text-xs tracking-wider uppercase ${
                         isDark ? 'text-white' : 'text-slate-900'
                       }`}>
                         {group.label}
                       </h3>
                     </div>
-
-                    {onNavigateToAboutMe ? (
-                      <button
-                        type="button"
-                        onClick={onNavigateToAboutMe}
-                        className="font-sans text-[11px] font-medium text-slate-400 hover:text-emerald-600 dark:text-slate-500 dark:hover:text-emerald-400 tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <span>{lang === 'id' ? 'Lihat detail' : 'See detail'}</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </button>
-                    ) : (
-                      <span className="font-sans text-[11px] font-medium text-slate-400 dark:text-slate-500 tracking-wider">
-                        {lang === 'id' ? 'Lihat detail' : 'See detail'}
-                      </span>
-                    )}
                   </div>
 
-                  {/* Technology Grid Cards - Square Layout with Crisp SVG */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 xl:grid-cols-8 gap-2.5 sm:gap-3">
+                  {/* Technology Grid Cards - Compact Square Layout with Crisp SVG */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-2.5">
                     {group.items.map((skill) => (
                         <motion.div
                           key={skill.id || skill.name}
@@ -469,9 +452,9 @@ export default function SkillsArsenal({
                           variants={{
                             rest: { y: 0, scale: 1 },
                             hover: { 
-                              y: -8,
-                              scale: 1.08,
-                              transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } 
+                              y: -4,
+                              scale: 1.05,
+                              transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } 
                             }
                           }}
                           className="group h-full w-full relative transform-gpu"
@@ -481,23 +464,23 @@ export default function SkillsArsenal({
                             edgeSensitivity={20}
                             glowColor={isDark ? "160 100 50" : "160 80 60"}
                             backgroundColor={isDark ? "#1e293b" : "#ffffff"}
-                            borderRadius={12}
-                            glowRadius={50}
-                            glowIntensity={1.2}
+                            borderRadius={10}
+                            glowRadius={40}
+                            glowIntensity={1.1}
                             coneSpread={25}
                             animated={false}
                             colors={isDark ? ['#10b981', '#06b6d4', '#8b5cf6'] : ['#10b981', '#3b82f6', '#a855f7']}
                             fillOpacity={0.4}
                             className="h-full w-full"
                           >
-                            <div className="h-full w-full p-2 flex flex-col items-center justify-center gap-1.5 cursor-default">
+                            <div className="h-full w-full p-1.5 sm:p-2 flex flex-col items-center justify-center gap-1 cursor-default">
                               {/* Authentic Vector Logo with Crisp Zoom - SVG stays HD */}
                               <motion.div 
                                 variants={{
                                   rest: { scale: 1, transformOrigin: 'center center' },
                                   hover: { 
-                                    scale: 1.15,
-                                    transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                                    scale: 1.12,
+                                    transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
                                     transformBox: 'fill-box'
                                   }
                                 }}
@@ -508,13 +491,13 @@ export default function SkillsArsenal({
                                   iconName={skill.icon}
                                   customSvg={skill.customSvg}
                                   svgUrl={skill.svgUrl}
-                                  size={36}
-                                  className="w-9 h-9 sm:w-10 sm:h-10"
+                                  size={30}
+                                  className="w-7 h-7 sm:w-8 sm:h-8"
                                 />
                               </motion.div>
 
                               {/* Skill Name */}
-                              <span className={`font-sans font-bold text-xs sm:text-[14px] tracking-tight text-center leading-tight truncate w-full transition-colors duration-150 ${
+                              <span className={`font-sans font-bold text-[11px] sm:text-[12.5px] tracking-tight text-center leading-tight truncate w-full transition-colors duration-150 ${
                                 isDark ? 'text-slate-100 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'
                               }`}>
                                 {skill.name}

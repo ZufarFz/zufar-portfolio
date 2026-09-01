@@ -12,11 +12,12 @@ export interface CaseStudySlide {
 export interface CaseStudy {
   id: string;
   title: string;
-  category: string;
+  category?: string;
+  shortDescription?: string;
   description: string;
   tags: string[];
   image: string;
-  impactMetric: string;
+  impactMetric?: string;
   tools: string[];
   detailedMetrics?: {
     label: string;

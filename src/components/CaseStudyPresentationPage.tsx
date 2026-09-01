@@ -108,9 +108,11 @@ export default function CaseStudyPresentationPage({ project, onClose, theme, aut
           <div className="h-4 w-px bg-slate-700/30"></div>
           
           <div>
-            <span className="text-[9px] uppercase font-mono font-bold text-emerald-400 tracking-wider">
-              CASE TRIAL: {project.category}
-            </span>
+            {project.category && (
+              <span className="text-[9px] uppercase font-mono font-bold text-emerald-400 tracking-wider block">
+                CASE TRIAL: {project.category}
+              </span>
+            )}
             <h1 className="text-sm font-extrabold tracking-tight leading-none mt-0.5">
               {project.title}
             </h1>

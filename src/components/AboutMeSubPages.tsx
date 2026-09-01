@@ -396,9 +396,14 @@ export default function AboutMeSubPages({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.6, ease: "easeOut" }}
-              className={`font-sans font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight ${
+              className={`font-sans font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight leading-tight transition-colors ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}
+              style={{
+                color: isDark 
+                  ? (cvData.webTexts?.[`${prefix}_title_color_dark`] || undefined) 
+                  : (cvData.webTexts?.[`${prefix}_title_color`] || undefined)
+              }}
             >
               {title}
             </motion.h1>
@@ -406,9 +411,14 @@ export default function AboutMeSubPages({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
-              className={`font-sans text-sm sm:text-base mt-4 max-w-2xl mx-auto leading-relaxed ${
+              className={`font-sans text-sm sm:text-base mt-4 max-w-2xl mx-auto leading-relaxed transition-colors ${
                 isDark ? 'text-slate-400' : 'text-slate-650'
               }`}
+              style={{
+                color: isDark 
+                  ? (cvData.webTexts?.[`${prefix}_intro_color_dark`] || cvData.webTexts?.[`${prefix}_subtitle_color_dark`] || undefined) 
+                  : (cvData.webTexts?.[`${prefix}_intro_color`] || cvData.webTexts?.[`${prefix}_subtitle_color`] || undefined)
+              }}
             >
               {intro}
             </motion.p>

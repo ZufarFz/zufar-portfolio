@@ -41,15 +41,12 @@ export default function FloatingAssetsOverlay({ sectionId, assets = [], classNam
 
         // Process SVG color if raw SVG
         let svgHtml = asset.content || '';
-        if (isRawSvg && asset.color) {
+        if (isRawSvg && asset.color && asset.color !== 'preserve' && asset.color !== 'original') {
           const color = asset.color;
           if (svgHtml.includes('currentColor')) {
             svgHtml = svgHtml.replace(/currentColor/g, color);
           } else if (!svgHtml.includes('fill=') && !svgHtml.includes('stroke=')) {
             svgHtml = svgHtml.replace('<svg', `<svg fill="${color}"`);
-          } else {
-            svgHtml = svgHtml.replace(/fill="(?!none|url)[^"]*"/g, `fill="${color}"`);
-            svgHtml = svgHtml.replace(/stroke="(?!none|url)[^"]*"/g, `stroke="${color}"`);
           }
         }
 
@@ -71,6 +68,13 @@ export default function FloatingAssetsOverlay({ sectionId, assets = [], classNam
           transitionProps = { duration: 2, repeat: Infinity, ease: 'easeInOut' };
         }
 
+        // Responsive fluid width & height: scales with viewport width similar to hero profile image
+        // Base reference is standard 1200px laptop screen (100%), scales dynamically from mobile (<640px) up to 2K/4K (>1920px)
+        const responsiveWidth = `clamp(${Math.max(12, Math.round(size * 0.45))}px, ${(size / 12).toFixed(3)}vw, ${Math.round(size * 2.1)}px)`;
+        const responsiveHeight = asset.height
+          ? `clamp(${Math.max(12, Math.round(asset.height * 0.45))}px, ${(asset.height / 12).toFixed(3)}vw, ${Math.round(asset.height * 2.1)}px)`
+          : 'auto';
+
         return (
           <motion.div
             key={asset.id}
@@ -78,8 +82,8 @@ export default function FloatingAssetsOverlay({ sectionId, assets = [], classNam
             style={{
               left: `${asset.x}%`,
               top: `${asset.y}%`,
-              width: `${size}px`,
-              height: asset.height ? `${asset.height}px` : 'auto',
+              width: responsiveWidth,
+              height: responsiveHeight,
               opacity: opacity,
               transform: `translate(-50%, -50%) rotate(${rotation}deg) ${flipX}`,
               zIndex: zIndex,

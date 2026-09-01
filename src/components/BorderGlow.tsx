@@ -159,6 +159,7 @@ const BorderGlow = ({
       className={`border-glow-card ${className}`}
       style={{
         '--card-bg': backgroundColor,
+        '--card-border': backgroundColor === '#ffffff' ? 'rgba(203, 213, 225, 0.75)' : 'rgba(255, 255, 255, 0.1)',
         '--edge-sensitivity': edgeSensitivity,
         '--border-radius': `${borderRadius}px`,
         '--glow-padding': `${glowRadius}px`,

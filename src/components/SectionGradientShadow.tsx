@@ -97,17 +97,27 @@ export const SectionGradientShadow: React.FC<SectionGradientShadowProps> = ({
   let baseColor = '#000000';
   if (colorMode === 'custom' && customColor) {
     baseColor = customColor;
-  } else if (colorMode === 'accent') {
-    baseColor = accentHex || themeAccent?.hex || '#3b82f6';
+  } else if (colorMode === 'bg_color' || colorMode === 'bg' || colorMode === 'background') {
+    baseColor = currentBgColor || (
+      theme === 'dark' 
+        ? (webTexts?.home_bg_color_dark || webTexts?.hero_bg_color_dark || '#181A1B') 
+        : (webTexts?.home_bg_color || webTexts?.hero_bg_color || '#F3F0E6')
+    );
+  } else if (colorMode === 'accent' || colorMode === 'theme' || colorMode === 'primary') {
+    baseColor = theme === 'dark'
+      ? (webTexts?.hero_cta_primary_bg_dark || webTexts?.hero_badge_color_dark || accentHex || themeAccent?.hex || '#5E171E')
+      : (webTexts?.hero_cta_primary_bg || webTexts?.hero_badge_color || accentHex || themeAccent?.hex || '#701C24');
   } else if (colorMode === 'black') {
     baseColor = '#000000';
   } else if (colorMode === 'white') {
     baseColor = '#ffffff';
   } else {
-    // 'auto' mode: Authentic dark contrast edge shadow
-    // In dark mode: Pitch black shadow #000000 creates deep edge vignette
-    // In light mode: Slate dark shadow #0f172a creates visible natural depth shadow
-    baseColor = theme === 'dark' ? '#000000' : '#0f172a';
+    // 'auto' mode: Use background color if available, otherwise dark contrast edge shadow
+    if (currentBgColor) {
+      baseColor = currentBgColor;
+    } else {
+      baseColor = theme === 'dark' ? '#181A1B' : '#F3F0E6';
+    }
   }
 
   // Construct multi-stop smooth linear gradient for soft natural feathering

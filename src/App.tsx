@@ -36,13 +36,15 @@ import { CASE_STUDIES } from './data/portfolioData';
 import SkillsArsenal from './components/SkillsArsenal';
 import ContactForm from './components/ContactForm';
 import ResumeModal from './components/ResumeModal';
+import ProjectDetailModal from './components/ProjectDetailModal';
 import AdminLoginPage from './components/AdminLoginPage';
 import CaseStudyPresentationPage from './components/CaseStudyPresentationPage';
 import AboutMeStoryPage from './components/AboutMeStoryPage';
 import AboutMeSubPages from './components/AboutMeSubPages';
 import { QuickEditorDrawer } from './components/QuickEditorDrawer';
+import GooeyCursor from './components/GooeyCursor';
 import { fetchCVData, downloadCVDataAsTypeScript, DEFAULT_CV_DATA, EMPTY_CV_DATA, DEFAULT_WEB_TEXTS, STORAGE_KEY } from './lib/storage';
-import { CVData } from './types';
+import { CVData, CaseStudy } from './types';
 import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 import BackgroundTextures from './components/BackgroundTextures';
 import FloatingAssetsOverlay from './components/FloatingAssetsOverlay';
@@ -108,20 +110,44 @@ function formatSocialLink(link: string | undefined, platform: string, defaultVal
 function getActiveTabStyle(active: boolean, theme: 'light' | 'dark', activeCVData: CVData) {
   if (!active) return undefined;
   
-  const opacity = parseFloat(activeCVData.webTexts?.navbar_active_bg_opacity || '0.6');
-  const hexColor = theme === 'dark' 
-    ? (activeCVData.webTexts?.navbar_active_bg_color_dark || '#064e3b')
-    : (activeCVData.webTexts?.navbar_active_bg_color || '#d1fae5');
+  const opacity = parseFloat(activeCVData.webTexts?.navbar_active_bg_opacity || '1');
+  let hexColor = theme === 'dark' 
+    ? (activeCVData.webTexts?.navbar_active_bg_color_dark || '#3F4A52')
+    : (activeCVData.webTexts?.navbar_active_bg_color || '#2F3C43');
   
-  const r = parseInt(hexColor.slice(1, 3), 16);
-  const g = parseInt(hexColor.slice(3, 5), 16);
-  const b = parseInt(hexColor.slice(5, 7), 16);
+  if (hexColor && !hexColor.startsWith('#') && !hexColor.startsWith('rgb')) {
+    hexColor = '#' + hexColor;
+  }
+
+  const textColor = theme === 'dark'
+    ? (activeCVData.webTexts?.navbar_active_color_dark || '#FFFFFF')
+    : (activeCVData.webTexts?.navbar_active_color || '#FFFFFF');
+
+  if (hexColor && hexColor.startsWith('#')) {
+    let cleanHex = hexColor.replace('#', '');
+    if (cleanHex.length === 3) {
+      cleanHex = cleanHex.split('').map(c => c + c).join('');
+    }
+    if (cleanHex.length === 6) {
+      const r = parseInt(cleanHex.slice(0, 2), 16);
+      const g = parseInt(cleanHex.slice(2, 4), 16);
+      const b = parseInt(cleanHex.slice(4, 6), 16);
+      if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
+        return {
+          color: textColor,
+          backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`,
+          borderColor: 'transparent',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+        };
+      }
+    }
+  }
   
   return {
-    color: theme === 'dark' 
-      ? (activeCVData.webTexts?.navbar_active_color_dark || '#34d399')
-      : (activeCVData.webTexts?.navbar_active_color || '#047857'),
-    backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`
+    color: textColor,
+    backgroundColor: hexColor,
+    borderColor: 'transparent',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
   };
 }
 
@@ -262,16 +288,19 @@ export const ID_TRANSLATIONS = {
     'customer-segmentation': {
       title: "Analisis Segmentasi Pelanggan",
       category: "Analitik Pemasaran & Otomatisasi",
+      shortDescription: "Otomatisasi analisis RFM Python untuk kategorisasi 50.000+ pelanggan & optimalisasi email.",
       description: "Mengotomatiskan analisis RFM (Recency, Frequency, Monetary) menggunakan struktur data Python untuk mengkategorikan 50.000+ pelanggan global. Menyediakan kohort langsung mandiri untuk pengguna bisnis agar sesuai dengan kampanye otomatisasi pemasaran secara langsung, meningkatkan indeks kinerja kampanye email."
     },
     'sales-forecasting': {
       title: "Model Peramalan Penjualan",
       category: "Perencanaan Bisnis & Keuangan",
+      shortDescription: "Model regresi prediktif pesanan historis dengan akurasi validasi >95%.",
       description: "Mengembangkan dan memvalidasi model regresi prediktif terintegrasi yang menganalisis buku pesanan historis multi-tahun. Memprediksi pendapatan perusahaan yang masuk, pengubah varians musiman, dan respons saluran pemasaran dengan akurasi validasi lebih dari 95%."
     },
     'supply-chain': {
       title: "Optimasi Rantai Pasok",
       category: "Logistik Operasional",
+      shortDescription: "Optimasi rute spasial & pemangkasan waktu tunggu logistik dengan PowerBI.",
       description: "Mengidentifikasi hambatan pengiriman rantai pasok melalui alokasi rute spasial yang komprehensif dan analisis waktu tunggu. Membangun tata letak dasbor kustom yang responsif di PowerBI menggunakan langkah Power Query yang dibersihkan untuk menandai rute latensi tinggi, mengurangi total waktu tunggu pengiriman melalui realokasi gudang dan pola perutean cerdas."
     }
   },
@@ -452,6 +481,13 @@ function getLocalizedCVData(cvData: CVData, lang: 'id' | 'en'): CVData {
     Object.entries(cvData.webTexts).forEach(([key, val]) => {
       if (key.endsWith(`_${lang}`) || key.endsWith(`-${lang}`)) {
         const baseKey = key.slice(0, -(lang.length + 1));
+        const isStylingKey = baseKey.startsWith('navbar_') || baseKey.startsWith('hero_') || baseKey.startsWith('home_') || baseKey.startsWith('font_') || baseKey.startsWith('footer_');
+        if (isStylingKey) {
+          if (cvData.webTexts[baseKey] !== undefined && cvData.webTexts[baseKey] !== "") {
+            localizedWebTexts[baseKey] = cvData.webTexts[baseKey];
+            return;
+          }
+        }
         localizedWebTexts[baseKey] = val;
       }
     });
@@ -645,6 +681,7 @@ export default function App() {
 
   const [cvModalOpen, setCvModalOpen] = useState(false);
   const [cvModalDirectDownload, setCvModalDirectDownload] = useState(false);
+  const [selectedProjectModal, setSelectedProjectModal] = useState<CaseStudy | null>(null);
   const [isQuickEditorOpen, setIsQuickEditorOpen] = useState(false);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -1364,6 +1401,28 @@ export default function App() {
 
   return (
     <>
+      {/* Lightswind Gooey Liquid Metaball Cursor */}
+      <GooeyCursor
+        enabled={activeCVData.webTexts?.enable_gooey_cursor !== 'false'}
+        theme={theme}
+        size={activeCVData.webTexts?.gooey_cursor_size ? parseInt(activeCVData.webTexts.gooey_cursor_size, 10) : 18}
+        opacity={activeCVData.webTexts?.gooey_cursor_opacity ? parseFloat(activeCVData.webTexts.gooey_cursor_opacity) : 0.8}
+        hideDefaultCursor={activeCVData.webTexts?.gooey_hide_default_cursor === 'true'}
+        enableSplash={activeCVData.webTexts?.gooey_cursor_splash !== 'false'}
+        hoverScale={activeCVData.webTexts?.gooey_cursor_hover_scale === 'true'}
+        headStyle={(activeCVData.webTexts?.gooey_head_style as 'eyes' | 'none' | 'dot') || 'eyes'}
+        color={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.gooey_cursor_color_dark || activeCVData.webTexts?.gooey_cursor_color || getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary)
+            : (activeCVData.webTexts?.gooey_cursor_color_light || activeCVData.webTexts?.gooey_cursor_color || getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary)
+        }
+        secondaryColor={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.gooey_cursor_dot_dark || undefined)
+            : (activeCVData.webTexts?.gooey_cursor_dot_light || undefined)
+        }
+      />
+
       <AnimatePresence mode="wait">
         {isLoading && (
           <motion.div
@@ -1563,16 +1622,22 @@ export default function App() {
             }`}
           >
             <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
-              <nav ref={navbarRef} className={`w-full md:w-fit ml-0 md:ml-auto flex items-center h-auto md:h-11 mt-2 md:mt-3 px-3 md:px-4 py-0 rounded-xl md:rounded-2xl backdrop-blur-md transition-all duration-250 ${
+              <nav ref={navbarRef} className={`w-full md:w-fit ml-0 md:ml-auto flex items-center h-auto md:h-11 mt-2 md:mt-3 px-3 md:px-4 py-0 rounded-xl md:rounded-2xl backdrop-blur-md transition-all duration-250 border ${
                 theme === 'dark' 
-                  ? 'bg-slate-800/85 border-none shadow-lg shadow-black/30 text-white' 
-                  : 'bg-white/85 border border-slate-200/85 shadow-md shadow-slate-100 text-slate-800'
+                  ? 'shadow-lg shadow-black/40' 
+                  : 'shadow-md shadow-slate-200/50'
               }`}
-              style={
-                theme === 'dark' 
-                  ? (activeCVData.webTexts?.navbar_bg_color_dark ? { backgroundColor: activeCVData.webTexts.navbar_bg_color_dark } : undefined)
-                  : (activeCVData.webTexts?.navbar_bg_color ? { backgroundColor: activeCVData.webTexts.navbar_bg_color } : undefined)
-              }
+              style={{
+                backgroundColor: theme === 'dark' 
+                  ? (activeCVData.webTexts?.navbar_bg_color_dark || 'rgba(24, 26, 27, 0.88)')
+                  : (activeCVData.webTexts?.navbar_bg_color || 'rgba(243, 240, 230, 0.88)'),
+                borderColor: theme === 'dark'
+                  ? (activeCVData.webTexts?.navbar_border_color_dark || 'rgba(255, 255, 255, 0.12)')
+                  : (activeCVData.webTexts?.navbar_border_color || 'rgba(113, 136, 148, 0.3)'),
+                color: theme === 'dark'
+                  ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0')
+                  : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
+              }}
               >
                 {/* Responsive Navigation container */}
                 <div className="w-full">
@@ -1586,14 +1651,19 @@ export default function App() {
                           <button
                             key={section}
                             onClick={() => scrollToSection(section)}
-                            className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3 py-1.5 rounded-full border relative ${
+                            className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3.5 py-1.5 rounded-full border relative ${
                               active 
-                                ? 'border-transparent shadow-xs' 
-                                : (theme === 'dark' 
-                                    ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]' 
-                                    : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                                ? 'border-transparent shadow-sm' 
+                                : 'border-transparent hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/5'
                             }`}
-                            style={getActiveTabStyle(active, theme, activeCVData)}
+                            style={active 
+                              ? getActiveTabStyle(active, theme, activeCVData) 
+                              : {
+                                  color: theme === 'dark' 
+                                    ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0') 
+                                    : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
+                                }
+                            }
                           >
                             {section}
                           </button>
@@ -1607,13 +1677,13 @@ export default function App() {
                         <button
                           onClick={() => setShowLangConfirm(!showLangConfirm)}
                           title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
-                          className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 ${
+                          className={`px-2.5 py-1 rounded-full border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 shadow-2xs ${
                             theme === 'dark' 
-                              ? 'border-slate-800 text-slate-350 hover:bg-slate-800 hover:text-white' 
-                              : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-xs'
+                              ? 'border-slate-700 text-slate-200 bg-slate-800/80 hover:bg-slate-800 hover:text-white' 
+                              : 'border-[#E3DDD3] text-[#2D3136] bg-white hover:bg-slate-50'
                           } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
                         >
-                          <Globe className="w-3 h-3 text-emerald-500" />
+                          <Globe className="w-3.5 h-3.5" style={{ color: theme === 'dark' ? '#F2A1B0' : '#C81D25' }} />
                           <span className="tracking-wide uppercase">{lang}</span>
                         </button>
 
@@ -1655,7 +1725,12 @@ export default function App() {
                                   </button>
                                   <button
                                     onClick={handleConfirmLanguageChange}
-                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
+                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-sm transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: theme === 'dark'
+                                        ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
+                                        : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
+                                    }}
                                   >
                                     {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
                                   </button>
@@ -1673,7 +1748,7 @@ export default function App() {
                         className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
                           theme === 'dark' 
                             ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800 hover:border-slate-700' 
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
                         }`}
                       >
                         {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -1684,8 +1759,22 @@ export default function App() {
                   {/* MOBILE VIEW */}
                   <div className="flex md:hidden items-center justify-between w-full h-11">
                     {/* Active menu category tag */}
-                    <span className="text-xs font-mono font-bold tracking-wider text-emerald-500 uppercase flex items-center gap-1.5">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span 
+                      className="text-xs font-mono font-bold tracking-wider uppercase flex items-center gap-1.5"
+                      style={{
+                        color: theme === 'dark'
+                          ? (activeCVData.webTexts?.hero_badge_color_dark || activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0')
+                          : (activeCVData.webTexts?.hero_badge_color || activeCVData.webTexts?.navbar_text_color || '#2D3136')
+                      }}
+                    >
+                      <span 
+                        className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                        style={{
+                          backgroundColor: theme === 'dark'
+                            ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
+                            : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
+                        }}
+                      />
                       {activeSection}
                     </span>
 
@@ -1695,13 +1784,13 @@ export default function App() {
                         <button
                           onClick={() => setShowLangConfirm(!showLangConfirm)}
                           title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
-                          className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 ${
+                          className={`px-2 py-1 rounded-full border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 shadow-2xs ${
                             theme === 'dark' 
-                              ? 'border-slate-800 text-slate-350 hover:bg-slate-800 hover:text-white' 
-                              : 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 shadow-xs'
+                              ? 'border-slate-700 text-slate-200 bg-slate-800/80 hover:bg-slate-800 hover:text-white' 
+                              : 'border-[#E3DDD3] text-[#2D3136] bg-white hover:bg-slate-50'
                           } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
                         >
-                          <Globe className="w-3.5 h-3.5 text-emerald-500" />
+                          <Globe className="w-3.5 h-3.5" style={{ color: theme === 'dark' ? '#F2A1B0' : '#C81D25' }} />
                           <span className="tracking-wide uppercase text-[10px]">{lang}</span>
                         </button>
 
@@ -1743,7 +1832,12 @@ export default function App() {
                                   </button>
                                   <button
                                     onClick={handleConfirmLanguageChange}
-                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
+                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-sm transition-all cursor-pointer"
+                                    style={{
+                                      backgroundColor: theme === 'dark'
+                                        ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
+                                        : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
+                                    }}
                                   >
                                     {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
                                   </button>
@@ -1761,7 +1855,7 @@ export default function App() {
                         className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
                           theme === 'dark' 
                             ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800' 
-                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -1770,11 +1864,13 @@ export default function App() {
                       {/* Hamburger Button */}
                       <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border ${
-                          theme === 'dark' 
-                            ? 'border-slate-800 text-emerald-400 hover:bg-slate-850 hover:text-white' 
-                            : 'border-slate-200 text-emerald-600 hover:bg-slate-50 hover:text-emerald-700'
-                        }`}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border`}
+                        style={{
+                          color: theme === 'dark'
+                            ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0')
+                            : (activeCVData.webTexts?.navbar_text_color || '#2D3136'),
+                          borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(113, 136, 148, 0.3)'
+                        }}
                         title="Menu"
                       >
                         {mobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
@@ -1792,11 +1888,15 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={`md:hidden w-full mt-2 rounded-2xl overflow-hidden border backdrop-blur-lg ${
-                      theme === 'dark'
-                        ? 'bg-slate-900/95 border-slate-800 text-white shadow-xl shadow-black/40'
-                        : 'bg-white/95 border-slate-200 text-slate-800 shadow-lg shadow-slate-100/60'
-                    }`}
+                    className={`md:hidden w-full mt-2 rounded-2xl overflow-hidden border backdrop-blur-lg shadow-xl`}
+                    style={{
+                      backgroundColor: theme === 'dark' 
+                        ? (activeCVData.webTexts?.navbar_bg_color_dark || 'rgba(24, 26, 27, 0.95)')
+                        : (activeCVData.webTexts?.navbar_bg_color || 'rgba(243, 240, 230, 0.95)'),
+                      borderColor: theme === 'dark'
+                        ? (activeCVData.webTexts?.navbar_border_color_dark || 'rgba(255, 255, 255, 0.12)')
+                        : (activeCVData.webTexts?.navbar_border_color || 'rgba(113, 136, 148, 0.3)'),
+                    }}
                   >
                     <div className="flex flex-col p-3 gap-1.5">
                       {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
@@ -1811,14 +1911,28 @@ export default function App() {
                             className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-3 px-4 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
                               active
                                 ? 'border-transparent'
-                                : (theme === 'dark'
-                                    ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
-                                    : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                                : 'border-transparent hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/5'
                             }`}
-                            style={getActiveTabStyle(active, theme, activeCVData)}
+                            style={active 
+                              ? getActiveTabStyle(active, theme, activeCVData) 
+                              : {
+                                  color: theme === 'dark' 
+                                    ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0') 
+                                    : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
+                                }
+                            }
                           >
                             <span>{section}</span>
-                            {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                            {active && (
+                              <span 
+                                className="w-1.5 h-1.5 rounded-full animate-pulse" 
+                                style={{
+                                  backgroundColor: theme === 'dark' 
+                                    ? (activeCVData.webTexts?.navbar_active_color_dark || '#FFFFFF') 
+                                    : (activeCVData.webTexts?.navbar_active_color || '#FFFFFF')
+                                }} 
+                              />
+                            )}
                           </button>
                         );
                       })}
@@ -2140,6 +2254,11 @@ export default function App() {
             webTexts={activeCVData.webTexts} 
             theme={theme} 
             accentHex={getThemeColorPalette(activeCVData.layoutSettings?.themeColor || 'blue').primary}
+            currentBgColor={
+              theme === 'dark'
+                ? (activeCVData.webTexts?.home_bg_color_dark || activeCVData.webTexts?.hero_bg_color_dark || '#181A1B')
+                : (activeCVData.webTexts?.home_bg_color || activeCVData.webTexts?.hero_bg_color || '#F3F0E6')
+            }
           />
           {/* BACKGROUND CUSTOMIZER OVERLAYS */}
           <BackgroundTextures 
@@ -2154,28 +2273,30 @@ export default function App() {
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
           <FloatingAssetsOverlay sectionId="home" assets={activeCVData.floatingAssets} />
           
-          <div 
-            className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 md:py-8 lg:py-10 grid grid-cols-1 md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 gap-y-8 md:gap-y-0 items-center text-center md:text-left relative w-full min-h-[calc(100vh-4rem)] flex-1"
-            style={{
-              gridTemplateAreas: isMobile 
-                ? `"title" "image"` 
-                : `"title title title title title image image image image badge badge badge"`,
-              gridTemplateRows: isMobile 
-                ? "auto auto" 
-                : "1fr",
-            }}
-          >
-            {/* 1. Greeting, Title/Judul, Description & CTA Buttons (Fluid Responsive Sizing) */}
-            <div style={{ gridArea: 'title' }} className="text-center md:text-left flex flex-col justify-center max-w-3xl md:max-w-none relative z-20">
-               {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font VT323 - Fluid Dynamic Scaling */}
+          <div className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 md:py-8 lg:py-10 relative w-full min-h-[calc(100vh-4rem)] flex-1 flex flex-col justify-center">
+            
+            {/* ========================================================================= */}
+            {/* MOBILE VIEW (MD:HIDDEN): Strict sequential flow requested by user:        */}
+            {/* 1. Hello I'm Nama -> 2. Gambar Profile -> 3. Title -> 4. Deskripsi -> 5. 2 Tombol */}
+            {/* ========================================================================= */}
+            <div className="flex flex-col items-center text-center md:hidden w-full relative z-20">
+              
+              {/* 1. HELLO, I'M [NAMA] Text */}
               <motion.div 
-                initial={{ opacity: 0, y: isMobile ? 10 : 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isMobile ? 0.4 : 0.5, delay: isMobile ? 0.05 : 0.15, ease: "easeOut" }}
-                className={`font-bold text-[clamp(1.25rem,2.5vw,3rem)] tracking-widest uppercase mb-1 sm:mb-2 transition-colors duration-200 whitespace-nowrap ${
+                transition={{ duration: 0.4, delay: 0.05, ease: "easeOut" }}
+                className={`font-bold text-[clamp(1.2rem,5vw,2rem)] tracking-widest uppercase mb-1.5 transition-colors duration-200 whitespace-nowrap z-20 ${
                   theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
                 }`}
-                style={{ fontFamily: "'VT323', monospace" }}
+                style={{ 
+                  fontFamily: (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                    ? "'GangOfThree', sans-serif" 
+                    : "'VT323', monospace",
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.hero_greeting_color_dark || activeCVData.webTexts?.hero_title_color_dark || undefined) 
+                    : (activeCVData.webTexts?.hero_greeting_color || activeCVData.webTexts?.hero_title_color || undefined)
+                }}
               >
                 <TypewriterText 
                   name={
@@ -2186,199 +2307,412 @@ export default function App() {
                   lang={lang} 
                 />
               </motion.div>
-              
-              {/* Main Title (misal Junior Data Analyst) - Mepet ke bawah dengan deskripsi - Fluid Responsive */}
+
+              {/* 2. Gambar Profile (Ditempatkan rapi di bawah Hello, berjarak pas dan tidak overlap) */}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut", delay: 0.12 }}
+                className="relative z-10 pointer-events-none flex items-center justify-center w-full h-[225px] sm:h-[260px] my-1 overflow-visible"
+              >
+                {currentProfileImageUrl && (
+                  <img 
+                    className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-all duration-700 ease-out select-none w-[220px] h-[220px] sm:w-[255px] sm:h-[255px] max-w-none ${
+                      isPng ? 'object-contain' : 'object-cover'
+                    }`}
+                    onClick={() => scrollToSection('profil')}
+                    title="Buka Halaman Tentang Saya (Story)"
+                    referrerPolicy="no-referrer"
+                    alt="Professional Portfolio Visual" 
+                    src={currentProfileImageUrl}
+                    style={{
+                      transform: `translate(-50%, -48%) scale(${Math.min(1.2, activeCVData.homeImageScale || 1)}) translate(${((activeCVData.homeImageX || 0) * 1.8)}px, ${((activeCVData.homeImageY || 0) * 1.5)}px)`,
+                      transformOrigin: 'center center',
+                      opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
+                      maskImage: (() => {
+                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                        if (maskStyle === 'fade_bottom') {
+                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_circle') {
+                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_edge') {
+                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        }
+                        return 'none';
+                      })(),
+                      WebkitMaskImage: (() => {
+                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                        if (maskStyle === 'fade_bottom') {
+                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_circle') {
+                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_edge') {
+                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        }
+                        return 'none';
+                      })()
+                    }}
+                  />
+                )}
+              </motion.div>
+
+              {/* 3. Title / Judul Utama (Jarak rapat dan pas di bawah gambar) */}
               <motion.h1 
-                initial={{ opacity: 0, y: isMobile ? 12 : 30 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.1 : 0.25, ease: "easeOut" }}
-                className={`font-sans font-black text-[clamp(1.75rem,4.2vw,4.75rem)] leading-[1.08] tracking-tight mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 max-w-3xl md:max-w-none ${
+                transition={{ duration: 0.45, delay: 0.2, ease: "easeOut" }}
+                className={`font-sans font-black text-xl sm:text-2xl leading-snug mt-1 mb-2 transition-colors duration-200 max-w-md mx-auto ${
+                  (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                    ? 'tracking-wider'
+                    : 'tracking-tight'
+                } ${
                   theme === 'dark' ? 'text-white' : 'text-slate-900'
                 }`}
+                style={{
+                  fontFamily: (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                    ? "'GangOfThree', sans-serif" 
+                    : undefined,
+                  letterSpacing: (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                    ? '0.05em'
+                    : undefined,
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.hero_title_color_dark || undefined) 
+                    : (activeCVData.webTexts?.hero_title_color || undefined)
+                }}
               >
                 {(activeCVData.webTexts?.hero_title || "Transforming Raw Data\ninto Business Decisions").split('\n').map((line, i) => (
                   <span key={i} className="block">{line}</span>
                 ))}
               </motion.h1>
 
-              {/* Description/Deskripsi - Fluid Responsive */}
+              {/* 4. Deskripsi / Subtitle - Tebal (font-bold) seperti Desktop View */}
               <motion.p 
-                initial={{ opacity: 0, y: isMobile ? 12 : 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isMobile ? 0.45 : 0.6, delay: isMobile ? 0.15 : 0.35, ease: "easeOut" }}
-                className={`font-sans text-[clamp(0.875rem,1.15vw,1.2rem)] mb-5 md:mb-7 leading-relaxed text-justify md:text-left whitespace-pre-line transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
+                transition={{ duration: 0.45, delay: 0.28, ease: "easeOut" }}
+                className={`font-sans font-bold text-xs sm:text-sm mb-4 leading-relaxed text-center max-w-sm sm:max-w-md mx-auto whitespace-pre-line transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-100' : 'text-slate-800'
                 }`}
+                style={{
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.hero_subtitle_color_dark || '#E2E8F0') 
+                    : (activeCVData.webTexts?.hero_subtitle_color || '#2D3136')
+                }}
               >
                 <span>
                   {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
                 </span>
               </motion.p>
 
-              {/* Tombol Action CTA - Dua Tombol Modern */}
+              {/* 5. 2 Tombol Action CTA - Lebih Kecil & Ramping di Mobile View */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: isMobile ? 0.2 : 0.4, ease: "easeOut" }}
-                className="flex flex-wrap gap-3 sm:gap-4 items-center justify-center md:justify-start"
+                transition={{ duration: 0.45, delay: 0.35, ease: "easeOut" }}
+                className="flex flex-wrap gap-2 sm:gap-2.5 items-center justify-center pb-2"
               >
-                {/* Tombol Utama - Biru Solid "Hubungi Saya" */}
+                {/* Tombol Utama - "Hubungi Saya" */}
                 <button
                   onClick={() => scrollToSection('contact')}
-                    className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-full flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                      theme === 'dark' 
+                  className={`font-sans font-bold text-[11px] sm:text-xs px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-105 active:scale-95 select-none shadow-sm ${
+                    !activeCVData.webTexts?.hero_cta_primary_bg && (theme === 'dark' 
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20')
+                  }`}
+                  style={{
+                    backgroundColor: theme === 'dark'
+                      ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || undefined)
+                      : (activeCVData.webTexts?.hero_cta_primary_bg || undefined),
+                    color: theme === 'dark'
+                      ? (activeCVData.webTexts?.hero_cta_primary_text_dark || undefined)
+                      : (activeCVData.webTexts?.hero_cta_primary_text || undefined),
+                  }}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Hubungi Saya</span>
+                </button>
+                
+                {/* Tombol Sekunder - "Download Resume" */}
+                <button
+                  onClick={() => {
+                    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+                    setCvModalDirectDownload(isMobileViewport);
+                    setCvModalOpen(true);
+                  }}
+                  className={`font-sans font-bold text-[11px] sm:text-xs px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-105 active:scale-95 select-none shadow-sm ${
+                    !activeCVData.webTexts?.hero_cta_secondary_bg && (theme === 'dark' 
+                      ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
+                      : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40')
+                  }`}
+                  style={{
+                    backgroundColor: theme === 'dark'
+                      ? (activeCVData.webTexts?.hero_cta_secondary_bg_dark || undefined)
+                      : (activeCVData.webTexts?.hero_cta_secondary_bg || undefined),
+                    color: theme === 'dark'
+                      ? (activeCVData.webTexts?.hero_cta_secondary_text_dark || undefined)
+                      : (activeCVData.webTexts?.hero_cta_secondary_text || undefined),
+                  }}
+                >
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>Download Resume</span>
+                </button>
+              </motion.div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* DESKTOP VIEW (HIDDEN MD:GRID): Standard 3-column Hero Layout              */}
+            {/* ========================================================================= */}
+            <div 
+              className="hidden md:grid md:grid-cols-12 gap-x-4 lg:gap-x-6 xl:gap-x-8 items-center text-left relative w-full"
+              style={{
+                gridTemplateAreas: `"title title title title title image image image image badge badge badge"`,
+                gridTemplateRows: "1fr",
+              }}
+            >
+              {/* 1. Greeting, Title/Judul, Description & CTA Buttons (Fluid Responsive Sizing) */}
+              <div style={{ gridArea: 'title' }} className="text-left flex flex-col justify-center max-w-none relative z-20">
+                 {/* HELLO, I'M [NAMA KAMU] Text - Animasi Typing dengan Font Kustom / VT323 - Fluid Dynamic Scaling */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
+                  className={`font-bold text-[clamp(1.25rem,2.5vw,3rem)] tracking-widest uppercase mb-1 sm:mb-2 transition-colors duration-200 whitespace-nowrap ${
+                    theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
+                  }`}
+                  style={{ 
+                    fontFamily: (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                      ? "'GangOfThree', sans-serif" 
+                      : "'VT323', monospace",
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.hero_greeting_color_dark || activeCVData.webTexts?.hero_title_color_dark || undefined) 
+                      : (activeCVData.webTexts?.hero_greeting_color || activeCVData.webTexts?.hero_title_color || undefined)
+                  }}
+                >
+                  <TypewriterText 
+                    name={
+                      (activeCVData.webTexts?.hero_name_source === 'fullname') 
+                        ? (activeCVData.name || activeCVData.nickname || "ZUFA") 
+                        : (activeCVData.nickname || activeCVData.name || "ZUFA")
+                    } 
+                    lang={lang} 
+                  />
+                </motion.div>
+                
+                {/* Main Title (misal Junior Data Analyst) - Mepet ke bawah dengan deskripsi - Fluid Responsive */}
+                <motion.h1 
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.25, ease: "easeOut" }}
+                  className={`font-sans font-black text-[clamp(1.75rem,4.2vw,4.75rem)] leading-[1.08] mb-2 sm:mb-3 md:mb-4 transition-colors duration-200 max-w-none ${
+                    (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                      ? 'tracking-wider'
+                      : 'tracking-tight'
+                  } ${
+                    theme === 'dark' ? 'text-white' : 'text-slate-900'
+                  }`}
+                  style={{
+                    fontFamily: (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                      ? "'GangOfThree', sans-serif" 
+                      : undefined,
+                    letterSpacing: (activeCVData.webTexts?.hero_title_font === 'GangOfThree' || activeCVData.webTexts?.hero_font === 'GangOfThree')
+                      ? '0.05em'
+                      : undefined,
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.hero_title_color_dark || undefined) 
+                      : (activeCVData.webTexts?.hero_title_color || undefined)
+                  }}
+                >
+                  {(activeCVData.webTexts?.hero_title || "Transforming Raw Data\ninto Business Decisions").split('\n').map((line, i) => (
+                    <span key={i} className="block">{line}</span>
+                  ))}
+                </motion.h1>
+
+                {/* Description/Deskripsi - Fluid Responsive */}
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.35, ease: "easeOut" }}
+                  className={`font-sans font-bold text-[clamp(0.8125rem,0.95vw,1.025rem)] mb-5 md:mb-7 leading-relaxed text-left whitespace-pre-line transition-colors duration-200 ${
+                    theme === 'dark' ? 'text-slate-100' : 'text-slate-800'
+                  }`}
+                  style={{
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.hero_subtitle_color_dark || '#E2E8F0') 
+                      : (activeCVData.webTexts?.hero_subtitle_color || '#2D3136')
+                  }}
+                >
+                  <span>
+                    {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
+                  </span>
+                </motion.p>
+
+                {/* Tombol Action CTA - Dua Tombol Modern Fluid Responsive */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+                  className="flex flex-wrap gap-[clamp(0.65rem,0.9vw,1.25rem)] items-center justify-start"
+                >
+                  {/* Tombol Utama - "Hubungi Saya" */}
+                  <button
+                    onClick={() => scrollToSection('contact')}
+                    className={`font-sans font-bold text-[clamp(0.75rem,0.95vw,1.15rem)] px-[clamp(1.1rem,1.4vw,2rem)] py-[clamp(0.6rem,0.75vw,1rem)] rounded-full flex items-center gap-[clamp(0.4rem,0.5vw,0.65rem)] whitespace-nowrap transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none shadow-md ${
+                      !activeCVData.webTexts?.hero_cta_primary_bg && (theme === 'dark' 
                         ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
-                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20')
                     }`}
+                    style={{
+                      backgroundColor: theme === 'dark'
+                        ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || undefined)
+                        : (activeCVData.webTexts?.hero_cta_primary_bg || undefined),
+                      color: theme === 'dark'
+                        ? (activeCVData.webTexts?.hero_cta_primary_text_dark || undefined)
+                        : (activeCVData.webTexts?.hero_cta_primary_text || undefined),
+                    }}
                   >
-                    <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <MessageCircle className="w-[clamp(0.875rem,1.05vw,1.3rem)] h-[clamp(0.875rem,1.05vw,1.3rem)] shrink-0" />
                     <span>Hubungi Saya</span>
                   </button>
                   
-                  {/* Tombol Sekunder - Biru Solid "Download Resume" - Warna Putih */}
+                  {/* Tombol Sekunder - "Download Resume" */}
                   <button
                     onClick={() => {
                       const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
                       setCvModalDirectDownload(isMobileViewport);
                       setCvModalOpen(true);
                     }}
-                    className={`font-sans font-bold text-xs sm:text-sm px-5 sm:px-6 py-3 sm:py-3.5 rounded-full flex items-center gap-2 transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none ${
-                      theme === 'dark' 
+                    className={`font-sans font-bold text-[clamp(0.75rem,0.95vw,1.15rem)] px-[clamp(1.1rem,1.4vw,2rem)] py-[clamp(0.6rem,0.75vw,1rem)] rounded-full flex items-center gap-[clamp(0.4rem,0.5vw,0.65rem)] whitespace-nowrap transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none shadow-md ${
+                      !activeCVData.webTexts?.hero_cta_secondary_bg && (theme === 'dark' 
                         ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
-                        : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40'
+                        : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40')
                     }`}
-                >
-                  <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span>Download Resume</span>
-                </button>
-              </motion.div>
-            </div>
-
-            {/* 2. Image/Gambar - RESPONSIVE CONTAINER & DYNAMIC SCALING */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
-              style={{ gridArea: 'image' }}
-              className="relative z-5 pointer-events-none flex items-center justify-center w-full min-h-[290px] sm:min-h-[350px] md:min-h-[390px] lg:min-h-[470px] xl:min-h-[570px] 2xl:min-h-[670px] my-4 md:my-0"
-            >
-              {/* SVG Lingkaran dengan Gradasi Radial - Dynamic Theme-Customizable Sphere Effect Responsif */}
-              {(() => {
-                const circleConfig = getHeroCircleColors(activeCVData, theme);
-                return (
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="absolute left-1/2 top-1/2 pointer-events-none z-0 w-[270px] h-[270px] sm:w-[330px] sm:h-[330px] md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none transition-all duration-300 ease-out" 
-                    viewBox="0 0 500 500"
-                    preserveAspectRatio="xMidYMid meet"
                     style={{
-                      opacity: circleConfig.opacity,
-                      transform: `translate(-50%, -50%) scale(${(activeCVData as any).homeImageCircleScale ?? 1}) translate(${((activeCVData as any).homeImageCircleX ?? 0) * 2}px, ${((activeCVData as any).homeImageCircleY ?? 0) * 2}px)`
+                      backgroundColor: theme === 'dark'
+                        ? (activeCVData.webTexts?.hero_cta_secondary_bg_dark || undefined)
+                        : (activeCVData.webTexts?.hero_cta_secondary_bg || undefined),
+                      color: theme === 'dark'
+                        ? (activeCVData.webTexts?.hero_cta_secondary_text_dark || undefined)
+                        : (activeCVData.webTexts?.hero_cta_secondary_text || undefined),
                     }}
                   >
-                    <defs>
-                      <radialGradient id="heroCircleSphere" cx="42%" cy="38%" r="55%" fx="42%" fy="38%">
-                        <stop offset="0%" stopColor={circleConfig.start} />
-                        <stop offset="50%" stopColor={circleConfig.mid} />
-                        <stop offset="100%" stopColor={circleConfig.end} />
-                      </radialGradient>
-                      <linearGradient id="heroCircleLinear" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor={circleConfig.start} />
-                        <stop offset="100%" stopColor={circleConfig.end} />
-                      </linearGradient>
-                    </defs>
-                    <circle 
-                      cx="250" 
-                      cy="250" 
-                      r="220" 
-                      fill={circleConfig.style === 'linear' ? "url(#heroCircleLinear)" : circleConfig.style === 'flat' ? circleConfig.start : "url(#heroCircleSphere)"}
-                      stroke={circleConfig.style === 'outline' ? circleConfig.start : 'none'}
-                      strokeWidth={circleConfig.style === 'outline' ? 8 : 0}
-                    />
-                  </svg>
-                );
-              })()}
-              
-              {/* Image - Dynamic responsive scaling across mobile, laptop, desktop, and large displays */}
-              {currentProfileImageUrl && (
-                <img 
-                  className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-all duration-700 ease-out select-none w-[270px] h-[270px] sm:w-[330px] sm:h-[330px] md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none ${
-                    isPng ? 'object-contain' : 'object-cover'
-                  }`}
-                  onClick={() => scrollToSection('profil')}
-                  title="Buka Halaman Tentang Saya (Story)"
-                  referrerPolicy="no-referrer"
-                  alt="Professional Portfolio Visual" 
-                  src={currentProfileImageUrl}
-                  style={{
-                    transform: `translate(-50%, -50%) scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
-                    transformOrigin: 'center center',
-                    opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
-                    maskImage: (() => {
-                      const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                      const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
-                      const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
-                      if (maskStyle === 'fade_bottom') {
-                        return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                      } else if (maskStyle === 'fade_circle') {
-                        return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                      } else if (maskStyle === 'fade_edge') {
-                        return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                      }
-                      return 'none';
-                    })(),
-                    WebkitMaskImage: (() => {
-                      const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                      const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
-                      const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
-                      if (maskStyle === 'fade_bottom') {
-                        return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                      } else if (maskStyle === 'fade_circle') {
-                        return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                      } else if (maskStyle === 'fade_edge') {
-                        return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                      }
-                      return 'none';
-                    })()
-                  }}
-                />
-              )}
-            </motion.div>
-
-            {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi (Posisi agak ke atas) */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
-              style={{ gridArea: 'badge' }}
-              className="hidden md:flex flex-col gap-1.5 items-start text-left justify-start self-start pt-10 md:pt-12 lg:pt-14 xl:pt-16 relative z-30"
-            >
-              {/* OPEN TO WORK - Bold warna hitam/putih dengan fluid scaling */}
-              <div className="flex items-center gap-1.5">
-                <span className={`font-sans text-[clamp(0.75rem,1.1vw,1.15rem)] font-black uppercase tracking-[0.15em] italic transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-white' : 'text-black'
-                }`}>
-                  {activeCVData.webTexts?.hero_badge || "OPEN TO WORK"}
-                </span>
+                    <Download className="w-[clamp(0.875rem,1.05vw,1.3rem)] h-[clamp(0.875rem,1.05vw,1.3rem)] shrink-0" />
+                    <span>Download Resume</span>
+                  </button>
+                </motion.div>
               </div>
-              
-              {/* Tahun - Font Black Ops One, lebih besar dan bold fluid */}
-              <span 
-                className={`font-black text-[clamp(2.75rem,4.75vw,5.25rem)] leading-none transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-white' : 'text-black'
-                }`}
-                style={{ fontFamily: "'Black Ops One', cursive" }}
+
+              {/* 2. Image/Gambar - RESPONSIVE CONTAINER & DYNAMIC SCALING */}
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
+                style={{ gridArea: 'image' }}
+                className="relative z-5 pointer-events-none flex items-center justify-center w-full min-h-[390px] lg:min-h-[470px] xl:min-h-[570px] 2xl:min-h-[670px]"
               >
-                {activeCVData.webTexts?.hero_year || "2026"}
-              </span>
-              
-              {/* Lokasi - Bold dan hitam/putih fluid */}
-              <span className={`font-sans font-black text-[clamp(0.875rem,1.2vw,1.35rem)] italic uppercase tracking-wider transition-colors duration-200 ${
-                theme === 'dark' ? 'text-white' : 'text-black'
-              }`}>
-                {activeCVData.webTexts?.hero_location || "Klaten, Jawa Tengah"}
-              </span>
-            </motion.div>
+                {/* Image - Dynamic responsive scaling across laptop, desktop, and large displays */}
+                {currentProfileImageUrl && (
+                  <img 
+                    className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-all duration-700 ease-out select-none md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none ${
+                      isPng ? 'object-contain' : 'object-cover'
+                    }`}
+                    onClick={() => scrollToSection('profil')}
+                    title="Buka Halaman Tentang Saya (Story)"
+                    referrerPolicy="no-referrer"
+                    alt="Professional Portfolio Visual" 
+                    src={currentProfileImageUrl}
+                    style={{
+                      transform: `translate(-50%, -50%) scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
+                      transformOrigin: 'center center',
+                      opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
+                      maskImage: (() => {
+                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                        if (maskStyle === 'fade_bottom') {
+                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_circle') {
+                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_edge') {
+                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        }
+                        return 'none';
+                      })(),
+                      WebkitMaskImage: (() => {
+                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                        if (maskStyle === 'fade_bottom') {
+                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_circle') {
+                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        } else if (maskStyle === 'fade_edge') {
+                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                        }
+                        return 'none';
+                      })()
+                    }}
+                  />
+                )}
+              </motion.div>
+
+              {/* 3. Badge Informasi di Sebelah Kanan - Open to Work, Tahun, Lokasi */}
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+                style={{ gridArea: 'badge' }}
+                className="flex flex-col gap-1.5 items-start text-left justify-start self-start pt-10 md:pt-12 lg:pt-14 xl:pt-16 relative z-30"
+              >
+                {/* OPEN TO WORK - Bold warna hitam/putih dengan fluid scaling */}
+                <div className="flex items-center gap-1.5">
+                  <span 
+                    className={`font-sans text-[clamp(0.75rem,1.1vw,1.15rem)] font-black uppercase tracking-[0.15em] italic transition-colors duration-200 ${
+                      theme === 'dark' ? 'text-white' : 'text-black'
+                    }`}
+                    style={{
+                      color: theme === 'dark' 
+                        ? (activeCVData.webTexts?.hero_badge_color_dark || undefined) 
+                        : (activeCVData.webTexts?.hero_badge_color || undefined)
+                    }}
+                  >
+                    {activeCVData.webTexts?.hero_badge || "OPEN TO WORK"}
+                  </span>
+                </div>
+                
+                {/* Tahun - Font Black Ops One, lebih besar dan bold fluid */}
+                <span 
+                  className={`font-black text-[clamp(2.75rem,4.75vw,5.25rem)] leading-none transition-colors duration-200 ${
+                    theme === 'dark' ? 'text-white' : 'text-black'
+                  }`}
+                  style={{ 
+                    fontFamily: "'Black Ops One', cursive",
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.hero_year_color_dark || undefined) 
+                      : (activeCVData.webTexts?.hero_year_color || undefined)
+                  }}
+                >
+                  {activeCVData.webTexts?.hero_year || "2026"}
+                </span>
+                
+                {/* Lokasi - Bold dan hitam/putih fluid */}
+                <span 
+                  className={`font-sans font-black text-[clamp(0.875rem,1.2vw,1.35rem)] italic uppercase tracking-wider transition-colors duration-200 ${
+                    theme === 'dark' ? 'text-white' : 'text-black'
+                  }`}
+                  style={{
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.hero_location_color_dark || undefined) 
+                      : (activeCVData.webTexts?.hero_location_color || undefined)
+                  }}
+                >
+                  {activeCVData.webTexts?.hero_location || "Klaten, Jawa Tengah"}
+                </span>
+              </motion.div>
+            </div>
           </div>
         </section>
 
@@ -2415,7 +2749,7 @@ export default function App() {
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
           <FloatingAssetsOverlay sectionId="projects" assets={activeCVData.floatingAssets} />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="mb-12">
+            <div className="mb-10 sm:mb-12 relative z-0">
               <motion.div 
                 initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -2423,57 +2757,169 @@ export default function App() {
                 transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
                 className="max-w-3xl"
               >
-                <h2 className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-white' : 'text-slate-900'
-                }`}>
+                <h2 
+                  className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight transition-colors duration-200 ${
+                    theme === 'dark' ? 'text-white' : 'text-slate-900'
+                  }`}
+                  style={{
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.projects_title_color_dark || undefined) 
+                      : (activeCVData.webTexts?.projects_title_color || undefined)
+                  }}
+                >
                   {activeCVData.webTexts?.projects_title || "Selected Case Studies"}
                 </h2>
-                <p className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                }`}>
+                <p 
+                  className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  }`}
+                  style={{
+                    color: theme === 'dark' 
+                      ? (activeCVData.webTexts?.projects_subtitle_color_dark || undefined) 
+                      : (activeCVData.webTexts?.projects_subtitle_color || undefined)
+                  }}
+                >
                   {activeCVData.webTexts?.projects_subtitle || "A structured demonstration of technical proficiency across the entire data deployment stack, highlighting real performance audits."}
                 </p>
               </motion.div>
             </div>
 
-            {/* Case Studies Container and Side Button */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
-              <div className="flex-1 min-w-0">
-                {/* Case Studies Cards Grid */}
-                <div className={`${(!activeCVData.caseStudies || activeCVData.caseStudies.length === 0) ? 'grid grid-cols-1' : 'flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-proximity no-scrollbar pb-4 md:pb-0'} gap-6 sm:gap-8`}>
-              {!activeCVData.caseStudies || activeCVData.caseStudies.length === 0 ? (
-                <div className={`p-8 rounded-xl text-center transition-all ${
-                  theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
-                }`}
-                style={
-                  theme === 'dark'
-                    ? (activeCVData.webTexts?.projects_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color_dark } : undefined)
-                    : (activeCVData.webTexts?.projects_card_bg_color ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color } : undefined)
-                }
-                >
-                  <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
-                  <h3 className="font-sans font-bold text-lg mb-2">Belum ada Proyek</h3>
-                  <p className="text-sm max-w-md mx-auto leading-relaxed mb-4">
-                    Belum ada proyek/case studies yang tersimpan. Klik ikon database hijau (Admin Panel) di pojok kanan atas untuk login dan membuat proyek pertama Anda!
-                  </p>
-                </div>
-              ) : (
-                (() => {
-                  const allProjs = activeCVData.caseStudies || [];
-                  const homeFeaturedProjects = (() => {
-                    try {
-                      const val = activeCVData.webTexts?.featured_project_ids;
-                      if (val) {
-                        const ids = JSON.parse(val);
-                        if (Array.isArray(ids) && ids.length > 0) {
-                          return ids.map(id => allProjs.find(p => p.id === id)).filter(Boolean) as typeof allProjs;
-                        }
-                      }
-                    } catch (e) {}
-                    return allProjs.slice(0, 3);
-                  })();
+            {/* Case Studies Container and Buttons Layout based on Template */}
+            {(() => {
+              const isMinimalPopupLayout = (activeCVData.webTexts?.projects_layout_type === 'minimal_popup');
+              const allProjs = activeCVData.caseStudies || [];
 
-                  const mappedCards = homeFeaturedProjects.map((study, idx) => (
+              if (!allProjs || allProjs.length === 0) {
+                return (
+                  <div className="w-full">
+                    <div className={`p-8 rounded-xl text-center transition-all ${
+                      theme === 'dark' ? 'bg-slate-800 border-none text-slate-300' : 'bg-white border border-slate-200 text-slate-700 shadow-sm'
+                    }`}
+                    style={
+                      theme === 'dark'
+                        ? (activeCVData.webTexts?.projects_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color_dark } : undefined)
+                        : (activeCVData.webTexts?.projects_card_bg_color ? { backgroundColor: activeCVData.webTexts.projects_card_bg_color } : undefined)
+                    }
+                    >
+                      <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
+                      <h3 className="font-sans font-bold text-lg mb-2">Belum ada Proyek</h3>
+                      <p className="text-sm max-w-md mx-auto leading-relaxed mb-4">
+                        Belum ada proyek/case studies yang tersimpan. Klik ikon database hijau (Admin Panel) di pojok kanan atas untuk login dan membuat proyek pertama Anda!
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
+              const homeFeaturedProjects = (() => {
+                try {
+                  const val = activeCVData.webTexts?.featured_project_ids;
+                  if (val) {
+                    const ids = JSON.parse(val);
+                    if (Array.isArray(ids) && ids.length > 0) {
+                      return ids.map(id => allProjs.find(p => p.id === id)).filter(Boolean) as typeof allProjs;
+                    }
+                  }
+                } catch (e) {}
+                return allProjs.slice(0, 3);
+              })();
+
+              const mappedCards = homeFeaturedProjects.map((study, idx) => {
+                if (isMinimalPopupLayout) {
+                  const projectSkills = (study.tags && study.tags.length > 0)
+                    ? study.tags
+                    : (study.tools && study.tools.length > 0)
+                      ? study.tools
+                      : [];
+
+                  return (
+                    <motion.div 
+                      key={study.id} 
+                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={isMobile ? undefined : { once: true, amount: 0.05 }}
+                      transition={isMobile ? { duration: 0 } : { duration: 0.7, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                      whileHover={isMobile ? undefined : { 
+                        y: -10, 
+                        scale: 1.04, 
+                        zIndex: 100,
+                        transition: { type: "spring", stiffness: 320, damping: 22, mass: 0.5 } 
+                      }}
+                      onClick={() => setSelectedProjectModal(study)}
+                      className="group relative h-[380px] sm:h-[420px] md:h-[440px] w-[84vw] sm:w-[360px] md:w-auto overflow-hidden rounded-2xl border border-slate-700/60 shadow-md hover:shadow-2xl transition-all duration-300 ease-out cursor-pointer shrink-0 snap-center md:snap-align-none z-10 hover:z-50 bg-slate-950 flex flex-col justify-between"
+                      title={lang === 'id' ? 'Klik untuk melihat detail proyek (Pop-Up)' : 'Click to view project details (Pop-Up)'}
+                    >
+                      {/* Background Image with Smooth Zoom Effect on Hover */}
+                      <img
+                        src={study.image}
+                        alt={study.title}
+                        referrerPolicy="no-referrer"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110 select-none"
+                      />
+
+                      {/* Gradient Overlay for Text Readability & High Contrast */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 via-40% to-slate-950/20 group-hover:from-slate-950 group-hover:via-slate-950/80 transition-all duration-500 pointer-events-none" />
+
+                      {/* Top Section: Index Badge & Hover Detail Pill */}
+                      <div className="relative z-20 p-4 sm:p-5 flex items-center justify-between pointer-events-none">
+                        <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-white/30 bg-black/40 backdrop-blur-md text-emerald-400 font-mono text-xs font-bold shadow-md">
+                          #{idx + 1}
+                        </div>
+                        
+                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 font-mono text-[9px] font-bold tracking-wider px-2.5 py-1 rounded-lg leading-none flex items-center gap-1.5 border border-white/20 bg-slate-950/80 text-emerald-400 shadow-md backdrop-blur-md">
+                          <Eye className="w-3 h-3" />
+                          <span>{lang === 'id' ? 'DETAIL' : 'VIEW'}</span>
+                        </div>
+                      </div>
+
+                      {/* Content Container (Bottom Info with Slide & Hover Reveal) */}
+                      <div className="relative z-20 p-5 sm:p-6 text-white pointer-events-none flex flex-col justify-end">
+                        {/* Title & Short Description (positioned snug at bottom, slides up smoothly on hover) */}
+                        <div className="space-y-1.5 transition-transform duration-500 ease-out sm:group-hover:-translate-y-24">
+                          <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug drop-shadow-md">
+                            {study.title}
+                          </h3>
+                          {(study.shortDescription || study.description) && (
+                            <p className="text-xs sm:text-sm text-slate-300/90 line-clamp-2 leading-relaxed drop-shadow-sm font-sans">
+                              {study.shortDescription || study.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Hover Section: Skills & Right-Aligned "Click for details" (revealed smoothly on hover) */}
+                        <div className="pt-3 sm:pt-0 sm:absolute sm:bottom-5 sm:left-6 sm:right-6 border-t sm:border-t-0 border-white/15 opacity-100 sm:opacity-0 sm:translate-y-6 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-500 ease-out flex flex-col gap-2.5">
+                          {projectSkills.length > 0 && (
+                            <div>
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 block mb-1.5">
+                                {lang === 'id' ? 'SKILL & TOOLS:' : 'SKILLS & TOOLS:'}
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {projectSkills.slice(0, 4).map((tg, i) => (
+                                  <span 
+                                    key={i} 
+                                    className="font-mono text-[9.5px] sm:text-[10.5px] font-semibold tracking-wide px-2.5 py-0.5 rounded-md bg-slate-900/90 border border-emerald-500/40 text-emerald-300 backdrop-blur-md shadow-sm"
+                                  >
+                                    {tg}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Right-aligned Click for details CTA */}
+                          <div className="flex items-center justify-end text-xs font-medium pt-0.5">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition-transform drop-shadow-sm">
+                              <span>{lang === 'id' ? 'Klik untuk detail' : 'Click for details'}</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                }
+
+                return (
                   <motion.div 
                     key={study.id} 
                     initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
@@ -2556,82 +3002,118 @@ export default function App() {
                       </button>
                     </div>
                   </motion.div>
-                  ));
+                );
+              });
 
-                  return (
-                    <>
+              if (isMinimalPopupLayout) {
+                // TEMPLATE 2 LAYOUT: Grid kartu rapat + Tombol landscape tanpa logo di bagian bawah
+                return (
+                  <div className="w-full relative z-20">
+                    <div className="flex overflow-x-auto md:overflow-visible md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-proximity no-scrollbar pt-4 sm:pt-6 pb-6 md:pb-4 px-2 sm:px-3 -mx-2 sm:-mx-3 gap-4 sm:gap-5 relative">
                       {mappedCards}
-                      {activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
-                        <div className="md:hidden flex items-center justify-center shrink-0 pr-4 snap-center pl-2">
-                          <button
-                            onClick={() => {
-                              navigateToPath('projects');
-                            }}
-                            title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
-                            className={`flex flex-col items-center justify-center gap-2 w-[54px] h-[180px] rounded-xl border cursor-pointer select-none shrink-0 ${
-                              theme === 'dark'
-                                ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md'
-                                : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm'
-                            }`}
-                          >
-                            <ArrowRight className="w-4 h-4 text-emerald-500 animate-pulse shrink-0" />
-                            <span 
-                              className="font-mono text-[9px] font-bold tracking-widest uppercase text-center leading-none"
-                              style={{ writingMode: 'vertical-lr' }}
-                            >
-                              {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
-                            </span>
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()
-              )}
-                </div>
-              </div>
+                    </div>
 
-              {/* The elegant view all projects button beside the project cards container */}
-              {activeCVData.caseStudies && activeCVData.caseStudies.length > 0 && (
-                <div className="hidden md:flex justify-center items-center shrink-0 w-full lg:w-auto">
-                  <motion.button
-                    onMouseEnter={() => setIsAllProjectsHovered(true)}
-                    onMouseLeave={() => setIsAllProjectsHovered(false)}
-                    onClick={() => {
-                      navigateToPath('projects');
-                    }}
-                    title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
-                    animate={{
-                      height: isAllProjectsHovered ? 256 : 64,
-                      width: isAllProjectsHovered ? (window.innerWidth >= 1024 ? 64 : 180) : 64,
-                    }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                    className={`flex flex-col items-center justify-center gap-3 rounded-xl border cursor-pointer select-none shrink-0 overflow-hidden ${
-                      theme === 'dark'
-                        ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md'
-                        : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm'
-                    }`}
-                  >
-                    <ArrowRight className={`w-5 h-5 transition-transform duration-300 shrink-0 ${isAllProjectsHovered ? 'rotate-90' : ''}`} />
-                    
-                    <AnimatePresence>
-                      {isAllProjectsHovered && (
-                        <motion.span
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2, ease: 'easeOut' }}
-                          className="font-mono text-[9px] font-bold tracking-widest uppercase text-center select-none shrink-0 leading-none block whitespace-nowrap"
-                          style={{ writingMode: window.innerWidth >= 1024 ? 'vertical-lr' : 'horizontal-tb' }}
+                    {/* Tombol Landscape Tanpa Logo Khusus Template 2 */}
+                    <div className="mt-7 sm:mt-8 flex justify-center items-center">
+                      <motion.button
+                        whileHover={{ scale: 1.04, y: -1.5 }}
+                        whileTap={{ scale: 0.96 }}
+                        transition={{ type: "spring", stiffness: 380, damping: 24, mass: 0.7 }}
+                        onClick={() => {
+                          navigateToPath('projects');
+                        }}
+                        title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                        className={`group px-5 sm:px-6 py-2 sm:py-2.5 rounded-full border font-sans font-bold text-[11px] sm:text-xs flex items-center gap-2 transition-colors cursor-pointer select-none shadow-xs hover:shadow-md ${
+                          theme === 'dark'
+                            ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 hover:border-emerald-500/40 shadow-slate-950/30'
+                            : 'bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border-slate-200/90 hover:border-emerald-500/40 shadow-slate-200/40'
+                        }`}
+                      >
+                        <span className="tracking-wide whitespace-nowrap">
+                          {lang === 'id' 
+                            ? `Lihat Semua Proyek (${allProjs.length})` 
+                            : `View All Projects (${allProjs.length})`}
+                        </span>
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-transform duration-300 group-hover:translate-x-1 shrink-0" />
+                      </motion.button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // TEMPLATE 1 (DEFAULT) LAYOUT: Kartu Bento + Tombol Samping (Side Button) Original
+              return (
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 snap-x snap-proximity no-scrollbar pb-4 md:pb-0 gap-6 sm:gap-8">
+                      {mappedCards}
+                      
+                      {/* Mobile slide-end button for Template 1 */}
+                      <div className="md:hidden flex items-center justify-center shrink-0 pr-4 snap-center pl-2">
+                        <button
+                          onClick={() => {
+                            navigateToPath('projects');
+                          }}
+                          title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                          className={`flex flex-col items-center justify-center gap-2 w-[54px] h-[180px] rounded-xl border cursor-pointer select-none shrink-0 ${
+                            theme === 'dark'
+                              ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md'
+                              : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm'
+                          }`}
                         >
-                          {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </motion.button>
+                          <ArrowRight className="w-4 h-4 text-emerald-500 animate-pulse shrink-0" />
+                          <span 
+                            className="font-mono text-[9px] font-bold tracking-widest uppercase text-center leading-none"
+                            style={{ writingMode: 'vertical-lr' }}
+                          >
+                            {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Side Button for Template 1 */}
+                  <div className="hidden md:flex justify-center items-center shrink-0 w-full lg:w-auto">
+                    <motion.button
+                      onMouseEnter={() => setIsAllProjectsHovered(true)}
+                      onMouseLeave={() => setIsAllProjectsHovered(false)}
+                      onClick={() => {
+                        navigateToPath('projects');
+                      }}
+                      title={lang === 'id' ? 'Lihat Semua Projek' : 'View All Projects'}
+                      animate={{
+                        height: isAllProjectsHovered ? 256 : 64,
+                        width: isAllProjectsHovered ? (window.innerWidth >= 1024 ? 64 : 180) : 64,
+                      }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                      className={`flex flex-col items-center justify-center gap-3 rounded-xl border cursor-pointer select-none shrink-0 overflow-hidden ${
+                        theme === 'dark'
+                          ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border-slate-700 shadow-md'
+                          : 'bg-slate-50 hover:bg-slate-100/90 text-slate-700 hover:text-slate-900 border-slate-200 shadow-sm'
+                      }`}
+                    >
+                      <ArrowRight className={`w-5 h-5 transition-transform duration-300 shrink-0 ${isAllProjectsHovered ? 'rotate-90' : ''}`} />
+                      
+                      <AnimatePresence>
+                        {isAllProjectsHovered && (
+                          <motion.span
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="font-mono text-[9px] font-bold tracking-widest uppercase text-center select-none shrink-0 leading-none block whitespace-nowrap"
+                            style={{ writingMode: window.innerWidth >= 1024 ? 'vertical-lr' : 'horizontal-tb' }}
+                          >
+                            {lang === 'id' ? 'SEMUA PROYEK' : 'ALL PROJECTS'}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </motion.button>
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
           </div>
         </section>
@@ -2676,14 +3158,28 @@ export default function App() {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="text-center max-w-2xl mx-auto mb-12"
             >
-              <h2 className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-white' : 'text-slate-900'
-              }`}>
+              <h2 
+                className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-white' : 'text-slate-900'
+                }`}
+                style={{
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.skills_title_color_dark || undefined) 
+                    : (activeCVData.webTexts?.skills_title_color || undefined)
+                }}
+              >
                 {activeCVData.webTexts?.skills_title || "Technical Arsenal"}
               </h2>
-              <p className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
+              <p 
+                className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                }`}
+                style={{
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.skills_subtitle_color_dark || undefined) 
+                    : (activeCVData.webTexts?.skills_subtitle_color || undefined)
+                }}
+              >
                 {activeCVData.webTexts?.skills_subtitle || "Expertise and architectural know-how across relational SQL databases, mathematical script engines, and custom telemetry filters."}
               </p>
             </motion.div>
@@ -2739,14 +3235,28 @@ export default function App() {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="max-w-3xl mb-6 sm:mb-12"
             >
-              <h2 className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-white' : 'text-slate-900'
-              }`}>
+              <h2 
+                className={`font-sans font-extrabold text-xl md:text-4xl tracking-tight mt-3 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-white' : 'text-slate-900'
+                }`}
+                style={{
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.experience_title_color_dark || undefined) 
+                    : (activeCVData.webTexts?.experience_title_color || undefined)
+                }}
+              >
                 {activeCVData.webTexts?.experience_title || "Professional Journey"}
               </h2>
-              <p className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
+              <p 
+                className={`font-sans text-xs sm:text-base mt-2 transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                }`}
+                style={{
+                  color: theme === 'dark' 
+                    ? (activeCVData.webTexts?.experience_subtitle_color_dark || undefined) 
+                    : (activeCVData.webTexts?.experience_subtitle_color || undefined)
+                }}
+              >
                 {activeCVData.webTexts?.experience_subtitle || "Proven experience designing databases, reporting frameworks, and pipelines inside rapid consumer spaces. Click to toggle bullet point summaries."}
               </p>
             </motion.div>
@@ -2781,7 +3291,7 @@ export default function App() {
                     transition={{ duration: 0.7, delay: expIdx * 0.06, ease: [0.16, 1, 0.3, 1] }}
                     whileHover={{ scale: 1.01, transition: { duration: 0.25, ease: "easeOut" } }}
                     onClick={() => setExpandedExperienceId(isExpanded ? null : exp.id)}
-                    className={`bento-card p-3.5 sm:p-6 rounded-xl border cursor-pointer select-none transition-all duration-200 ${
+                    className={`bento-card p-3.5 sm:p-6 rounded-xl border cursor-pointer select-none transition-[border-color,background-color,box-shadow] duration-250 ${
                       isExpanded 
                         ? 'border-emerald-500/45 shadow-sm bg-emerald-500/5' 
                         : (theme === 'dark' ? 'border-slate-800 bg-slate-900/60 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300')
@@ -2818,16 +3328,18 @@ export default function App() {
                           ))}
                         </div>
 
-                        {/* toggle status indicators */}
-                        {isExpanded ? (
-                          <ChevronUp className="hidden sm:block w-5 h-5 text-slate-400 shrink-0" />
-                        ) : (
-                          <ChevronDown className="hidden sm:block w-5 h-5 text-slate-400 shrink-0" />
-                        )}
+                        {/* Smooth animated toggle indicator */}
+                        <motion.div
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                          className="hidden sm:block text-slate-400 shrink-0"
+                        >
+                          <ChevronDown className="w-5 h-5" />
+                        </motion.div>
                       </div>
                     </div>
 
-                    {/* Collapsible bullet list */}
+                    {/* Butter-smooth Collapsible bullet list */}
                     <AnimatePresence initial={false}>
                       {isExpanded && (
                         <motion.div 
@@ -2835,37 +3347,42 @@ export default function App() {
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3, ease: "easeInOut" }}
-                          className={`overflow-hidden mt-3 sm:mt-5 pt-3 sm:pt-4 border-t text-xs sm:text-sm transition-colors ${
-                            theme === 'dark' ? 'border-slate-800 text-slate-300' : 'border-slate-100 text-slate-600'
-                          }`}
+                          transition={{ 
+                            height: { duration: 0.38, ease: [0.33, 1, 0.68, 1] },
+                            opacity: { duration: 0.22, ease: "easeInOut" }
+                          }}
+                          className="overflow-hidden"
                         >
-                          <ul className="space-y-1 sm:space-y-2">
-                            {exp.bulletPoints.map((bullet, idx) => (
-                              <motion.li 
-                                key={idx}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.08 }}
-                                className="flex items-start gap-2.5"
-                              >
-                                <span className="w-2 h-2 rounded bg-emerald-500 shrink-0 mt-1.5" />
-                                <span className="leading-relaxed text-justify w-full">{bullet}</span>
-                              </motion.li>
-                            ))}
-                          </ul>
-
-                          {/* Mobile stack indicators */}
-                          <div className={`flex sm:hidden flex-wrap gap-1 mt-3 pt-3 sm:mt-4 sm:pt-4 border-t ${
-                            theme === 'dark' ? 'border-slate-800' : 'border-slate-100'
+                          <div className={`mt-3 sm:mt-5 pt-3 sm:pt-4 border-t text-xs sm:text-sm transition-colors ${
+                            theme === 'dark' ? 'border-slate-800 text-slate-300' : 'border-slate-100 text-slate-600'
                           }`}>
-                            {exp.tools?.map((tool, idx) => (
-                              <span key={idx} className={`font-mono text-[9px] px-2 py-0.5 rounded uppercase font-bold tracking-wider border transition-colors ${
-                                theme === 'dark' ? 'bg-slate-950 border-slate-850 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'
-                              }`}>
-                                {tool}
-                              </span>
-                            ))}
+                            <ul className="space-y-1 sm:space-y-2">
+                              {exp.bulletPoints.map((bullet, idx) => (
+                                <motion.li 
+                                  key={idx}
+                                  initial={{ opacity: 0, x: -6 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: idx * 0.05, duration: 0.25 }}
+                                  className="flex items-start gap-2.5"
+                                >
+                                  <span className="w-2 h-2 rounded bg-emerald-500 shrink-0 mt-1.5" />
+                                  <span className="leading-relaxed text-justify w-full">{bullet}</span>
+                                </motion.li>
+                              ))}
+                            </ul>
+
+                            {/* Mobile stack indicators */}
+                            <div className={`flex sm:hidden flex-wrap gap-1 mt-3 pt-3 sm:mt-4 sm:pt-4 border-t ${
+                              theme === 'dark' ? 'border-slate-800' : 'border-slate-100'
+                            }`}>
+                              {exp.tools?.map((tool, idx) => (
+                                <span key={idx} className={`font-mono text-[9px] px-2 py-0.5 rounded uppercase font-bold tracking-wider border transition-colors ${
+                                  theme === 'dark' ? 'bg-slate-950 border-slate-850 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'
+                                }`}>
+                                  {tool}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </motion.div>
                       )}
@@ -2971,6 +3488,15 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* PROJECT DETAIL POP-UP MODAL */}
+      <ProjectDetailModal
+        project={selectedProjectModal}
+        onClose={() => setSelectedProjectModal(null)}
+        theme={theme}
+        onDiscussProject={() => scrollToSection('contact')}
+        lang={lang}
+      />
 
       {/* 5. FLOATING PENCIL ACTION BUTTON & QUICK EDITOR DRAWER (PREVIEW MODE ONLY) */}
       {isPreviewMode && !isAdminView && (

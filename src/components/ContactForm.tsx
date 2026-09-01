@@ -129,10 +129,24 @@ export default function ContactForm({
         className="lg:col-span-5 flex flex-col justify-between"
       >
         <div>
-          <h2 className="font-display text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          <h2 
+            className="font-display text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight transition-colors"
+            style={{
+              color: theme === 'dark' 
+                ? (webTexts?.contact_title_color_dark || undefined) 
+                : (webTexts?.contact_title_color || undefined)
+            }}
+          >
             {webTexts?.contact_title || (lang === 'id' ? "Mari terhubung" : "Let's connect")}
           </h2>
-          <p className="font-sans text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-3 leading-relaxed max-w-sm text-justify">
+          <p 
+            className="font-sans text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-3 leading-relaxed max-w-sm text-justify transition-colors"
+            style={{
+              color: theme === 'dark' 
+                ? (webTexts?.contact_subtitle_color_dark || undefined) 
+                : (webTexts?.contact_subtitle_color || undefined)
+            }}
+          >
             {webTexts?.contact_subtitle || (lang === 'id' ? "Tersedia untuk konsultasi perusahaan, peran analis senior penuh waktu, atau pembicara panel tentang kecerdasan bisnis tingkat lanjut." : "Available for corporate consulting engagements, full-time senior analyst roles, or panel speaking opportunities regarding advanced business intelligence.")}
           </p>
 

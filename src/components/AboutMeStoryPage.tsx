@@ -250,9 +250,14 @@ export default function AboutMeStoryPage({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15, duration: 0.6 }}
-            className={`font-sans font-black text-4xl sm:text-5xl mt-3 mb-4 select-none ${
+            className={`font-sans font-black text-4xl sm:text-5xl mt-3 mb-4 select-none transition-colors ${
               isDark ? 'text-white' : 'text-slate-900'
             }`}
+            style={{
+              color: isDark 
+                ? (texts.about_story_title_color_dark || undefined) 
+                : (texts.about_story_title_color || undefined)
+            }}
           >
             {titleText}
           </motion.h1>
@@ -263,9 +268,14 @@ export default function AboutMeStoryPage({
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.6 }}
-            className={`font-sans text-[13px] sm:text-base leading-relaxed whitespace-pre-line ${
+            className={`font-sans text-[13px] sm:text-base leading-relaxed whitespace-pre-line transition-colors ${
               isDark ? 'text-slate-400' : 'text-slate-600'
             }`}
+            style={{
+              color: isDark 
+                ? (texts.about_story_intro_color_dark || undefined) 
+                : (texts.about_story_intro_color || undefined)
+            }}
           >
             {introText}
           </motion.p>
