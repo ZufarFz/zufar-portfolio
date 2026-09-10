@@ -340,49 +340,45 @@ export default function SkillsArsenal({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-6 xl:gap-10 2xl:gap-12 items-center">
           
           {/* ================================================================ */}
-          {/* LEFT COLUMN: Modern Tech Counter Emblem + Summary Narrative */}
+          {/* LEFT COLUMN: Modern Tech Counter Emblem + Summary Narrative (Hidden on Mobile) */}
           {/* ================================================================ */}
           <motion.div 
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -35 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="lg:col-span-4 xl:col-span-3.5 flex flex-col items-center justify-center text-center my-auto py-2"
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+            className="hidden lg:flex lg:col-span-4 xl:col-span-3.5 2xl:col-span-3 flex-col items-center justify-center text-center my-auto py-2"
           >
-            {/* Circular Medallion Emblem */}
-            <div className="relative group mb-5 flex items-center justify-center">
-              {/* Outer Glow Halo */}
-              <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition duration-700 pointer-events-none" />
+            {/* Circular Medallion Emblem - Biru Muda Bergradasi */}
+            <div className="relative group mb-4 sm:mb-5 flex items-center justify-center">
+              {/* Outer Glow Halo Biru Muda */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-sky-400 via-cyan-300 to-blue-400 rounded-full blur-xl opacity-50 group-hover:opacity-80 transition duration-700 pointer-events-none" />
               
-              {/* Circle Body with Radial Texture */}
-              <div className="relative w-36 h-36 sm:w-42 sm:h-42 rounded-full bg-gradient-to-b from-[#1e40af] via-[#1e3a8a] to-[#0f172a] p-1.5 shadow-2xl flex items-center justify-center border border-blue-400/40 overflow-hidden shrink-0">
-                {/* Japanese Wave Pattern Overlay */}
+              {/* Circle Body with Radial Texture - Light Blue Gradient */}
+              <div className="relative w-28 h-28 sm:w-32 sm:h-32 lg:w-28 lg:h-28 xl:w-32 xl:h-32 2xl:w-36 2xl:h-36 rounded-full bg-gradient-to-b from-sky-100 via-sky-300 to-sky-500 p-1 shadow-xl flex items-center justify-center border-2 border-sky-100/90 overflow-hidden shrink-0">
+                {/* Subtle Japanese Dot Pattern Overlay */}
                 <div 
-                  className="absolute inset-0 opacity-15 pointer-events-none"
+                  className="absolute inset-0 opacity-20 pointer-events-none"
                   style={{
-                    backgroundImage: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4) 1px, transparent 1px)`,
-                    backgroundSize: '12px 12px'
+                    backgroundImage: `radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.35) 1px, transparent 1px)`,
+                    backgroundSize: '10px 10px'
                   }}
                 />
 
                 {/* Inner Content Stack */}
-                <div className="flex flex-col items-center justify-center text-center relative z-10 px-3 select-none">
-                  <span className="font-mono text-3xl sm:text-4xl font-black text-white tracking-tight drop-shadow-md leading-none">
+                <div className="flex flex-col items-center justify-center text-center relative z-10 px-2 select-none">
+                  <span className="font-mono text-2xl sm:text-3xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-black text-slate-900 tracking-tight drop-shadow-xs leading-none">
                     {totalCount}
                   </span>
                   
-                  <span className="font-sans font-black text-[10px] sm:text-[11px] tracking-[0.16em] uppercase text-white/95 mt-1.5 leading-tight">
+                  <span className="font-sans font-black text-[8.5px] sm:text-[9.5px] lg:text-[8px] xl:text-[9px] 2xl:text-[10px] tracking-[0.14em] uppercase text-slate-900 mt-1 sm:mt-1.5 leading-tight">
                     {lang === 'id' ? 'SKILL UTAMA' : 'CORE SKILLS'}
                   </span>
 
-                  <span className="font-sans text-[9px] text-blue-200/90 tracking-wide font-medium mt-0.5">
-                    {lang === 'id' ? 'Keahlian Andalan' : 'Mastered Stack'}
-                  </span>
-
-                  {/* Clean transparent "See Detail" link without box container */}
+                  {/* Clean transparent "See Detail" link */}
                   {onNavigateToAboutMe ? (
                     <button
                       type="button"
@@ -390,14 +386,14 @@ export default function SkillsArsenal({
                         e.stopPropagation();
                         onNavigateToAboutMe();
                       }}
-                      className="mt-1.5 inline-flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-blue-200/90 hover:text-emerald-300 transition-colors duration-150 cursor-pointer bg-transparent border-0 p-0 shadow-none focus:outline-none"
+                      className="mt-1 sm:mt-1.5 inline-flex items-center gap-1 text-[7.5px] sm:text-[8px] font-extrabold tracking-widest uppercase text-sky-950 hover:text-blue-900 transition-colors duration-150 cursor-pointer bg-transparent border-0 p-0 shadow-none focus:outline-none"
                       title={lang === 'id' ? 'Lihat rincian keahlian lengkap' : 'See full skills details'}
                     >
                       <span>{lang === 'id' ? 'Lihat Detail' : 'See Detail'}</span>
-                      <ExternalLink className="w-2 h-2 opacity-75 group-hover:opacity-100" />
+                      <ExternalLink className="w-2 h-2 opacity-80 group-hover:opacity-100" />
                     </button>
                   ) : (
-                    <span className="mt-1.5 text-[8px] font-bold tracking-widest uppercase text-blue-200/80">
+                    <span className="mt-1 sm:mt-1.5 text-[7.5px] sm:text-[8px] font-extrabold tracking-widest uppercase text-sky-950">
                       {lang === 'id' ? 'Lihat Detail' : 'See Detail'}
                     </span>
                   )}
@@ -406,7 +402,7 @@ export default function SkillsArsenal({
             </div>
 
             {/* Narrative description */}
-            <p className={`font-sans text-xs sm:text-sm leading-relaxed max-w-sm text-center transition-colors ${
+            <p className={`font-sans text-xs sm:text-sm lg:text-[11px] xl:text-xs 2xl:text-sm leading-relaxed max-w-sm lg:max-w-[220px] xl:max-w-sm text-center transition-colors ${
               isDark ? 'text-slate-300/90' : 'text-slate-600'
             }`}>
               {displayGroupDesc}
@@ -415,26 +411,26 @@ export default function SkillsArsenal({
             
           {/* RIGHT COLUMN: Categorized Sections with Clean SVG Logo + Name */}
           {/* ================================================================ */}
-          <div className="lg:col-span-8 xl:col-span-8.5 space-y-4 sm:space-y-5.5 w-full">
+          <div className="w-full lg:col-span-8 xl:col-span-8.5 2xl:col-span-9 space-y-3 sm:space-y-4 lg:space-y-3 xl:space-y-4">
             {groupedCategories.map((group, groupIdx) => {
               const formattedNumber = String(groupIdx + 1).padStart(2, '0');
 
               return (
                 <motion.div
                   key={group.id}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 28 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.1 }}
-                  transition={{ duration: 0.5, delay: groupIdx * 0.06, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-1.5 sm:space-y-2"
+                  viewport={{ once: true, amount: 0.08 }}
+                  transition={{ duration: 1.15, delay: groupIdx * 0.14, ease: [0.22, 1, 0.36, 1] }}
+                  className="space-y-1 sm:space-y-1.5"
                 >
-                  {/* Category Header Bar (Clean, without See Detail) */}
+                  {/* Category Header Bar */}
                   <div className="flex items-center pb-1 sm:pb-1.5 border-b border-slate-200/80 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[11px] sm:text-xs font-black tracking-wider text-emerald-600 dark:text-emerald-400">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="font-mono text-[10px] sm:text-[11px] lg:text-[10px] xl:text-xs font-black tracking-wider text-emerald-600 dark:text-emerald-400">
                         {formattedNumber}
                       </span>
-                      <h3 className={`font-sans font-extrabold text-[11px] sm:text-xs tracking-wider uppercase ${
+                      <h3 className={`font-sans font-extrabold text-[10px] sm:text-[11px] lg:text-[10.5px] xl:text-xs tracking-wider uppercase ${
                         isDark ? 'text-white' : 'text-slate-900'
                       }`}>
                         {group.label}
@@ -442,8 +438,8 @@ export default function SkillsArsenal({
                     </div>
                   </div>
 
-                  {/* Technology Grid Cards - Compact Square Layout with Crisp SVG */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-2 sm:gap-2.5">
+                  {/* Technology Grid Cards - Sleek, ultra-compact square-proportioned layout */}
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-9 xl:grid-cols-10 2xl:grid-cols-11 gap-1 sm:gap-1.5">
                     {group.items.map((skill) => (
                         <motion.div
                           key={skill.id || skill.name}
@@ -452,52 +448,52 @@ export default function SkillsArsenal({
                           variants={{
                             rest: { y: 0, scale: 1 },
                             hover: { 
-                              y: -4,
+                              y: -2,
                               scale: 1.05,
-                              transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] } 
+                              transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] } 
                             }
                           }}
                           className="group h-full w-full relative transform-gpu"
                           title={skill.name}
                         >
                           <BorderGlow
-                            edgeSensitivity={20}
+                            edgeSensitivity={18}
                             glowColor={isDark ? "160 100 50" : "160 80 60"}
                             backgroundColor={isDark ? "#1e293b" : "#ffffff"}
-                            borderRadius={10}
-                            glowRadius={40}
-                            glowIntensity={1.1}
-                            coneSpread={25}
+                            borderRadius={6}
+                            glowRadius={22}
+                            glowIntensity={1.05}
+                            coneSpread={22}
                             animated={false}
                             colors={isDark ? ['#10b981', '#06b6d4', '#8b5cf6'] : ['#10b981', '#3b82f6', '#a855f7']}
                             fillOpacity={0.4}
                             className="h-full w-full"
                           >
-                            <div className="h-full w-full p-1.5 sm:p-2 flex flex-col items-center justify-center gap-1 cursor-default">
-                              {/* Authentic Vector Logo with Crisp Zoom - SVG stays HD */}
+                            <div className="h-full w-full p-0.5 sm:p-1 flex flex-col items-center justify-center gap-0.5 cursor-default aspect-[1/1] min-h-[36px] sm:min-h-[38px] md:min-h-[40px] lg:min-h-[38px] xl:min-h-[40px] 2xl:min-h-[44px]">
+                              {/* Authentic Vector Logo with Crisp Zoom - Larger & Snug */}
                               <motion.div 
                                 variants={{
                                   rest: { scale: 1, transformOrigin: 'center center' },
                                   hover: { 
-                                    scale: 1.12,
-                                    transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+                                    scale: 1.1,
+                                    transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] },
                                     transformBox: 'fill-box'
                                   }
                                 }}
-                                className="flex items-center justify-center will-change-transform transform-gpu"
+                                className="flex items-center justify-center will-change-transform transform-gpu shrink-0"
                               >
                                 <TechLogo
                                   name={skill.name}
                                   iconName={skill.icon}
                                   customSvg={skill.customSvg}
                                   svgUrl={skill.svgUrl}
-                                  size={30}
-                                  className="w-7 h-7 sm:w-8 sm:h-8"
+                                  size={28}
+                                  className="w-[20px] h-[20px] sm:w-[22px] sm:h-[22px] md:w-[24px] md:h-[24px] lg:w-[22px] lg:h-[22px] xl:w-[24px] xl:h-[24px] 2xl:w-[26px] 2xl:h-[26px]"
                                 />
                               </motion.div>
 
-                              {/* Skill Name */}
-                              <span className={`font-sans font-bold text-[11px] sm:text-[12.5px] tracking-tight text-center leading-tight truncate w-full transition-colors duration-150 ${
+                              {/* Skill Name - Larger crisp text */}
+                              <span className={`font-sans font-bold text-[8.5px] sm:text-[9px] md:text-[9.5px] lg:text-[8.5px] xl:text-[9.5px] 2xl:text-[10.5px] tracking-tight text-center leading-tight truncate w-full px-0.5 transition-colors duration-150 ${
                                 isDark ? 'text-slate-100 group-hover:text-white' : 'text-slate-800 group-hover:text-slate-950'
                               }`}>
                                 {skill.name}

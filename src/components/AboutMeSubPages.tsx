@@ -11,7 +11,31 @@ import BackgroundTextures from './BackgroundTextures';
 import FloatingAssetsOverlay from './FloatingAssetsOverlay';
 import SkillsArsenal from './SkillsArsenal';
 import SectionGradientShadow from './SectionGradientShadow';
+import MarkdownText from './MarkdownText';
 import { getThemeColorPalette } from '../lib/themeUtils';
+
+// Helper to create seamless dynamic fade gradient overlay matching any background color
+function createFadeGradientStyle(bgColor: string): React.CSSProperties {
+  if (!bgColor) return {};
+  const trimmed = bgColor.trim();
+  if (trimmed.startsWith('#')) {
+    let hex = trimmed;
+    if (hex.length === 4) {
+      hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    }
+    if (hex.length === 7) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return {
+        background: `linear-gradient(to bottom, rgba(${r}, ${g}, ${b}, 0) 0%, rgba(${r}, ${g}, ${b}, 0.5) 45%, rgba(${r}, ${g}, ${b}, 0.88) 75%, ${hex} 100%)`
+      };
+    }
+  }
+  return {
+    background: `linear-gradient(to bottom, transparent 0%, color-mix(in srgb, ${bgColor} 50%, transparent) 45%, color-mix(in srgb, ${bgColor} 88%, transparent) 75%, ${bgColor} 100%)`
+  };
+}
 
 const IconMap: Record<string, any> = {
   Cpu, Flame, Smile, GraduationCap, Briefcase, Award, Heart, 
@@ -305,7 +329,7 @@ export default function AboutMeSubPages({
           });
         });
       } else if (pageKey === 'career-journey') {
-        const list = cvData.experiences || [];
+        const list = (cvData.experiences || []).filter(exp => exp.showOnWeb !== false && exp.showOnHome !== false);
         list.forEach((exp, idx) => {
           displaySections.push({
             id: `fallback-exp-${exp.id}`,
@@ -334,8 +358,8 @@ export default function AboutMeSubPages({
     const subpageCustomUrl = cvData.webTexts?.[`${prefix}_bg_custom_url`] || cvData.webTexts?.[`${prefix}_custom_url`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_custom_url`] || cvData.webTexts?.[`about_subpage_${prefix}_custom_url`] || cvData.webTexts?.about_subpages_custom_url;
 
     const subpageBgColorVal = isDark
-      ? (cvData.webTexts?.[`${prefix}_bg_color_dark`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_color_dark`] || cvData.webTexts?.about_subpages_bg_color_dark)
-      : (cvData.webTexts?.[`${prefix}_bg_color`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_color`] || cvData.webTexts?.about_subpages_bg_color);
+      ? (cvData.webTexts?.[`${prefix}_bg_color_dark`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_color_dark`] || cvData.webTexts?.about_subpages_bg_color_dark || '#0f172a')
+      : (cvData.webTexts?.[`${prefix}_bg_color`] || cvData.webTexts?.[`about_subpage_${prefix}_bg_color`] || cvData.webTexts?.about_subpages_bg_color || '#f7f9fb');
 
     return (
       <motion.div 
@@ -344,7 +368,7 @@ export default function AboutMeSubPages({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
         className="min-h-screen pb-16 font-sans relative overflow-hidden"
-        style={subpageBgColorVal ? { backgroundColor: subpageBgColorVal } : undefined}
+        style={{ backgroundColor: subpageBgColorVal }}
       >
         {/* SECTION GRADIENT SHADOW OVERLAY */}
         <SectionGradientShadow 
@@ -366,7 +390,12 @@ export default function AboutMeSubPages({
           />
         )}
         {/* Floating Decorative Assets Overlay */}
-        <FloatingAssetsOverlay sectionId={prefix} assets={cvData.floatingAssets} />
+        <FloatingAssetsOverlay 
+          sectionId={prefix} 
+          assets={cvData.floatingAssets} 
+          theme={theme}
+          bgColor={subpageBgColorVal}
+        />
         {/* Absolute Header Background Image Band */}
         <div className="absolute top-0 left-0 right-0 h-[540px] pointer-events-none overflow-hidden z-0">
           <img 
@@ -381,11 +410,11 @@ export default function AboutMeSubPages({
               transformOrigin: 'center center'
             }}
           />
-          <div className={`absolute inset-0 bg-gradient-to-b ${
-            isDark 
-              ? 'from-transparent via-[#0f172a]/75 via-60% to-[#0f172a]' 
-              : 'from-transparent via-[#f7f9fb]/75 via-60% to-[#f7f9fb]'
-          }`} />
+          {/* Dynamic background fade overlay matching subpage background */}
+          <div 
+            className="absolute inset-0 pointer-events-none" 
+            style={createFadeGradientStyle(subpageBgColorVal)} 
+          />
         </div>
 
         {/* Intro Hero Section */}
@@ -407,7 +436,7 @@ export default function AboutMeSubPages({
             >
               {title}
             </motion.h1>
-            <motion.p 
+            <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
@@ -420,8 +449,8 @@ export default function AboutMeSubPages({
                   : (cvData.webTexts?.[`${prefix}_intro_color`] || cvData.webTexts?.[`${prefix}_subtitle_color`] || undefined)
               }}
             >
-              {intro}
-            </motion.p>
+              <MarkdownText content={intro} theme={theme} />
+            </motion.div>
           </div>
         </div>
 
@@ -964,9 +993,9 @@ export default function AboutMeSubPages({
                               whileInView={{ opacity: 1, y: 0 }}
                               viewport={{ once: true }}
                               transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                              className={`font-sans text-xs sm:text-sm leading-relaxed whitespace-pre-line ${alignClass} ${textColor}`}
+                              className={`font-sans text-xs sm:text-sm leading-relaxed ${alignClass} ${textColor}`}
                             >
-                              {displayContent}
+                              <MarkdownText content={displayContent} theme={theme} />
                             </motion.div>
                             {linkedDetailsNode && (
                               <motion.div

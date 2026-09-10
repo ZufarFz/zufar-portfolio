@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   Printer, 
@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CVData } from '../types';
 import { saveCVData } from '../lib/storage';
 import SocialIcon, { getAbsoluteSocialUrl } from './SocialIcon';
+import MarkdownText from './MarkdownText';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 
@@ -48,9 +49,10 @@ interface LayoutSettings {
   layoutStyle: 'left-sidebar' | 'right-sidebar' | 'single-column';
   fontFamily: 'sans' | 'serif' | 'mono';
   sectionOrder: string[]; // 'arsenal', 'education', 'experience', 'methodology'
-  headerPhotoPosition?: 'left' | 'top';
-  headerAlignment?: 'left' | 'center';
+  headerPhotoPosition?: 'left' | 'top' | 'right' | 'none';
+  headerAlignment?: 'left' | 'center' | 'right' | 'justify';
   headerContactPosition?: 'bottom' | 'right';
+  contactPosition?: 'bottom' | 'right';
   showEducation?: boolean;
   visibleExperiences?: string[];
   visibleEducations?: string[];
@@ -144,6 +146,90 @@ const ensureSafeColor = (value: string): string => {
   }
   return value;
 };
+
+// Convert Hex color to HSL
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  let c = hex.replace('#', '').trim();
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  if (c.length !== 6) {
+    return { h: 160, s: 80, l: 50 }; // fallback emerald
+  }
+  const r = parseInt(c.substring(0, 2), 16) / 255;
+  const g = parseInt(c.substring(2, 4), 16) / 255;
+  const b = parseInt(c.substring(4, 6), 16) / 255;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h = Math.round(h * 60);
+  }
+
+  return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+// Dynamically generate harmonized luminous gradient & glow based on current background & theme
+function getHarmonizedLineStyles(
+  bgColor: string,
+  isDark: boolean,
+  themeColorSetting?: string,
+  accentColorHex?: string
+) {
+  let targetHue = 160;
+  let sat = 82;
+
+  if (accentColorHex && accentColorHex.startsWith('#')) {
+    const hsl = hexToHsl(accentColorHex);
+    targetHue = hsl.h;
+    sat = Math.max(hsl.s, 75);
+  } else {
+    let hex = bgColor ? bgColor.trim() : '';
+    if (!hex.startsWith('#')) {
+      hex = isDark ? '#181A1B' : '#F3F0E6';
+    }
+    const hsl = hexToHsl(hex);
+    targetHue = hsl.h;
+
+    // If background is nearly grayscale (saturation < 12%), use theme accent hue
+    if (hsl.s < 12) {
+      switch (themeColorSetting) {
+        case 'rose': targetHue = 350; break;
+        case 'amber': targetHue = 38; break;
+        case 'emerald': targetHue = 160; break;
+        case 'blue': targetHue = 215; break;
+        case 'indigo': targetHue = 240; break;
+        case 'slate': targetHue = 210; break;
+        default: targetHue = isDark ? 160 : 38;
+      }
+      sat = 85;
+    } else {
+      sat = Math.max(hsl.s, 78);
+    }
+  }
+
+  const primaryLightness = isDark ? 54 : 46;
+  const highlightLightness = isDark ? 82 : 74;
+
+  return {
+    hue: targetHue,
+    background: `linear-gradient(90deg, hsl(${targetHue}, ${sat}%, ${primaryLightness}%), hsl(${targetHue}, 95%, ${highlightLightness}%), hsl(${targetHue}, ${sat}%, ${primaryLightness}%))`,
+    boxShadow: `0 2px 14px rgba(0, 0, 0, 0.8), 0 0 28px hsl(${targetHue} 90% ${primaryLightness}% / 0.95), 0 0 10px hsl(${targetHue} 95% ${highlightLightness}% / 1)`,
+    sparkColor: `hsl(${targetHue}, 95%, 96%)`,
+    sparkShadow: `0 0 12px #ffffff, 0 0 20px hsl(${targetHue} 95% ${highlightLightness}% / 1)`,
+  };
+}
 
 const DEFAULT_SETTINGS: LayoutSettings = {
   themeColor: 'emerald',
@@ -470,6 +556,45 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
   const activeAccentBgClass = themeBgMap[settings.themeColor || 'emerald'];
   const activeTextAccent = textAccentMap[settings.themeColor || 'emerald'];
 
+  const isDark = theme === 'dark';
+
+  const activeBgColor = isDark
+    ? (cvData?.webTexts?.theme_bg_color_dark || cvData?.webTexts?.home_bg_color_dark || '#181A1B')
+    : (cvData?.webTexts?.theme_bg_color_light || cvData?.webTexts?.home_bg_color || '#F3F0E6');
+
+  const customAccent = isDark
+    ? cvData?.webTexts?.theme_accent_color_dark
+    : (cvData?.webTexts?.theme_accent_color || cvData?.webTexts?.hero_accent_color);
+
+  const lineStyles = useMemo(() => {
+    return getHarmonizedLineStyles(
+      activeBgColor,
+      isDark,
+      settings.themeColor,
+      customAccent
+    );
+  }, [activeBgColor, isDark, settings.themeColor, customAccent]);
+
+  useEffect(() => {
+    if (inlinePreview || directDownload) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose, inlinePreview, directDownload]);
+
   const skills = cvData.skills || [];
   const getSkillsByCategory = (cat: string, fallback: string) => {
     let filterFn = (s: any) => s.showOnCV !== false && s.category === cat;
@@ -641,9 +766,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             if (idStr.endsWith('-id')) return idStr.slice(0, -3);
             return idStr;
           };
-          const visibleExp = (settings.visibleExperiences && settings.visibleExperiences.length > 0)
-            ? cvData.experiences.filter(exp => settings.visibleExperiences?.includes(getExpBaseId(String(exp.id || '')))) 
-            : cvData.experiences;
+          const visibleExp = (cvData.experiences || []).filter(exp => {
+            if (exp.showOnCV === false) return false;
+            if (settings.visibleExperiences && settings.visibleExperiences.length > 0) {
+              return settings.visibleExperiences.includes(getExpBaseId(String(exp.id || '')));
+            }
+            return true;
+          });
           if (visibleExp.length === 0) return '';
           return `
             <div style="margin-bottom: 15pt;">
@@ -713,7 +842,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             <td align="left" valign="middle">
               <table cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  ${base64Avatar ? `
+                  ${base64Avatar && settings.headerPhotoPosition !== 'none' ? `
                     <td valign="middle" style="padding-right: 12pt;">
                       <img src="${base64Avatar}" width="65" height="65" style="border-radius: 50%; border: 1px solid #cbd5e1;" />
                     </td>
@@ -844,9 +973,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
           if (idStr.endsWith('-id')) return idStr.slice(0, -3);
           return idStr;
         };
-        const visibleExpList = (settings.visibleExperiences && settings.visibleExperiences.length > 0) 
-          ? cvData.experiences.filter(exp => settings.visibleExperiences?.includes(getExpBaseIdJSX(String(exp.id || '')))) 
-          : cvData.experiences;
+        const visibleExpList = (cvData.experiences || []).filter(exp => {
+          if (exp.showOnCV === false) return false;
+          if (settings.visibleExperiences && settings.visibleExperiences.length > 0) {
+            return settings.visibleExperiences.includes(getExpBaseIdJSX(String(exp.id || '')));
+          }
+          return true;
+        });
         if (visibleExpList.length === 0) return null;
         return (
           <div key="experience" className={`relative rounded-lg transition-all ${isEditorMode ? 'hover:ring-2 hover:ring-indigo-500/30 hover:bg-slate-50/50 p-2 -m-2' : ''}`}>
@@ -869,7 +1002,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                   <span className={`text-xs font-bold block ${activeStyles.colors.text}`}>{exp.company}</span>
                   <ul className={`list-disc list-outside pl-4 mt-1.5 ${activeStyles.spacings.listSpace} ${activeStyles.fontSizes.text} text-slate-600`}>
                     {exp.bulletPoints.map((bullet, bulletIdx) => (
-                      <li key={bulletIdx} className="pl-0.5">{bullet}</li>
+                      <li key={bulletIdx} className="pl-0.5">
+                        <MarkdownText content={bullet} theme="light" inline />
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -890,9 +1025,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               <h4 className={`${activeStyles.fonts} ${activeStyles.fontSizes.sectionTitle} font-bold text-slate-900 uppercase tracking-wider pb-1 flex items-center gap-1.5 mb-1`}>
                 <Sparkles className={`w-3.5 h-3.5 ${activeStyles.colors.bullet}`} /> {cvData.methodologyTitle}
               </h4>
-              <p className={`${activeStyles.fontSizes.text} text-slate-500 leading-relaxed italic`}>
-                "{cvData.methodologyText}"
-              </p>
+              <div className={`${activeStyles.fontSizes.text} text-slate-500 leading-relaxed italic`}>
+                <MarkdownText content={cvData.methodologyText} theme="light" />
+              </div>
             </div>
           </div>
         );
@@ -996,7 +1131,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             {(() => {
               const photoPos = settings.headerPhotoPosition || 'left';
               const align = settings.headerAlignment || 'left';
-              const contactPos = settings.headerContactPosition || 'bottom';
+              const contactPos = settings.headerContactPosition || settings.contactPosition || 'bottom';
 
               // Determine contacts element
               const renderHeaderContacts = () => {
@@ -1090,9 +1225,15 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                   );
                 }
 
+                const justifyClass = 
+                  align === 'center' ? 'justify-center' :
+                  align === 'right' ? 'justify-end' :
+                  align === 'justify' ? 'justify-between' :
+                  'justify-start';
+
                 // Standard linear row list with dividers
                 return (
-                  <div className={`flex flex-wrap items-center ${align === 'center' ? 'justify-center' : 'justify-start'} gap-x-3 gap-y-1 mt-3 font-mono text-[9px] sm:text-xs print:text-xs text-slate-500`}>
+                  <div className={`flex flex-wrap items-center ${justifyClass} gap-x-3 gap-y-1 mt-3 font-mono text-[9px] sm:text-xs print:text-xs text-slate-500`}>
                     {items.map((elem, idx) => (
                       <React.Fragment key={idx}>
                         {idx > 0 && <span className="text-slate-300 print:text-slate-400 font-bold select-none px-0.5">|</span>}
@@ -1104,49 +1245,73 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               };
 
               const isCenter = align === 'center';
+              const isRight = align === 'right';
+              const isJustify = align === 'justify';
               const isTopPhoto = photoPos === 'top';
+              const isRightPhoto = photoPos === 'right';
+              const isNonePhoto = photoPos === 'none';
+
+              const avatarNode = (!isNonePhoto && cvData.avatarUrl) ? (
+                <div 
+                  className={`rounded-full overflow-hidden border border-slate-200 shrink-0 shadow-sm relative flex items-center justify-center bg-slate-50 ${
+                    isTopPhoto
+                      ? (isCenter ? 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-1' : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-2')
+                      : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20'
+                  }`}
+                >
+                  <img 
+                    src={cvData.avatarUrl} 
+                    alt={cvData.name} 
+                    style={{
+                      position: 'absolute',
+                      width: '100%',
+                      height: 'auto',
+                      maxWidth: 'none',
+                      maxHeight: 'none',
+                      transform: `scale(${cvData.avatarScale || 1}) translate(${(cvData.avatarX || 0) * 0.45}px, ${(cvData.avatarY || 0) * 0.45}px)`,
+                      transformOrigin: 'center center',
+                    }}
+                    className="shrink-0 pointer-events-none select-none"
+                  />
+                </div>
+              ) : null;
+
+              const outerAlignment = isCenter
+                ? 'items-center text-center'
+                : isRight
+                  ? 'items-end text-right'
+                  : isJustify
+                    ? 'items-stretch'
+                    : 'items-stretch text-left';
+
+              const innerPairClass = isTopPhoto
+                ? (isCenter ? 'flex-col items-center text-center gap-3' : isRight ? 'flex-col items-end text-right gap-2' : 'flex-col items-start text-left gap-2')
+                : isRightPhoto
+                  ? (isRight ? 'flex-row-reverse items-center sm:items-start text-right gap-4 sm:gap-5' : 'flex-row-reverse items-center sm:items-start text-left gap-4 sm:gap-5')
+                  : (isRight ? 'flex-row items-center sm:items-start text-right gap-4 sm:gap-5' : 'flex-row items-center sm:items-start text-left gap-4 sm:gap-5');
+
+              const textColClass = isCenter
+                ? 'items-center text-center sm:items-center'
+                : isRight
+                  ? 'items-end text-right sm:items-end'
+                  : 'items-start text-left';
 
               return (
-                <div className={`border-b-2 border-slate-950 pb-5 ${activeStyles.spacings.margin} flex flex-col ${
-                  isTopPhoto && isCenter ? 'items-center text-center' : 'items-stretch text-left'
-                }`}>
+                <div className={`border-b-2 border-slate-950 pb-5 ${activeStyles.spacings.margin} flex flex-col ${outerAlignment}`}>
                   <div className={`flex w-full ${
                     isTopPhoto
-                      ? (isCenter ? 'flex-col items-center' : 'flex-col items-start gap-4')
-                      : 'flex-col sm:flex-row items-center sm:items-start justify-between gap-4 sm:gap-6'
+                      ? (isCenter ? 'flex-col items-center' : isRight ? 'flex-col items-end gap-3' : 'flex-col items-start gap-4')
+                      : isCenter
+                        ? 'flex-col items-center justify-center'
+                        : isRight
+                          ? 'flex-col sm:flex-row-reverse items-center sm:items-start justify-between gap-4 sm:gap-6'
+                          : 'flex-col sm:flex-row items-center sm:items-start justify-between gap-4 sm:gap-6'
                   }`}>
                     
-                    <div className={`flex ${
-                      isTopPhoto
-                        ? (isCenter ? 'flex-col items-center text-center gap-3' : 'flex-col items-start text-left gap-2')
-                        : 'flex-row items-center sm:items-start text-left gap-4 sm:gap-5'
-                    }`}>
-                      {cvData.avatarUrl ? (
-                        <div 
-                          className={`rounded-full overflow-hidden border border-slate-200 shrink-0 shadow-sm relative flex items-center justify-center bg-slate-50 ${
-                            isTopPhoto
-                              ? (isCenter ? 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-1' : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-2')
-                              : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20'
-                          }`}
-                        >
-                          <img 
-                            src={cvData.avatarUrl} 
-                            alt={cvData.name} 
-                            style={{
-                              position: 'absolute',
-                              width: '100%',
-                              height: 'auto',
-                              maxWidth: 'none',
-                              maxHeight: 'none',
-                              transform: `scale(${cvData.avatarScale || 1}) translate(${(cvData.avatarX || 0) * 0.45}px, ${(cvData.avatarY || 0) * 0.45}px)`,
-                              transformOrigin: 'center center',
-                            }}
-                            className="shrink-0 pointer-events-none select-none"
-                          />
-                        </div>
-                      ) : null}
+                    <div className={`flex ${innerPairClass}`}>
+                      {avatarNode}
 
-                      <div className={`flex flex-col ${isCenter ? 'items-center text-center sm:items-center' : 'items-start text-left'}`}>
+                      <div className={`flex flex-col ${textColClass}`}>
                         <h1 className={`${activeStyles.fontSizes.name} font-black text-slate-900 tracking-tight leading-none uppercase`}>
                           {cvData.name}
                         </h1>
@@ -1154,13 +1319,13 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                           {cvData.title}
                         </p>
                         
-                        {/* Render choices at bottom if layout sets contactPosition to bottom OR align is center */}
-                        {(contactPos === 'bottom' || isCenter) && renderHeaderContacts()}
+                        {/* Render contacts under title when contactPos is bottom OR center OR right-aligned OR justify */}
+                        {(contactPos === 'bottom' || isCenter || isRight || isJustify) && renderHeaderContacts()}
                       </div>
                     </div>
 
                     {/* Render choices at right if layout sets contactPosition to right AND align is left */}
-                    {!isCenter && contactPos === 'right' && (
+                    {!isCenter && !isRight && !isJustify && contactPos === 'right' && (
                       <div className="self-center sm:self-start">
                         {renderHeaderContacts()}
                       </div>
@@ -1173,8 +1338,8 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
 
             {/* CV About Me / Brief Bio Section */}
             {cvData.aboutMe && (
-              <div className="border-b border-slate-200 pb-4 mb-4 text-xs sm:text-sm print:text-sm text-slate-700 leading-relaxed whitespace-pre-line text-justify tracking-wide">
-                {cvData.aboutMe}
+              <div className="border-b border-slate-200 pb-4 mb-4 text-xs sm:text-sm print:text-sm text-slate-700 leading-relaxed text-justify tracking-wide">
+                <MarkdownText content={cvData.aboutMe} theme="light" />
               </div>
             )}
 
@@ -1296,28 +1461,106 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       )}
 
       <motion.div 
+        key="resume-modal-backdrop"
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
+        animate={{ opacity: 1, transition: { duration: 0.25 } }}
+        exit={{ 
+          opacity: 0, 
+          transition: { 
+            duration: 0.65, 
+            delay: 0.38, // Synchronized with line shrink
+            ease: "easeInOut" 
+          } 
+        }}
         onClick={onClose}
         className={directDownload 
           ? "fixed -top-[9999px] -left-[9999px] opacity-0 pointer-events-none w-[800px] overflow-hidden"
-          : "fixed inset-0 z-100 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+          : "fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[250] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto"
         }
       >
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        transition={{ type: "spring", damping: 26, stiffness: 300 }}
-        className={`relative rounded-xl shadow-2xl border w-full overflow-hidden transition-all flex flex-col max-h-[95vh] ${
-          theme === 'dark' 
-            ? 'bg-slate-900 border-slate-800 text-slate-100' 
-            : 'bg-white border-slate-200 text-slate-800'
-        } max-w-4xl`}
-        onClick={(e) => e.stopPropagation()}
-      >
+        <div 
+          className="relative w-full max-w-4xl lg:max-w-5xl flex flex-col pointer-events-auto my-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* STEP 1 (Open: Expand from center | Close: STEP 2 Shrinks to center simultaneously as background clears, retaining full opacity and crisp glow independently) */}
+          <motion.div
+            key="resume-modal-line"
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ 
+              scaleX: 1, 
+              opacity: 1,
+              transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } 
+            }}
+            exit={{ 
+              scaleX: 0, 
+              opacity: 0, 
+              transition: { 
+                scaleX: { 
+                  duration: 0.65, 
+                  delay: 0.38, 
+                  ease: [0.22, 1, 0.36, 1] 
+                },
+                opacity: { 
+                  duration: 0.08, 
+                  delay: 0.98,
+                  ease: "easeOut" 
+                }
+              } 
+            }}
+            style={{ 
+              transformOrigin: 'center center',
+              background: lineStyles.background,
+              boxShadow: lineStyles.boxShadow
+            }}
+            className="relative h-2.5 sm:h-3 w-full rounded-t-xl z-30 shrink-0 border-t border-white/20"
+          >
+            {/* Luminous center spark glow with ultra-high contrast */}
+            <span 
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-3 rounded-full blur-[1px] opacity-100 pointer-events-none"
+              style={{ 
+                backgroundColor: lineStyles.sparkColor,
+                boxShadow: lineStyles.sparkShadow
+              }}
+            />
+          </motion.div>
+
+          {/* STEP 2 (Open: Unhide downwards | Close: STEP 1 Fold up into the line) */}
+          <motion.div
+            key="resume-modal-body"
+            initial={{ 
+              opacity: 0, 
+              scaleY: 0, 
+              clipPath: 'inset(0% 0% 100% 0%)' 
+            }}
+            animate={{ 
+              opacity: 1, 
+              scaleY: 1, 
+              clipPath: 'inset(0% 0% 0% 0%)',
+              transition: { 
+                duration: 0.52, 
+                delay: 0.45, // Delay on open so line finishes expanding first
+                ease: [0.22, 1, 0.36, 1],
+                opacity: { duration: 0.35, delay: 0.45 }
+              }
+            }}
+            exit={{ 
+              opacity: 0, 
+              scaleY: 0, 
+              clipPath: 'inset(0% 0% 100% 0%)',
+              transition: { 
+                duration: 0.36, 
+                delay: 0, // STEP 1 on close: Immediately folds up into line without shifting the line
+                ease: [0.22, 1, 0.36, 1],
+                opacity: { duration: 0.22 }
+              }
+            }}
+            style={{ transformOrigin: 'top center' }}
+            className={`relative rounded-b-2xl shadow-2xl border border-t-0 w-full overflow-hidden transition-colors flex flex-col max-h-[90vh] sm:max-h-[92vh] ${
+              isDark 
+                ? 'bg-slate-900 border-slate-800 text-slate-100 shadow-slate-950/80' 
+                : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+            }`}
+          >
         {/* Force exact A4 sizes on print automatically and strip default browser watermarks */}
         <span dangerouslySetInnerHTML={{ __html: `
           <style>
@@ -1708,7 +1951,7 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
               {(() => {
                 const photoPos = settings.headerPhotoPosition || 'left';
                 const align = settings.headerAlignment || 'left';
-                const contactPos = settings.headerContactPosition || 'bottom';
+                const contactPos = settings.headerContactPosition || settings.contactPosition || 'bottom';
 
                 // Determine contacts element
                 const renderHeaderContacts = () => {
@@ -1802,9 +2045,15 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                     );
                   }
 
+                  const justifyClass = 
+                    align === 'center' ? 'justify-center' :
+                    align === 'right' ? 'justify-end' :
+                    align === 'justify' ? 'justify-between' :
+                    'justify-start';
+
                   // Standard linear row list with dividers
                   return (
-                    <div className={`flex flex-wrap items-center ${align === 'center' ? 'justify-center' : 'justify-start'} gap-x-3 gap-y-1 mt-3 font-mono text-[9px] sm:text-xs print:text-xs text-slate-500`}>
+                    <div className={`flex flex-wrap items-center ${justifyClass} gap-x-3 gap-y-1 mt-3 font-mono text-[9px] sm:text-xs print:text-xs text-slate-500`}>
                       {items.map((elem, idx) => (
                         <React.Fragment key={idx}>
                           {idx > 0 && <span className="text-slate-300 print:text-slate-400 font-bold select-none px-0.5">|</span>}
@@ -1816,71 +2065,95 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
                 };
 
                 const isCenter = align === 'center';
+                const isRight = align === 'right';
+                const isJustify = align === 'justify';
                 const isTopPhoto = photoPos === 'top';
+                const isRightPhoto = photoPos === 'right';
+                const isNonePhoto = photoPos === 'none';
+
+                const avatarNode = (!isNonePhoto && cvData.avatarUrl) ? (
+                  <div 
+                    className={`rounded-full overflow-hidden border border-slate-200 shrink-0 shadow-sm relative flex items-center justify-center bg-slate-50 ${
+                      isTopPhoto
+                        ? (isCenter ? 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-1' : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-2')
+                        : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20'
+                    }`}
+                  >
+                    <img 
+                      src={cvData.avatarUrl} 
+                      alt={cvData.name} 
+                      style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: 'auto',
+                        maxWidth: 'none',
+                        maxHeight: 'none',
+                        transform: `scale(${cvData.avatarScale || 1}) translate(${(cvData.avatarX || 0) * 0.45}px, ${(cvData.avatarY || 0) * 0.45}px)`,
+                        transformOrigin: 'center center',
+                      }}
+                      className="shrink-0 pointer-events-none select-none"
+                    />
+                  </div>
+                ) : null;
+
+                const outerAlignment = isCenter
+                  ? 'items-center text-center'
+                  : isRight
+                    ? 'items-end text-right'
+                    : isJustify
+                      ? 'items-stretch'
+                      : 'items-stretch text-left';
+
+                const innerPairClass = isTopPhoto
+                  ? (isCenter ? 'flex-col items-center text-center gap-3' : isRight ? 'flex-col items-end text-right gap-2' : 'flex-col items-start text-left gap-2')
+                  : isRightPhoto
+                    ? (isRight ? 'flex-row-reverse items-center sm:items-start text-right gap-4 sm:gap-5' : 'flex-row-reverse items-center sm:items-start text-left gap-4 sm:gap-5')
+                    : (isRight ? 'flex-row items-center sm:items-start text-right gap-4 sm:gap-5' : 'flex-row items-center sm:items-start text-left gap-4 sm:gap-5');
+
+                const textColClass = isCenter
+                  ? 'items-center text-center sm:items-center'
+                  : isRight
+                    ? 'items-end text-right sm:items-end'
+                    : 'items-start text-left';
 
                 return (
-                  <div className={`border-b-2 border-slate-950 pb-5 ${activeStyles.spacings.margin} flex flex-col ${
-                    isTopPhoto && isCenter ? 'items-center text-center' : 'items-stretch text-left'
-                  }`}>
+                  <div className={`border-b-2 border-slate-950 pb-5 ${activeStyles.spacings.margin} flex flex-col ${outerAlignment}`}>
                     <div className={`flex w-full ${
                       isTopPhoto
-                        ? (isCenter ? 'flex-col items-center' : 'flex-col items-start gap-4')
-                        : 'flex-col sm:flex-row items-center sm:items-start justify-between gap-4 sm:gap-6'
+                        ? (isCenter ? 'flex-col items-center' : isRight ? 'flex-col items-end gap-3' : 'flex-col items-start gap-4')
+                        : isCenter
+                          ? 'flex-col items-center justify-center'
+                          : isRight
+                            ? 'flex-col sm:flex-row-reverse items-center sm:items-start justify-between gap-4 sm:gap-6'
+                            : 'flex-col sm:flex-row items-center sm:items-start justify-between gap-4 sm:gap-6'
                     }`}>
                       
-                      <div className={`flex ${
-                        isTopPhoto
-                          ? (isCenter ? 'flex-col items-center text-center gap-3' : 'flex-col items-start text-left gap-2')
-                          : 'flex-row items-center sm:items-start text-left gap-4 sm:gap-5'
-                      }`}>
-                        {cvData.avatarUrl ? (
-                          <div 
-                            className={`rounded-full overflow-hidden border border-slate-200 shrink-0 shadow-sm relative flex items-center justify-center bg-slate-50 ${
-                              isTopPhoto
-                                ? (isCenter ? 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-1' : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20 mb-2')
-                                : 'w-16 h-16 sm:w-20 sm:h-20 print:w-20 print:h-20'
-                            }`}
-                          >
-                            <img 
-                              src={cvData.avatarUrl} 
-                              alt={cvData.name} 
-                              style={{
-                                position: 'absolute',
-                                width: '100%',
-                                height: 'auto',
-                                maxWidth: 'none',
-                                maxHeight: 'none',
-                                transform: `scale(${cvData.avatarScale || 1}) translate(${(cvData.avatarX || 0) * 0.45}px, ${(cvData.avatarY || 0) * 0.45}px)`,
-                                transformOrigin: 'center center',
-                              }}
-                              className="shrink-0 pointer-events-none select-none"
-                            />
-                          </div>
-                        ) : null}
+                    <div className={`flex ${innerPairClass}`}>
+                      {avatarNode}
 
-                        <div className={`flex flex-col ${isCenter ? 'items-center text-center sm:items-center' : 'items-start text-left'}`}>
-                          <h1 className={`${activeStyles.fontSizes.name} font-black text-slate-900 tracking-tight leading-none uppercase`}>
-                            {cvData.name}
-                          </h1>
-                          <p className={`${activeStyles.colors.text} font-mono font-bold text-xs sm:text-sm uppercase tracking-widest mt-2`}>
-                            {cvData.title}
-                          </p>
-                          
-                          {/* Render choices at bottom if layout sets contactPosition to bottom OR align is center */}
-                          {(contactPos === 'bottom' || isCenter) && renderHeaderContacts()}
-                        </div>
+                      <div className={`flex flex-col ${textColClass}`}>
+                        <h1 className={`${activeStyles.fontSizes.name} font-black text-slate-900 tracking-tight leading-none uppercase`}>
+                          {cvData.name}
+                        </h1>
+                        <p className={`${activeStyles.colors.text} font-mono font-bold text-xs sm:text-sm uppercase tracking-widest mt-2`}>
+                          {cvData.title}
+                        </p>
+                        
+                        {/* Render choices at bottom if layout sets contactPosition to bottom OR align is center OR right OR justify */}
+                        {(contactPos === 'bottom' || isCenter || isRight || isJustify) && renderHeaderContacts()}
                       </div>
-
-                      {/* Render choices at right if layout sets contactPosition to right AND align is left */}
-                      {!isCenter && contactPos === 'right' && (
-                        <div className="self-center sm:self-start">
-                          {renderHeaderContacts()}
-                        </div>
-                      )}
-
                     </div>
+
+                    {/* Render choices at right if layout sets contactPosition to right AND align is left */}
+                    {!isCenter && !isRight && !isJustify && contactPos === 'right' && (
+                      <div className="self-center sm:self-start">
+                        {renderHeaderContacts()}
+                      </div>
+                    )}
+
                   </div>
-                );
+                </div>
+              );
               })()}
 
               {/* CV About Me / Brief Bio Section */}
@@ -2033,7 +2306,8 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
         </div>
 
       </motion.div>
-    </motion.div>
+        </div>
+      </motion.div>
     </>
   );
 }

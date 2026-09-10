@@ -76,6 +76,7 @@ export default function AdminLoginPage({
         <div className="flex items-center gap-2">
           {/* Theme Toggle */}
           <button
+            id="theme-toggle-admin-btn"
             type="button"
             onClick={(e) => setTheme(isDark ? 'light' : 'dark', e)}
             title={isDark ? "Mode Terang" : "Mode Gelap"}

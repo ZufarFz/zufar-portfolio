@@ -9,11 +9,19 @@
   transform: scale(1);
   transform-origin: center;
   overflow: visible;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .lanyard-wrapper canvas {
   width: 100% !important;
   height: 100% !important;
   outline: none;
+  touch-action: none !important;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 

@@ -26,7 +26,31 @@ import Lanyard from './Lanyard';
 import BackgroundTextures from './BackgroundTextures';
 import FloatingAssetsOverlay from './FloatingAssetsOverlay';
 import SectionGradientShadow from './SectionGradientShadow';
+import MarkdownText from './MarkdownText';
 import { getThemeColorPalette } from '../lib/themeUtils';
+
+// Helper to create seamless dynamic fade gradient overlay matching any background color
+function createFadeGradientStyle(bgColor: string): React.CSSProperties {
+  if (!bgColor) return {};
+  const trimmed = bgColor.trim();
+  if (trimmed.startsWith('#')) {
+    let hex = trimmed;
+    if (hex.length === 4) {
+      hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    }
+    if (hex.length === 7) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return {
+        background: `linear-gradient(to bottom, rgba(${r}, ${g}, ${b}, 0) 0%, rgba(${r}, ${g}, ${b}, 0.5) 45%, rgba(${r}, ${g}, ${b}, 0.88) 75%, ${hex} 100%)`
+      };
+    }
+  }
+  return {
+    background: `linear-gradient(to bottom, transparent 0%, color-mix(in srgb, ${bgColor} 50%, transparent) 45%, color-mix(in srgb, ${bgColor} 88%, transparent) 75%, ${bgColor} 100%)`
+  };
+}
 
 interface AboutMeStoryPageProps {
   key?: React.Key;
@@ -47,30 +71,67 @@ export default function AboutMeStoryPage({
   const isDark = theme === 'dark';
   const texts = cvData.webTexts || {};
 
+  const activeBgColor = isDark
+    ? (texts.about_story_bg_color_dark || texts.aboutme_bg_color_dark || texts.about_bg_color_dark || '#0f172a')
+    : (texts.about_story_bg_color || texts.aboutme_bg_color || texts.about_bg_color || '#FAF9F5');
+
   // Standard safe fields with default fallback matching DEFAULT_WEB_TEXTS
   const badgeText = texts.about_story_badge || '✦ DISCOVER OUR STORY';
   const titleText = texts.about_story_title || 'About Me';
   const introText = texts.about_story_intro || 'I am a highly driven Professional holding extensive analytics experience across data strategy, business intelligence, and metric modernization frameworks.';
   
-  // Left points as requested: Education Background, Personality & Values, Hobbies & Interests
-  const left1Title = texts.about_story_left_1_title || 'Education Background';
-  const left1Desc = texts.about_story_left_1_desc || 'My academic timeline and formal training in computer science, statistics, analytics, and metrics modernization.';
-  const left2Title = texts.about_story_left_2_title || 'Personality & Values';
-  const left2Desc = texts.about_story_left_2_desc || 'My operating principles, character ethics, and core professional values that guide my collaborative work style.';
-  const left3Title = texts.about_story_left_3_title || 'Hobbies & Interests';
-  const left3Desc = texts.about_story_left_3_desc || 'What keeps me inspired and energizes my creative problem-solving outside of regular business hours.';
-
-  // Right points as requested: Career Journey, Skills & Expertise, and Career Goals
-  const right1Title = texts.about_story_right_1_title || 'Career Journey';
-  const right1Desc = texts.about_story_right_1_desc || 'My timeline of professional experiences, highlighting analytical leadership, data strategy, and metric modernization.';
-  const right2Title = texts.about_story_right_2_title || 'Skills & Expertise';
-  const right2Desc = texts.about_story_right_2_desc || 'My categorized skill arsenal spanning across data pipelines, DBMS, engineering stacks, and visual communication.';
-  const right3Title = texts.about_story_right_3_title || 'Projects & Case Studies';
-  const right3Desc = texts.about_story_right_3_desc || 'Explore my portfolio of data analysis, visual reports, and data engineering case studies.';
-
   // Custom added sub-pages
   const customSubPages = (cvData.customSubPages || []).filter(p => p.showOnStoryPage !== false);
-  const isIndo = (texts.about_story_title || '').includes('Tentang') || (!texts.about_story_title && window.location.pathname.startsWith('/id'));
+  const isIndo = (texts.about_story_title || '').includes('Tentang') || window.location.pathname.startsWith('/id') || window.location.hash.includes('lang=id');
+
+  // 6 Core Points corresponding directly to each chapter / section destination
+  // Point 1 (Left 1): Educational Background -> #/educational
+  const left1Title = (!texts.about_story_left_1_title || texts.about_story_left_1_title.includes('Interior'))
+    ? (isIndo ? 'Latar Belakang Pendidikan' : 'Educational Background')
+    : texts.about_story_left_1_title;
+  const left1Desc = (!texts.about_story_left_1_desc || texts.about_story_left_1_desc.includes('pipeline yang bersih') || texts.about_story_left_1_desc.includes('Structuring clean, robust'))
+    ? (isIndo ? 'Linimasa pencapaian akademis dan fondasi pelatihan formal dalam ilmu komputer, statistika, analitik data, serta rekayasa perangkat lunak.' : 'My academic timeline and formal foundation in computer science, statistics, analytics, and software engineering.')
+    : texts.about_story_left_1_desc;
+
+  // Point 2 (Left 2): Personality & Values -> #/personality
+  const left2Title = (!texts.about_story_left_2_title || texts.about_story_left_2_title.includes('Exterior') || texts.about_story_left_2_title.includes('Eksterior'))
+    ? (isIndo ? 'Kepribadian & Nilai Utama' : 'Personality & Values')
+    : texts.about_story_left_2_title;
+  const left2Desc = (!texts.about_story_left_2_desc || texts.about_story_left_2_desc.includes('visual insights') || texts.about_story_left_2_desc.includes('intuitif yang memberikan'))
+    ? (isIndo ? 'Prinsip kerja, integritas etika, dan nilai-nilai profesional utama yang memandu dedikasi serta gaya kerja kolaboratif saya.' : 'My operating principles, ethical integrity, and core professional values that guide my collaborative work style.')
+    : texts.about_story_left_2_desc;
+
+  // Point 3 (Left 3): Hobbies & Interests -> #/hobbies
+  const left3Title = (!texts.about_story_left_3_title || texts.about_story_left_3_title.includes('Design /') || texts.about_story_left_3_title.includes('Desain /'))
+    ? (isIndo ? 'Hobi & Minat' : 'Hobbies & Interests')
+    : texts.about_story_left_3_title;
+  const left3Desc = (!texts.about_story_left_3_desc || texts.about_story_left_3_desc.includes('user interface') || texts.about_story_left_3_desc.includes('antarmuka pengguna'))
+    ? (isIndo ? 'Aktivitas kreatif dan eksplorasi yang menjaga inspirasi, keseimbangan hidup, serta energi pemecahan masalah di luar jam kerja.' : 'Creative pursuits and personal interests that keep me inspired and energize my problem-solving outside of regular business hours.')
+    : texts.about_story_left_3_desc;
+
+  // Point 4 (Right 1): Career Journey -> #/career-journey
+  const right1Title = (!texts.about_story_right_1_title || texts.about_story_right_1_title.includes('Decoration') || texts.about_story_right_1_title.includes('Dekorasi'))
+    ? (isIndo ? 'Perjalanan Karir' : 'Career Journey')
+    : texts.about_story_right_1_title;
+  const right1Desc = (!texts.about_story_right_1_desc || texts.about_story_right_1_desc.includes('verifiable KPIs') || texts.about_story_right_1_desc.includes('dapat diverifikasi'))
+    ? (isIndo ? 'Linimasa pengalaman profesional dan tonggak pencapaian dalam kepemimpinan analitis, strategi bisnis, dan modernisasi sistem data.' : 'My professional experience timeline and key milestones, highlighting analytical leadership, data strategy, and metric modernization.')
+    : texts.about_story_right_1_desc;
+
+  // Point 5 (Right 2): Skills & Arsenal -> #/skills
+  const right2Title = (!texts.about_story_right_2_title || texts.about_story_right_2_title.includes('Planning /') || texts.about_story_right_2_title.includes('Perencanaan /'))
+    ? (isIndo ? 'Keahlian & Arsenal Teknis' : 'Skills & Technical Arsenal')
+    : texts.about_story_right_2_title;
+  const right2Desc = (!texts.about_story_right_2_desc || texts.about_story_right_2_desc.includes('Iterating carefully') || texts.about_story_right_2_desc.includes('Melakukan iterasi'))
+    ? (isIndo ? 'Penguasaan mendalam atas kueri SQL tingkat lanjut, alur kerja Python, pemodelan BI, optimasi database, dan komunikasi visual.' : 'In-depth mastery across advanced SQL queries, Python automation workflows, Business Intelligence modeling, and visual communication.')
+    : texts.about_story_right_2_desc;
+
+  // Point 6 (Right 3): Projects & Case Studies -> #/projects
+  const right3Title = (!texts.about_story_right_3_title || texts.about_story_right_3_title.includes('Execution /') || texts.about_story_right_3_title.includes('Eksekusi /'))
+    ? (isIndo ? 'Studi Kasus & Proyek' : 'Projects & Case Studies')
+    : texts.about_story_right_3_title;
+  const right3Desc = (!texts.about_story_right_3_desc || texts.about_story_right_3_desc.includes('Bringing data projects') || texts.about_story_right_3_desc.includes('Menghidupkan proyek data'))
+    ? (isIndo ? 'Portofolio terstruktur analisis data nyata, otomatisasi alur kerja, laporan visual interaktif, dan audit kinerja berdaya dampak tinggi.' : 'A structured portfolio of real-world data analytics, workflow automation, interactive dashboards, and high-impact business audits.')
+    : texts.about_story_right_3_desc;
 
   const getCustomIcon = (iconName?: string) => {
     switch (iconName) {
@@ -162,11 +223,7 @@ export default function AboutMeStoryPage({
       className={`min-h-screen pt-2 pb-24 px-4 sm:px-6 lg:px-8 border-b transition-colors duration-200 select-none relative overflow-hidden ${
         isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-[#FAF9F5] border-slate-200 text-slate-800'
       }`}
-      style={
-        isDark
-          ? { backgroundColor: texts.about_story_bg_color_dark || texts.aboutme_bg_color_dark || texts.about_bg_color_dark }
-          : { backgroundColor: texts.about_story_bg_color || texts.aboutme_bg_color || texts.about_bg_color }
-      }
+      style={{ backgroundColor: activeBgColor }}
     >
       {/* SECTION GRADIENT SHADOW OVERLAY */}
       <SectionGradientShadow 
@@ -191,12 +248,11 @@ export default function AboutMeStoryPage({
               opacity: bgOpacity ? parseFloat(bgOpacity) : undefined
             }}
           />
-          {/* Subtle fade-out to page background at the bottom edge */}
-          <div className={`absolute inset-0 bg-gradient-to-b ${
-            isDark 
-              ? 'from-transparent via-slate-900/80 to-slate-900' 
-              : 'from-transparent via-[#FAF9F5]/80 to-[#FAF9F5]'
-          }`} />
+          {/* Seamless fade-out gradient that matches page background color */}
+          <div 
+            className="absolute inset-0 pointer-events-none" 
+            style={createFadeGradientStyle(activeBgColor)} 
+          />
         </div>
       )}
 
@@ -218,16 +274,23 @@ export default function AboutMeStoryPage({
       )}
 
       {/* FLOATING DECORATIVE ASSETS OVERLAY */}
-      <FloatingAssetsOverlay sectionId="about_story" assets={cvData.floatingAssets} />
+      <FloatingAssetsOverlay 
+        sectionId="about_story" 
+        assets={cvData.floatingAssets} 
+        theme={isDark ? 'dark' : 'light'}
+        bgColor={isDark ? '#111827' : '#F9F3E8'}
+      />
 
       {/* FULL-PAGE 3D PHYSICS LANYARD CANVAS (Layered ABOVE feature points, but BELOW header/title) */}
-      <div className="absolute inset-0 w-full h-full z-20 pointer-events-auto overflow-hidden">
+      <div className="absolute inset-0 w-full h-full z-20 pointer-events-auto overflow-hidden touch-none">
         <Lanyard 
           position={[0, 0, 19]} 
           gravity={[0, -40, 0]} 
           fov={20}
           cardScale={1.85}
+          mobileCardScale={1.12}
           lanyardWidth={0.38}
+          mobileLanyardWidth={0.24}
           lanyardText={(() => {
             if (cvData.nickname && cvData.nickname.trim()) return `Portfolio ${cvData.nickname.trim()}`;
             if (!cvData.name || !cvData.name.trim()) return 'Portfolio Zufar';
@@ -264,11 +327,11 @@ export default function AboutMeStoryPage({
 
           {/* Minimalist Golden/Emerald Underline Removed as requested */}
 
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.6 }}
-            className={`font-sans text-[13px] sm:text-base leading-relaxed whitespace-pre-line transition-colors ${
+            className={`font-sans text-[13px] sm:text-base leading-relaxed transition-colors ${
               isDark ? 'text-slate-400' : 'text-slate-600'
             }`}
             style={{
@@ -277,8 +340,8 @@ export default function AboutMeStoryPage({
                 : (texts.about_story_intro_color || undefined)
             }}
           >
-            {introText}
-          </motion.p>
+            <MarkdownText content={introText} theme={theme} />
+          </motion.div>
         </div>
 
         {/* Core Symmetrical 3-Column Bento/Architectural Grid with Center Spacer - Layered under Lanyard (z-10) */}
@@ -315,11 +378,11 @@ export default function AboutMeStoryPage({
                       {left1Title}
                     </h3>
                   </div>
-                  <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
+                  <div className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
                     isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                   }`}>
-                    {left1Desc}
-                  </p>
+                    <MarkdownText content={left1Desc} theme={theme} />
+                  </div>
                 </motion.div>
               </div>
 
@@ -348,11 +411,11 @@ export default function AboutMeStoryPage({
                       {left2Title}
                     </h3>
                   </div>
-                  <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
+                  <div className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
                     isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                   }`}>
-                    {left2Desc}
-                  </p>
+                    <MarkdownText content={left2Desc} theme={theme} />
+                  </div>
                 </motion.div>
               </div>
 
@@ -381,11 +444,11 @@ export default function AboutMeStoryPage({
                       {left3Title}
                     </h3>
                   </div>
-                  <p className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
+                  <div className={`font-sans text-xs leading-relaxed max-w-sm lg:ml-auto ${
                     isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                   }`}>
-                    {left3Desc}
-                  </p>
+                    <MarkdownText content={left3Desc} theme={theme} />
+                  </div>
                 </motion.div>
               </div>
 
@@ -464,11 +527,11 @@ export default function AboutMeStoryPage({
                     {right1Title}
                   </h3>
                 </div>
-                <p className={`font-sans text-xs leading-relaxed max-w-sm ${
+                <div className={`font-sans text-xs leading-relaxed max-w-sm ${
                   isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                 }`}>
-                  {right1Desc}
-                </p>
+                  <MarkdownText content={right1Desc} theme={theme} />
+                </div>
               </motion.div>
             </div>
 
@@ -497,11 +560,11 @@ export default function AboutMeStoryPage({
                     {right2Title}
                   </h3>
                 </div>
-                <p className={`font-sans text-xs leading-relaxed max-w-sm ${
+                <div className={`font-sans text-xs leading-relaxed max-w-sm ${
                   isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                 }`}>
-                  {right2Desc}
-                </p>
+                  <MarkdownText content={right2Desc} theme={theme} />
+                </div>
               </motion.div>
             </div>
 
@@ -530,11 +593,11 @@ export default function AboutMeStoryPage({
                     {right3Title}
                   </h3>
                 </div>
-                <p className={`font-sans text-xs leading-relaxed max-w-sm ${
+                <div className={`font-sans text-xs leading-relaxed max-w-sm ${
                   isDark ? 'text-slate-400 group-hover:text-slate-300' : 'text-slate-550 group-hover:text-slate-700'
                 }`}>
-                  {right3Desc}
-                </p>
+                  <MarkdownText content={right3Desc} theme={theme} />
+                </div>
               </motion.div>
             </div>
 

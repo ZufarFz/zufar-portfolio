@@ -17,6 +17,9 @@ export interface CaseStudy {
   description: string;
   tags: string[];
   image: string;
+  image2?: string;
+  image3?: string;
+  images?: string[];
   impactMetric?: string;
   tools: string[];
   detailedMetrics?: {
@@ -35,6 +38,17 @@ export interface Experience {
   company: string;
   bulletPoints: string[];
   tools?: string[];
+  showOnHome?: boolean;
+  showOnWeb?: boolean;
+  showOnCV?: boolean;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  startMonth?: string;
+  startYear?: string;
+  endMonth?: string;
+  endYear?: string;
+  periodMode?: 'date' | 'custom';
 }
 
 export interface EducationItem {
@@ -172,8 +186,21 @@ export interface FloatingAsset {
   opacity?: number; // 0 - 1
   zIndex?: number; // e.g. 10
   layer?: 'bg' | 'above_image' | 'above_all'; // 'bg' (setara pattern/background), 'above_image' (di atas gambar, di bawah teks), 'above_all' (di atas semua)
-  animation?: 'none' | 'float' | 'spin' | 'pulse' | 'bounce';
+  animation?: 'none' | 'float' | 'spin' | 'pulse' | 'bounce' | 'drift' | 'sway';
+  entryAnimation?: 'none' | 'fade' | 'slide_up' | 'slide_down' | 'slide_left' | 'slide_right' | 'zoom_in' | 'zoom_out' | 'rotate_in' | 'bounce_in';
+  entryDelay?: number; // delay kemunculan animasi masuk dalam milidetik (ms), default: 0
+  entryDuration?: number; // durasi animasi masuk dalam milidetik (ms), default: 800
   flipX?: boolean;
+  // Pengaturan Khusus Tampilan Mobile (Responsive Overrides)
+  mobileX?: number; // position X percentage on mobile (0-100)
+  mobileY?: number; // position Y percentage on mobile (0-100)
+  mobileWidth?: number; // size in px on mobile
+  mobileScale?: number;
+  mobileRotation?: number; // 0 - 360 deg on mobile
+  mobileOpacity?: number; // 0 - 1 on mobile
+  mobileFlipX?: boolean;
+  hideOnMobile?: boolean; // sembunyikan aset saat di layar mobile/HP
+  hideOnDesktop?: boolean; // sembunyikan aset saat di layar desktop/komputer
 }
 
 export interface CVData {
@@ -195,22 +222,9 @@ export interface CVData {
     dataPresentation: string;
     analyticsSpecialties: string;
   };
-  education: {
-    id?: string;
-    period: string;
-    degree: string;
-    institution: string;
-    description?: string;
-  }[];
+  education: EducationItem[];
   educationSections?: EducationSection[];
-  experiences: {
-    id: string;
-    period: string;
-    role: string;
-    company: string;
-    bulletPoints: string[];
-    tools?: string[];
-  }[];
+  experiences: Experience[];
   skills?: SkillItem[];
   skillCategories?: SkillCategory[];
   caseStudies?: CaseStudy[];
@@ -259,19 +273,20 @@ export interface CVData {
   idCardSubText?: string;
   idCardText3?: string;
   layoutSettings?: {
-    themeColor: 'emerald' | 'blue' | 'slate' | 'indigo' | 'rose' | 'amber';
-    fontSize: 'compact' | 'standard' | 'comfortable';
-    spacing: 'tight' | 'standard' | 'spacious';
-    layoutStyle: 'left-sidebar' | 'right-sidebar' | 'single-column';
-    fontFamily: 'sans' | 'serif' | 'mono';
-    sectionOrder: string[];
+    themeColor?: 'emerald' | 'blue' | 'slate' | 'indigo' | 'rose' | 'amber';
+    fontSize?: 'compact' | 'standard' | 'comfortable';
+    spacing?: 'tight' | 'standard' | 'spacious';
+    layoutStyle?: 'left-sidebar' | 'right-sidebar' | 'single-column';
+    fontFamily?: 'sans' | 'serif' | 'mono';
+    sectionOrder?: string[];
     showEducation?: boolean;
     visibleExperiences?: string[];
     visibleEducations?: string[];
     marginTopBottom?: 'lebar' | 'sedang' | 'sempit';
     marginLeftRight?: 'lebar' | 'sedang' | 'sempit';
-    headerPhotoPosition?: 'left' | 'top';
-    headerAlignment?: 'left' | 'center';
+    headerPhotoPosition?: 'left' | 'top' | 'right' | 'none';
+    headerAlignment?: 'left' | 'center' | 'right' | 'justify';
     headerContactPosition?: 'bottom' | 'right';
+    contactPosition?: 'bottom' | 'right';
   };
 }

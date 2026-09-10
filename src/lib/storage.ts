@@ -60,10 +60,46 @@ export async function fetchCVData(mode: 'live' | 'preview' = 'live'): Promise<CV
             sectionOrder: cleanSectionOrder
           };
 
+          // Sanitize legacy "Interior / Exterior / Design / Decoration / Planning / Execution" template artifacts
+          const rawWebTexts = parsed.webTexts || {};
+          const sanitizedWebTexts = { ...rawWebTexts };
+          if (sanitizedWebTexts.about_story_left_1_title?.includes('Interior')) delete sanitizedWebTexts.about_story_left_1_title;
+          if (sanitizedWebTexts.about_story_left_1_desc?.includes('pipeline yang bersih') || sanitizedWebTexts.about_story_left_1_desc?.includes('Structuring clean, robust')) delete sanitizedWebTexts.about_story_left_1_desc;
+          if (sanitizedWebTexts.about_story_left_2_title?.includes('Exterior') || sanitizedWebTexts.about_story_left_2_title?.includes('Eksterior')) delete sanitizedWebTexts.about_story_left_2_title;
+          if (sanitizedWebTexts.about_story_left_2_desc?.includes('visual insights') || sanitizedWebTexts.about_story_left_2_desc?.includes('intuitif yang memberikan')) delete sanitizedWebTexts.about_story_left_2_desc;
+          if (sanitizedWebTexts.about_story_left_3_title?.includes('Design /') || sanitizedWebTexts.about_story_left_3_title?.includes('Desain /')) delete sanitizedWebTexts.about_story_left_3_title;
+          if (sanitizedWebTexts.about_story_left_3_desc?.includes('user interface') || sanitizedWebTexts.about_story_left_3_desc?.includes('antarmuka pengguna')) delete sanitizedWebTexts.about_story_left_3_desc;
+          if (sanitizedWebTexts.about_story_right_1_title?.includes('Decoration') || sanitizedWebTexts.about_story_right_1_title?.includes('Dekorasi')) delete sanitizedWebTexts.about_story_right_1_title;
+          if (sanitizedWebTexts.about_story_right_1_desc?.includes('verifiable KPIs') || sanitizedWebTexts.about_story_right_1_desc?.includes('dapat diverifikasi')) delete sanitizedWebTexts.about_story_right_1_desc;
+          if (sanitizedWebTexts.about_story_right_2_title?.includes('Planning /') || sanitizedWebTexts.about_story_right_2_title?.includes('Perencanaan /')) delete sanitizedWebTexts.about_story_right_2_title;
+          if (sanitizedWebTexts.about_story_right_2_desc?.includes('Iterating carefully') || sanitizedWebTexts.about_story_right_2_desc?.includes('Melakukan iterasi')) delete sanitizedWebTexts.about_story_right_2_desc;
+          if (sanitizedWebTexts.about_story_right_3_title?.includes('Execution /') || sanitizedWebTexts.about_story_right_3_title?.includes('Eksekusi /')) delete sanitizedWebTexts.about_story_right_3_title;
+          if (sanitizedWebTexts.about_story_right_3_desc?.includes('Bringing data projects') || sanitizedWebTexts.about_story_right_3_desc?.includes('Menghidupkan proyek data')) delete sanitizedWebTexts.about_story_right_3_desc;
+
+          // Smart merge floatingAssets: ensure default mobile coordinates from DEFAULT_CV_DATA are populated
+          let sanitizedFloatingAssets = DEFAULT_CV_DATA.floatingAssets;
+          if (Array.isArray(parsed.floatingAssets) && parsed.floatingAssets.length > 0) {
+            sanitizedFloatingAssets = parsed.floatingAssets.map((cachedAsset: any) => {
+              const defaultAsset = (DEFAULT_CV_DATA.floatingAssets || []).find((a: any) => a.id === cachedAsset.id);
+              if (!defaultAsset) return cachedAsset;
+              return {
+                ...defaultAsset,
+                ...cachedAsset,
+                mobileX: cachedAsset.mobileX !== undefined ? cachedAsset.mobileX : defaultAsset.mobileX,
+                mobileY: cachedAsset.mobileY !== undefined ? cachedAsset.mobileY : defaultAsset.mobileY,
+                mobileWidth: cachedAsset.mobileWidth !== undefined ? cachedAsset.mobileWidth : defaultAsset.mobileWidth,
+                mobileOpacity: cachedAsset.mobileOpacity !== undefined ? cachedAsset.mobileOpacity : defaultAsset.mobileOpacity,
+                mobileRotation: cachedAsset.mobileRotation !== undefined ? cachedAsset.mobileRotation : defaultAsset.mobileRotation,
+                mobileFlipX: cachedAsset.mobileFlipX !== undefined ? cachedAsset.mobileFlipX : defaultAsset.mobileFlipX,
+              };
+            });
+          }
+
           // Merge with DEFAULT_CV_DATA to ensure any new keys/fields are safely populated
           return {
             ...DEFAULT_CV_DATA,
             ...parsed,
+            floatingAssets: sanitizedFloatingAssets,
             layoutSettings: sanitizedLayoutSettings,
             headerContacts: (Array.isArray(parsed.headerContacts) && parsed.headerContacts.length > 0)
               ? parsed.headerContacts
@@ -73,7 +109,7 @@ export async function fetchCVData(mode: 'live' | 'preview' = 'live'): Promise<CV
               : DEFAULT_CV_DATA.footerSocials,
             webTexts: {
               ...DEFAULT_WEB_TEXTS,
-              ...(parsed.webTexts || {})
+              ...sanitizedWebTexts
             }
           };
         }

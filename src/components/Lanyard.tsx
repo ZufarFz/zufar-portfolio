@@ -41,7 +41,9 @@ export interface LanyardProps {
   lanyardImage?: string | null;
   lanyardText?: string | null;
   lanyardWidth?: number;
+  mobileLanyardWidth?: number;
   cardScale?: number;
+  mobileCardScale?: number;
   className?: string;
 }
 
@@ -56,7 +58,9 @@ export default function Lanyard({
   lanyardImage = null,
   lanyardText = null,
   lanyardWidth = 0.38,
+  mobileLanyardWidth = 0.25,
   cardScale = 1.85,
+  mobileCardScale = 1.15,
   className = ''
 }: LanyardProps) {
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
@@ -67,14 +71,21 @@ export default function Lanyard({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const activeCardScale = isMobile ? (mobileCardScale ?? 1.15) : cardScale;
+  const activeLanyardWidth = isMobile ? (mobileLanyardWidth ?? 0.25) : lanyardWidth;
+
   return (
-    <div className={`lanyard-wrapper ${className}`}>
+    <div className={`lanyard-wrapper ${className}`} style={{ touchAction: 'none' }}>
       <Canvas
         camera={{ position: position, fov: fov }}
         dpr={[1, 2]}
         performance={{ min: 0.8 }}
         gl={{ alpha: transparent, antialias: true, powerPreference: 'high-performance' }}
-        onCreated={({ gl }) => gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1)}
+        onCreated={({ gl }) => {
+          gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1);
+          gl.domElement.style.touchAction = 'none';
+        }}
+        style={{ touchAction: 'none' }}
       >
         <ambientLight intensity={2.8} />
         <directionalLight position={[4, 8, 6]} intensity={1.5} />
@@ -87,8 +98,8 @@ export default function Lanyard({
               imageFit={imageFit}
               lanyardImage={lanyardImage}
               lanyardText={lanyardText}
-              lanyardWidth={lanyardWidth}
-              cardScale={cardScale}
+              lanyardWidth={activeLanyardWidth}
+              cardScale={activeCardScale}
             />
           </Physics>
         </Suspense>
@@ -266,10 +277,20 @@ function Band({
   );
 
   const s = cardScale / 2.25;
+  const ropeLength = isMobile ? 1.25 : 1.6;
 
-  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1.6]);
-  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1.6]);
-  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1.6]);
+  const draggedRef = useRef<boolean>(false);
+  const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerNDC = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isPointerActive = useRef<boolean>(false);
+
+  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const targetPoint = useMemo(() => new THREE.Vector3(), []);
+
+  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], ropeLength]);
+  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], ropeLength]);
+  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], ropeLength]);
   // Precisely align strap end (j3) to pass directly into the top metal ring (clamp)
   useSphericalJoint(j3, card, [
     [0, 0, 0],
@@ -283,13 +304,117 @@ function Band({
     }
   }, [hovered, dragged]);
 
+  // Allow normal page scrolling when touching outside the card on mobile
+  useEffect(() => {
+    const canvas = document.querySelector('.lanyard-wrapper canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    let touchStartY = 0;
+    let isTouchOnCanvas = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartY = e.touches[0].clientY;
+        isTouchOnCanvas = true;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      // If we are NOT dragging the card, allow natural page scrolling
+      if (isTouchOnCanvas && !draggedRef.current && e.touches.length === 1) {
+        const currentY = e.touches[0].clientY;
+        const deltaY = touchStartY - currentY;
+        touchStartY = currentY;
+        if (Math.abs(deltaY) > 0.5) {
+          window.scrollBy({ top: deltaY, behavior: 'auto' });
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      isTouchOnCanvas = false;
+    };
+
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', onTouchMove, { passive: true });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+    canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchmove', onTouchMove);
+      canvas.removeEventListener('touchend', onTouchEnd);
+      canvas.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, []);
+
+  // Window-level safety and move listener to ensure smooth dragging on mobile touch and desktop pointer
+  useEffect(() => {
+    if (!dragged) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const canvas = document.querySelector('.lanyard-wrapper canvas') as HTMLCanvasElement;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      pointerNDC.current = {
+        x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        y: -((e.clientY - rect.top) / rect.height) * 2 + 1
+      };
+      isPointerActive.current = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        const canvas = document.querySelector('.lanyard-wrapper canvas') as HTMLCanvasElement;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        pointerNDC.current = {
+          x: ((touch.clientX - rect.left) / rect.width) * 2 - 1,
+          y: -((touch.clientY - rect.top) / rect.height) * 2 + 1
+        };
+        isPointerActive.current = true;
+      }
+    };
+
+    const handleRelease = () => {
+      draggedRef.current = false;
+      isPointerActive.current = false;
+      dragOffsetRef.current = null;
+      drag(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('pointerup', handleRelease);
+    window.addEventListener('pointercancel', handleRelease);
+    window.addEventListener('touchend', handleRelease);
+    window.addEventListener('touchcancel', handleRelease);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('pointerup', handleRelease);
+      window.removeEventListener('pointercancel', handleRelease);
+      window.removeEventListener('touchend', handleRelease);
+      window.removeEventListener('touchcancel', handleRelease);
+    };
+  }, [dragged]);
+
   useFrame((state, delta) => {
     if (dragged && card.current) {
-      vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
-      dir.copy(vec).sub(state.camera.position).normalize();
-      vec.add(dir.multiplyScalar(state.camera.position.length()));
+      const px = isPointerActive.current ? pointerNDC.current.x : state.pointer.x;
+      const py = isPointerActive.current ? pointerNDC.current.y : state.pointer.y;
+
+      raycaster.setFromCamera(new THREE.Vector2(px, py), state.camera);
+      raycaster.ray.intersectPlane(plane, targetPoint);
+
       [card, j1, j2, j3, fixed].forEach(ref => ref.current?.wakeUp());
-      card.current.setNextKinematicTranslation({ x: vec.x - dragged.x, y: vec.y - dragged.y, z: vec.z - dragged.z });
+      card.current.setNextKinematicTranslation({
+        x: targetPoint.x - (dragOffsetRef.current?.x ?? dragged.x),
+        y: targetPoint.y - (dragOffsetRef.current?.y ?? dragged.y),
+        z: 0
+      });
     }
     if (fixed.current && card.current && j1.current && j2.current && j3.current && band.current) {
       [j1, j2].forEach(ref => {
@@ -358,7 +483,7 @@ function Band({
 
   return (
     <>
-      <group position={[0, 5.8, 0]}>
+      <group position={[0, isMobile ? 5.2 : 5.8, 0]}>
         <RigidBody ref={fixed} {...segmentProps} type="fixed" />
         <RigidBody position={[0.8, 0, 0]} ref={j1} {...segmentProps}>
           <BallCollider args={[0.1]} />
@@ -398,12 +523,67 @@ function Band({
               }
             }}
             onPointerUp={e => {
-              (e.target as any)?.releasePointerCapture?.(e.pointerId);
+              e.stopPropagation();
+              const domTarget = (e.nativeEvent?.target as HTMLElement) || (e.target as any)?.gl?.domElement;
+              if (domTarget?.releasePointerCapture) {
+                try {
+                  domTarget.releasePointerCapture(e.pointerId);
+                } catch (_) {}
+              }
+              draggedRef.current = false;
+              isPointerActive.current = false;
+              dragOffsetRef.current = null;
+              drag(false);
+            }}
+            onPointerCancel={e => {
+              const domTarget = (e.nativeEvent?.target as HTMLElement) || (e.target as any)?.gl?.domElement;
+              if (domTarget?.releasePointerCapture) {
+                try {
+                  domTarget.releasePointerCapture(e.pointerId);
+                } catch (_) {}
+              }
+              draggedRef.current = false;
+              isPointerActive.current = false;
+              dragOffsetRef.current = null;
               drag(false);
             }}
             onPointerDown={e => {
-              (e.target as any)?.setPointerCapture?.(e.pointerId);
-              drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation())));
+              e.stopPropagation();
+              const domTarget = (e.nativeEvent?.target as HTMLElement) || (e.target as any)?.gl?.domElement;
+              if (domTarget?.setPointerCapture) {
+                try {
+                  domTarget.setPointerCapture(e.pointerId);
+                } catch (_) {}
+              }
+
+              const hitPoint = new THREE.Vector3();
+              if (e.ray) {
+                e.ray.intersectPlane(plane, hitPoint);
+              } else {
+                hitPoint.copy(e.point);
+              }
+
+              const trans = card.current ? card.current.translation() : { x: 0, y: 0, z: 0 };
+              const offsetX = hitPoint.x - trans.x;
+              const offsetY = hitPoint.y - trans.y;
+
+              dragOffsetRef.current = { x: offsetX, y: offsetY };
+              draggedRef.current = true;
+
+              if (e.nativeEvent && 'clientX' in e.nativeEvent) {
+                const canvas = document.querySelector('.lanyard-wrapper canvas') as HTMLCanvasElement;
+                if (canvas) {
+                  const rect = canvas.getBoundingClientRect();
+                  pointerNDC.current = {
+                    x: ((e.nativeEvent.clientX - rect.left) / rect.width) * 2 - 1,
+                    y: -((e.nativeEvent.clientY - rect.top) / rect.height) * 2 + 1
+                  };
+                  isPointerActive.current = true;
+                }
+              }
+
+              [card, j1, j2, j3, fixed].forEach(ref => ref.current?.wakeUp());
+              drag(new THREE.Vector3(offsetX, offsetY, 0));
             }}
           >
             <mesh geometry={nodes.card.geometry}>

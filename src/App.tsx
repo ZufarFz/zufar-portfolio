@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { 
   ArrowRight, 
   Linkedin, 
@@ -29,7 +30,10 @@ import {
   X,
   Eye,
   Download,
-  Pencil
+  Pencil,
+  User,
+  Smartphone,
+  Monitor
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CASE_STUDIES } from './data/portfolioData';
@@ -42,6 +46,7 @@ import CaseStudyPresentationPage from './components/CaseStudyPresentationPage';
 import AboutMeStoryPage from './components/AboutMeStoryPage';
 import AboutMeSubPages from './components/AboutMeSubPages';
 import { QuickEditorDrawer } from './components/QuickEditorDrawer';
+import { MobilePhoneMockup } from './components/MobilePhoneMockup';
 import GooeyCursor from './components/GooeyCursor';
 import { fetchCVData, downloadCVDataAsTypeScript, DEFAULT_CV_DATA, EMPTY_CV_DATA, DEFAULT_WEB_TEXTS, STORAGE_KEY } from './lib/storage';
 import { CVData, CaseStudy } from './types';
@@ -49,6 +54,7 @@ import SocialIcon, { getAbsoluteSocialUrl } from './components/SocialIcon';
 import BackgroundTextures from './components/BackgroundTextures';
 import FloatingAssetsOverlay from './components/FloatingAssetsOverlay';
 import SectionGradientShadow from './components/SectionGradientShadow';
+import MarkdownText from './components/MarkdownText';
 import { getThemeColorPalette, getHeroCircleColors } from './lib/themeUtils';
 
 // TypewriterText Component - Animasi Typing Looping
@@ -245,18 +251,18 @@ export const ID_TRANSLATIONS = {
     about_story_badge: "✦ JELAJAHI KISAH SAYA",
     about_story_title: "Tentang Saya",
     about_story_intro: "Saya adalah seorang Analis Business Intelligence dan Developer yang berdedikasi untuk menyatukan kompleksitas mentah menjadi aplikasi interaktif berkualitas tinggi. Dengan fokus ganda pada arsitektur pipeline data dan keahlian desain pixel-perfect, saya mengubah visi ambisius menjadi kenyataan.",
-    about_story_left_1_title: "Interior / Arsitektur Data",
-    about_story_left_1_desc: "Menyusun pipeline yang bersih dan kokoh serta memodelkan skema relasional untuk membangun fondasi data berkinerja tinggi.",
-    about_story_left_2_title: "Eksterior / Analisis Visual",
-    about_story_left_2_desc: "Membuat dashboard dan laporan intuitif yang memberikan wawasan instan dan meningkatkan kecepatan pengambilan keputusan.",
-    about_story_left_3_title: "Desain / Strategi Produk",
-    about_story_left_3_desc: "Memadukan desain antarmuka pengguna yang ramping dengan interaksi cepat untuk portal web yang fungsional dan menyenangkan.",
-    about_story_right_1_title: "Dekorasi / Strategi Bisnis",
-    about_story_right_1_desc: "Menerjemahkan persyaratan perusahaan menjadi KPI yang dapat diverifikasi untuk mengoptimalkan kinerja operasional dan membuka pertumbuhan.",
-    about_story_right_2_title: "Perencanaan / Logika Cermat",
-    about_story_right_2_desc: "Melakukan iterasi secara cermat melalui persyaratan, garis waktu, desain skema, dan batasan dengan standar profesional yang tinggi.",
-    about_story_right_3_title: "Eksekusi / Pengiriman Ramping",
-    about_story_right_3_desc: "Menghidupkan proyek data melalui integrasi kode yang sempurna, validasi menyeluruh, dan penyelarasan berkelanjutan."
+    about_story_left_1_title: "Latar Belakang Pendidikan",
+    about_story_left_1_desc: "Linimasa pencapaian akademis dan fondasi pelatihan formal dalam ilmu komputer, statistika, analitik data, serta rekayasa perangkat lunak.",
+    about_story_left_2_title: "Kepribadian & Nilai Utama",
+    about_story_left_2_desc: "Prinsip kerja, integritas etika, dan nilai-nilai profesional utama yang memandu dedikasi serta gaya kerja kolaboratif saya.",
+    about_story_left_3_title: "Hobi & Minat",
+    about_story_left_3_desc: "Aktivitas kreatif dan eksplorasi yang menjaga inspirasi, keseimbangan hidup, serta energi pemecahan masalah di luar jam kerja.",
+    about_story_right_1_title: "Perjalanan Karir",
+    about_story_right_1_desc: "Linimasa pengalaman profesional dan tonggak pencapaian dalam kepemimpinan analitis, strategi bisnis, dan modernisasi sistem data.",
+    about_story_right_2_title: "Keahlian & Arsenal Teknis",
+    about_story_right_2_desc: "Penguasaan mendalam atas kueri SQL tingkat lanjut, alur kerja Python, pemodelan BI, optimasi database, dan komunikasi visual.",
+    about_story_right_3_title: "Studi Kasus & Proyek",
+    about_story_right_3_desc: "Portofolio terstruktur analisis data nyata, otomatisasi alur kerja, laporan visual interaktif, dan audit kinerja berdaya dampak tinggi."
   },
   title: "Analis Data Senior & Strategist Keputusan BI",
   aboutMe: "Analis Data Senior yang berorientasi pada detail dan terdorong oleh hasil dengan pengalaman lebih dari 6 tahun dalam merekayasa pipeline SQL berkinerja tinggi, model prediktif canggih, dan dasbor BI tingkat eksekutif yang intuitif. Mahir dalam mengubah catatan transaksi terstruktur yang kompleks menjadi keputusan operasional yang optimal dan wawasan pendapatan yang dapat ditindaklanjuti.\n\nSangat menyukai transparansi data, penyelarasan kinerja pipeline, dan pertumbuhan strategis. Berkomitmen untuk mendorong efisiensi melalui kerangka verifikasi statistik dan KPI yang transparan.",
@@ -491,6 +497,33 @@ function getLocalizedCVData(cvData: CVData, lang: 'id' | 'en'): CVData {
         localizedWebTexts[baseKey] = val;
       }
     });
+
+    // Ensure all Gooey Cursor settings are 100% universal and identical across languages
+    const gooeyUniversalKeys = [
+      'enable_gooey_cursor',
+      'gooey_head_style',
+      'gooey_hide_default_cursor',
+      'gooey_cursor_splash',
+      'gooey_cursor_hover_scale',
+      'gooey_cursor_hover_reaction',
+      'gooey_cursor_size',
+      'gooey_cursor_opacity',
+      'gooey_cursor_color',
+      'gooey_cursor_color_dark',
+      'gooey_cursor_color_light',
+      'gooey_cursor_dot_dark',
+      'gooey_cursor_dot_light',
+    ];
+    gooeyUniversalKeys.forEach((gKey) => {
+      const val =
+        cvData.webTexts?.[gKey] ??
+        cvData.webTexts?.[`${gKey}_id`] ??
+        cvData.webTexts?.[`${gKey}_en`] ??
+        DEFAULT_WEB_TEXTS[gKey];
+      if (val !== undefined && val !== null && val !== '') {
+        localizedWebTexts[gKey] = val;
+      }
+    });
   }
 
   const getField = (fieldName: keyof CVData, defaultValue: any) => {
@@ -552,6 +585,10 @@ export default function App() {
     return isCurrentUrlPreview() && checkIsAdminAuthenticated();
   });
 
+  const isSimulatedMobileFrame = typeof window !== 'undefined' && (
+    new URLSearchParams(window.location.search).get('simulated_mobile') === '1'
+  );
+
   const [lang, setLang] = useState<'id' | 'en'>(() => {
     // 1. Check current URL path prefix first
     const parts = window.location.pathname.split('/').filter(Boolean);
@@ -606,16 +643,18 @@ export default function App() {
 
   const [showLangConfirm, setShowLangConfirm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== 'undefined' ? (isSimulatedMobileFrame || window.innerWidth < 768) : false;
+  });
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobile(isSimulatedMobileFrame || window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [isSimulatedMobileFrame]);
 
   // Lock body scroll when mobile menu drawer is open
   useEffect(() => {
@@ -683,6 +722,42 @@ export default function App() {
   const [cvModalDirectDownload, setCvModalDirectDownload] = useState(false);
   const [selectedProjectModal, setSelectedProjectModal] = useState<CaseStudy | null>(null);
   const [isQuickEditorOpen, setIsQuickEditorOpen] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>(() => {
+    return isSimulatedMobileFrame ? 'mobile' : 'desktop';
+  });
+  const isMobilePreviewActive = previewDevice === 'mobile' && !isSimulatedMobileFrame;
+  const isEffectiveMobile = isMobile || isSimulatedMobileFrame || previewDevice === 'mobile';
+
+  // Listen for real-time state sync from parent window when running in simulated mobile iframe
+  useEffect(() => {
+    if (!isSimulatedMobileFrame) return;
+
+    const handleParentMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SYNC_CV_DATA' && event.data.data) {
+        setCvData(event.data.data);
+        if (event.data.theme) {
+          setTheme(event.data.theme);
+          if (event.data.theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        }
+        if (event.data.lang) {
+          setLang(event.data.lang);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleParentMessage);
+
+    // Notify parent frame that iframe is ready to receive sync
+    try {
+      window.parent?.postMessage({ type: 'MOBILE_FRAME_READY' }, '*');
+    } catch (_) {}
+
+    return () => window.removeEventListener('message', handleParentMessage);
+  }, [isSimulatedMobileFrame]);
   const [isAdminView, setIsAdminView] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [cvData, setCvData] = useState<CVData>(() => {
@@ -710,7 +785,7 @@ export default function App() {
   });
 
   const activeCVData = getLocalizedCVData(cvData, lang);
-  const [expandedExperienceId, setExpandedExperienceId] = useState<string | null>('exp-1');
+  const [expandedExpMap, setExpandedExpMap] = useState<Record<string, boolean>>({});
   const [activeSection, setActiveSection] = useState('home');
   const [isStoryView, setIsStoryView] = useState(false);
   const isStoryViewRef = useRef(false);
@@ -878,61 +953,98 @@ export default function App() {
     setIsNavVisible(true);
     lastScrollY.current = window.scrollY + 200;
 
-    const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
+    const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // On mobile view, switch theme instantly without heavy ViewTransitions or clip-path animations for lightweight, smooth performance
-    if (isMobileViewport || !(document as any).startViewTransition) {
+    // Fallback immediately if View Transition API is not supported or user prefers reduced motion
+    if (prefersReducedMotion || !(document as any).startViewTransition) {
       if (targetTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
       setTheme(targetTheme);
+      if (isSimulatedMobileFrame) {
+        try {
+          window.parent?.postMessage({ type: 'CHILD_THEME_CHANGED', theme: targetTheme }, '*');
+        } catch (_) {}
+      }
       return;
     }
 
-    let x = window.innerWidth / 2;
-    let y = window.innerHeight / 2;
+    // Determine the exact visual center (x, y) of the theme toggle button
+    let x = Math.round(window.innerWidth / 2);
+    let y = Math.round(window.innerHeight / 2);
+    let targetButtonRect: DOMRect | null = null;
 
-    if (e && 'clientX' in e && 'clientY' in e && e.clientX !== undefined && e.clientY !== undefined) {
-      x = e.clientX;
-      y = e.clientY;
-    } else {
-      const activeEl = document.activeElement as HTMLElement;
-      if (activeEl && activeEl.tagName === 'BUTTON') {
-        const rect = activeEl.getBoundingClientRect();
-        x = rect.left + rect.width / 2;
-        y = rect.top + rect.height / 2;
-      } else {
-        const buttons = document.querySelectorAll('[title*="Mode"]');
-        if (buttons.length > 0) {
-          const rect = buttons[0].getBoundingClientRect();
-          x = rect.left + rect.width / 2;
-          y = rect.top + rect.height / 2;
+    // 1. Primary: Direct lookup of active toggle buttons in DOM
+    const desktopBtn = document.getElementById('theme-toggle-desktop-btn');
+    const mobileBtn = document.getElementById('theme-toggle-mobile-btn');
+    const adminBtn = document.getElementById('theme-toggle-admin-btn');
+
+    for (const btn of [desktopBtn, mobileBtn, adminBtn]) {
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0 && rect.top >= -50 && rect.top <= window.innerHeight + 50) {
+          targetButtonRect = rect;
+          break;
         }
       }
     }
 
-    if (!(document as any).startViewTransition) {
-      setTheme(targetTheme);
-      return;
+    // 2. Secondary: Check event target or closest button if event was triggered directly
+    if (!targetButtonRect && e) {
+      const el = (e.currentTarget as HTMLElement) || (e.target as HTMLElement)?.closest?.('button');
+      if (el && typeof el.getBoundingClientRect === 'function') {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          targetButtonRect = rect;
+        }
+      }
     }
 
-    // Add high-performance transition optimizer class
-    document.documentElement.classList.add('in-transition');
+    // 3. Fallback: Search any theme toggle button in active DOM
+    if (!targetButtonRect) {
+      const anyThemeBtn = document.querySelector<HTMLElement>(
+        '[data-theme-toggle], [title*="Mode"], [title*="Terang"], [title*="Gelap"]'
+      );
+      if (anyThemeBtn) {
+        const rect = anyThemeBtn.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          targetButtonRect = rect;
+        }
+      }
+    }
 
-    const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y)
+    // Calculate center coordinates from the button element with integer precision
+    if (targetButtonRect) {
+      x = Math.round(targetButtonRect.left + targetButtonRect.width / 2);
+      y = Math.round(targetButtonRect.top + targetButtonRect.height / 2);
+    } else if (e && typeof e.clientX === 'number' && typeof e.clientY === 'number' && e.clientX > 0 && e.clientY > 0) {
+      x = Math.round(e.clientX);
+      y = Math.round(e.clientY);
+    }
+
+    const endRadius = Math.ceil(
+      Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      )
     );
 
+    // Fast, synchronous state update before taking snapshot so React doesn't drop frames during animation
     const transition = (document as any).startViewTransition(() => {
-      setTheme(targetTheme);
-      // Force change theme class synchronously so view-transition captures it
+      flushSync(() => {
+        setTheme(targetTheme);
+      });
       if (targetTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
+      }
+      if (isSimulatedMobileFrame) {
+        try {
+          window.parent?.postMessage({ type: 'CHILD_THEME_CHANGED', theme: targetTheme }, '*');
+        } catch (_) {}
       }
     });
 
@@ -946,16 +1058,11 @@ export default function App() {
           clipPath: clipPath,
         },
         {
-          duration: isMobile ? 320 : 480,
-          easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          duration: isMobile ? 260 : 320,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
           pseudoElement: '::view-transition-new(root)',
         }
       );
-    });
-
-    // Clean up optimization class after view transition ends
-    transition.finished.then(() => {
-      document.documentElement.classList.remove('in-transition');
     });
   };
 
@@ -1403,13 +1510,14 @@ export default function App() {
     <>
       {/* Lightswind Gooey Liquid Metaball Cursor */}
       <GooeyCursor
-        enabled={activeCVData.webTexts?.enable_gooey_cursor !== 'false'}
+        enabled={!isSimulatedMobileFrame && !isMobilePreviewActive && activeCVData.webTexts?.enable_gooey_cursor !== 'false'}
         theme={theme}
         size={activeCVData.webTexts?.gooey_cursor_size ? parseInt(activeCVData.webTexts.gooey_cursor_size, 10) : 18}
         opacity={activeCVData.webTexts?.gooey_cursor_opacity ? parseFloat(activeCVData.webTexts.gooey_cursor_opacity) : 0.8}
         hideDefaultCursor={activeCVData.webTexts?.gooey_hide_default_cursor === 'true'}
         enableSplash={activeCVData.webTexts?.gooey_cursor_splash !== 'false'}
         hoverScale={activeCVData.webTexts?.gooey_cursor_hover_scale === 'true'}
+        hoverReaction={(activeCVData.webTexts?.gooey_cursor_hover_reaction as any) || 'question'}
         headStyle={(activeCVData.webTexts?.gooey_head_style as 'eyes' | 'none' | 'dot') || 'eyes'}
         color={
           theme === 'dark'
@@ -1541,7 +1649,7 @@ export default function App() {
             }`}
           >
             {/* TOP PREVIEW BANNER BAR */}
-            {isPreviewMode && !isAdminView && !matchedProject && (
+            {isPreviewMode && !isAdminView && !matchedProject && !isSimulatedMobileFrame && (
               <div className="fixed top-0 inset-x-0 z-[60] bg-slate-950/95 text-white border-b border-emerald-500/40 backdrop-blur-md px-3 sm:px-6 py-2 shadow-xl shadow-black/40 flex flex-wrap items-center justify-between gap-2.5 text-xs">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-2.5 w-2.5 relative">
@@ -1607,7 +1715,7 @@ export default function App() {
             )}
       
       {/* 1. TOP TRANSPARENT NAVIGATION BAR - FIXED ON HOME, HIDDEN ELSEWHERE */}
-      {!isStoryView && (
+      {!isStoryView && !isMobilePreviewActive && (
         <>
           <motion.header 
             initial={{ opacity: 0, y: -20 }}
@@ -1618,14 +1726,14 @@ export default function App() {
             }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className={`hidden md:block fixed left-0 right-0 w-full z-50 bg-transparent border-none shadow-none ${
-              isPreviewMode ? 'top-10' : 'top-0'
+              isPreviewMode && !isSimulatedMobileFrame ? 'top-10' : 'top-0'
             }`}
           >
-            <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
-              <nav ref={navbarRef} className={`w-full md:w-fit ml-0 md:ml-auto flex items-center h-auto md:h-11 mt-2 md:mt-3 px-3 md:px-4 py-0 rounded-xl md:rounded-2xl backdrop-blur-md transition-all duration-250 border ${
+            <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8">
+              <nav ref={navbarRef} className={`w-fit ml-auto flex items-center h-9 md:h-9.5 mt-2 md:mt-2.5 px-3 md:px-3.5 py-0 rounded-full backdrop-blur-md transition-all duration-250 border ${
                 theme === 'dark' 
-                  ? 'shadow-lg shadow-black/40' 
-                  : 'shadow-md shadow-slate-200/50'
+                  ? 'shadow-md shadow-black/30' 
+                  : 'shadow-sm shadow-slate-200/50'
               }`}
               style={{
                 backgroundColor: theme === 'dark' 
@@ -1639,307 +1747,123 @@ export default function App() {
                   : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
               }}
               >
-                {/* Responsive Navigation container */}
-                <div className="w-full">
-                  {/* DESKTOP VIEW */}
-                  <div className="hidden md:flex items-center gap-4">
-                    {/* Nav links (Desktop only) */}
-                    <div className="flex gap-1 items-center">
-                      {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
-                        const active = activeSection === section;
-                        return (
-                          <button
-                            key={section}
-                            onClick={() => scrollToSection(section)}
-                            className={`font-sans text-[11px] uppercase tracking-widest font-bold cursor-pointer transition-all duration-300 px-3.5 py-1.5 rounded-full border relative ${
-                              active 
-                                ? 'border-transparent shadow-sm' 
-                                : 'border-transparent hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/5'
-                            }`}
-                            style={active 
-                              ? getActiveTabStyle(active, theme, activeCVData) 
-                              : {
-                                  color: theme === 'dark' 
-                                    ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0') 
-                                    : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
-                                }
-                            }
-                          >
-                            {section}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* Language Switcher Toggle with Confirmation Overlay */}
-                      <div className="relative" ref={langContainerRef}>
+                {/* DESKTOP VIEW */}
+                <div className="flex items-center gap-2 md:gap-2.5">
+                  {/* Nav links (Desktop only) */}
+                  <div className="flex items-center gap-0.5 md:gap-1">
+                    {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
+                      const active = activeSection === section;
+                      return (
                         <button
-                          onClick={() => setShowLangConfirm(!showLangConfirm)}
-                          title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
-                          className={`px-2.5 py-1 rounded-full border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1.5 shadow-2xs ${
-                            theme === 'dark' 
-                              ? 'border-slate-700 text-slate-200 bg-slate-800/80 hover:bg-slate-800 hover:text-white' 
-                              : 'border-[#E3DDD3] text-[#2D3136] bg-white hover:bg-slate-50'
-                          } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
+                          key={section}
+                          onClick={() => scrollToSection(section)}
+                          className={`font-sans text-[10px] md:text-[10.5px] uppercase tracking-wider font-semibold cursor-pointer transition-all duration-300 px-2.5 py-1 md:px-3 md:py-1 rounded-full border relative whitespace-nowrap ${
+                            active 
+                              ? 'border-transparent shadow-2xs' 
+                              : 'border-transparent hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/5'
+                          }`}
+                          style={active 
+                            ? getActiveTabStyle(active, theme, activeCVData) 
+                            : {
+                                color: theme === 'dark' 
+                                  ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0') 
+                                  : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
+                              }
+                          }
                         >
-                          <Globe className="w-3.5 h-3.5" style={{ color: theme === 'dark' ? '#F2A1B0' : '#C81D25' }} />
-                          <span className="tracking-wide uppercase">{lang}</span>
+                          {section}
                         </button>
-
-                        <AnimatePresence>
-                          {showLangConfirm && (
-                            <motion.div
-                              initial={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
-                              animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
-                              exit={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
-                              transition={{ duration: 0.2, ease: "easeOut" }}
-                              className={`absolute top-full right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 min-w-[260px] max-w-[300px] ${
-                                theme === 'dark'
-                                  ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
-                                  : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
-                              }`}
-                            >
-                              {/* Upward tiny triangle anchor */}
-                              <div className={`absolute right-6 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
-                                theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-                              }`} />
-
-                              <div className="flex flex-col gap-3">
-                                <p className="text-xs font-medium leading-relaxed">
-                                  {lang === 'id' 
-                                    ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
-                                    : "Are you sure you want to change the language to Indonesian?"
-                                  }
-                                </p>
-                                <div className="flex justify-end gap-2 mt-1">
-                                  <button
-                                    onClick={() => setShowLangConfirm(false)}
-                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                      theme === 'dark'
-                                        ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
-                                        : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
-                                    }`}
-                                  >
-                                    {lang === 'id' ? "Batal" : "Cancel"}
-                                  </button>
-                                  <button
-                                    onClick={handleConfirmLanguageChange}
-                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-sm transition-all cursor-pointer"
-                                    style={{
-                                      backgroundColor: theme === 'dark'
-                                        ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
-                                        : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
-                                    }}
-                                  >
-                                    {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
-                                  </button>
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      {/* Dynamic Theme Toggle Icon */}
-                      <button
-                        onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
-                        title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
-                          theme === 'dark' 
-                            ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800 hover:border-slate-700' 
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 hover:border-slate-200'
-                        }`}
-                      >
-                        {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
+                      );
+                    })}
                   </div>
 
-                  {/* MOBILE VIEW */}
-                  <div className="flex md:hidden items-center justify-between w-full h-11">
-                    {/* Active menu category tag */}
-                    <span 
-                      className="text-xs font-mono font-bold tracking-wider uppercase flex items-center gap-1.5"
-                      style={{
-                        color: theme === 'dark'
-                          ? (activeCVData.webTexts?.hero_badge_color_dark || activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0')
-                          : (activeCVData.webTexts?.hero_badge_color || activeCVData.webTexts?.navbar_text_color || '#2D3136')
-                      }}
-                    >
-                      <span 
-                        className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
-                        style={{
-                          backgroundColor: theme === 'dark'
-                            ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
-                            : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
-                        }}
-                      />
-                      {activeSection}
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      {/* Language Switcher Toggle for Mobile */}
-                      <div className="relative" ref={langContainerRefMobile}>
-                        <button
-                          onClick={() => setShowLangConfirm(!showLangConfirm)}
-                          title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
-                          className={`px-2 py-1 rounded-full border text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 shadow-2xs ${
-                            theme === 'dark' 
-                              ? 'border-slate-700 text-slate-200 bg-slate-800/80 hover:bg-slate-800 hover:text-white' 
-                              : 'border-[#E3DDD3] text-[#2D3136] bg-white hover:bg-slate-50'
-                          } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
-                        >
-                          <Globe className="w-3.5 h-3.5" style={{ color: theme === 'dark' ? '#F2A1B0' : '#C81D25' }} />
-                          <span className="tracking-wide uppercase text-[10px]">{lang}</span>
-                        </button>
-
-                        <AnimatePresence>
-                          {showLangConfirm && (
-                            <motion.div
-                              initial={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
-                              animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
-                              exit={{ y: -10, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
-                              transition={{ duration: 0.2, ease: "easeOut" }}
-                              className={`absolute top-full right-0 mt-2 p-4 rounded-xl border shadow-xl z-50 min-w-[260px] max-w-[300px] ${
-                                theme === 'dark'
-                                  ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
-                                  : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
-                              }`}
-                            >
-                              {/* Upward tiny triangle anchor */}
-                              <div className={`absolute right-6 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
-                                theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
-                              }`} />
-
-                              <div className="flex flex-col gap-3">
-                                <p className="text-xs font-medium leading-relaxed">
-                                  {lang === 'id' 
-                                    ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
-                                    : "Are you sure you want to change the language to Indonesian?"
-                                  }
-                                </p>
-                                <div className="flex justify-end gap-2 mt-1">
-                                  <button
-                                    onClick={() => setShowLangConfirm(false)}
-                                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                      theme === 'dark'
-                                        ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
-                                        : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
-                                    }`}
-                                  >
-                                    {lang === 'id' ? "Batal" : "Cancel"}
-                                  </button>
-                                  <button
-                                    onClick={handleConfirmLanguageChange}
-                                    className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-sm transition-all cursor-pointer"
-                                    style={{
-                                      backgroundColor: theme === 'dark'
-                                        ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
-                                        : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
-                                    }}
-                                  >
-                                    {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
-                                  </button>
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      {/* Theme Toggle Icon for Mobile */}
+                  <div className="flex items-center gap-1.5 md:gap-2 pl-1 border-l border-slate-300/30 dark:border-slate-700/50">
+                    {/* Language Switcher Toggle with Confirmation Overlay */}
+                    <div className="relative" ref={langContainerRef}>
                       <button
-                        onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
-                        title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border border-transparent ${
+                        onClick={() => setShowLangConfirm(!showLangConfirm)}
+                        title={lang === 'id' ? "Switch to English" : "Ubah ke Bahasa Indonesia"}
+                        className={`px-2 py-0.5 md:px-2.5 md:py-0.5 rounded-full border text-[9px] md:text-[10px] font-mono font-bold transition-all cursor-pointer select-none flex items-center gap-1 shadow-2xs whitespace-nowrap ${
                           theme === 'dark' 
-                            ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800' 
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
+                            ? 'border-slate-700 text-slate-200 bg-slate-800/80 hover:bg-slate-800 hover:text-white' 
+                            : 'border-[#E3DDD3] text-[#2D3136] bg-white hover:bg-slate-50'
+                        } ${showLangConfirm ? (theme === 'dark' ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-300') : ''}`}
                       >
-                        {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                        <Globe className="w-3 h-3 md:w-3.5 md:h-3.5" style={{ color: theme === 'dark' ? '#F2A1B0' : '#C81D25' }} />
+                        <span className="tracking-wide uppercase">{lang}</span>
                       </button>
 
-                      {/* Hamburger Button */}
-                      <button
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer select-none border`}
-                        style={{
-                          color: theme === 'dark'
-                            ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0')
-                            : (activeCVData.webTexts?.navbar_text_color || '#2D3136'),
-                          borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(113, 136, 148, 0.3)'
-                        }}
-                        title="Menu"
-                      >
-                        {mobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
-                      </button>
+                      <AnimatePresence>
+                        {showLangConfirm && (
+                          <motion.div
+                            initial={{ y: -8, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                            animate={{ y: 0, scaleX: 1, scaleY: 1, opacity: 1 }}
+                            exit={{ y: -8, scaleX: 0.95, scaleY: 0.95, opacity: 0 }}
+                            transition={{ duration: 0.18, ease: "easeOut" }}
+                            className={`absolute top-full right-0 mt-1.5 p-3 rounded-xl border shadow-xl z-50 min-w-[240px] max-w-[280px] ${
+                              theme === 'dark'
+                                ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/60'
+                                : 'bg-white text-slate-800 border-slate-200 shadow-slate-200/60'
+                            }`}
+                          >
+                            {/* Upward tiny triangle anchor */}
+                            <div className={`absolute right-5 bottom-full w-2.5 h-2.5 rotate-45 border-t border-l -mb-1.5 ${
+                              theme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+                            }`} />
+
+                            <div className="flex flex-col gap-2.5">
+                              <p className="text-xs font-medium leading-relaxed">
+                                {lang === 'id' 
+                                  ? "Yakin ingin mengubah bahasa ke Bahasa Inggris?" 
+                                  : "Are you sure you want to change the language to Indonesian?"
+                                }
+                              </p>
+                              <div className="flex justify-end gap-1.5 mt-0.5">
+                                <button
+                                  onClick={() => setShowLangConfirm(false)}
+                                  className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                                    theme === 'dark'
+                                      ? 'text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800'
+                                      : 'text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200'
+                                  }`}
+                                >
+                                  {lang === 'id' ? "Batal" : "Cancel"}
+                                </button>
+                                <button
+                                  onClick={handleConfirmLanguageChange}
+                                  className="px-2.5 py-1 rounded-md text-[10px] font-bold text-white shadow-2xs transition-all cursor-pointer"
+                                  style={{
+                                    backgroundColor: theme === 'dark'
+                                      ? (activeCVData.webTexts?.hero_cta_primary_bg_dark || '#5E171E')
+                                      : (activeCVData.webTexts?.hero_cta_primary_bg || '#701C24')
+                                  }}
+                                >
+                                  {lang === 'id' ? "Ya, Ganti" : "Yes, Change"}
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
+
+                    {/* Dynamic Theme Toggle Icon */}
+                    <button
+                      id="theme-toggle-desktop-btn"
+                      data-theme-toggle="desktop"
+                      onClick={(e) => toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e)}
+                      title={theme === 'dark' ? "Ubah ke Mode Terang" : "Ubah ke Mode Gelap"}
+                      className={`p-1 md:p-1.5 rounded-full transition-all cursor-pointer select-none border border-transparent ${
+                        theme === 'dark' 
+                          ? 'text-yellow-400 hover:text-yellow-300 hover:bg-slate-800' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      {theme === 'dark' ? <Sun className="w-3 h-3 md:w-3.5 md:h-3.5" /> : <Moon className="w-3 h-3 md:w-3.5 md:h-3.5" />}
+                    </button>
                   </div>
                 </div>
               </nav>
-
-              {/* Mobile menu dropdown */}
-              <AnimatePresence>
-                {mobileMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={`md:hidden w-full mt-2 rounded-2xl overflow-hidden border backdrop-blur-lg shadow-xl`}
-                    style={{
-                      backgroundColor: theme === 'dark' 
-                        ? (activeCVData.webTexts?.navbar_bg_color_dark || 'rgba(24, 26, 27, 0.95)')
-                        : (activeCVData.webTexts?.navbar_bg_color || 'rgba(243, 240, 230, 0.95)'),
-                      borderColor: theme === 'dark'
-                        ? (activeCVData.webTexts?.navbar_border_color_dark || 'rgba(255, 255, 255, 0.12)')
-                        : (activeCVData.webTexts?.navbar_border_color || 'rgba(113, 136, 148, 0.3)'),
-                    }}
-                  >
-                    <div className="flex flex-col p-3 gap-1.5">
-                      {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
-                        const active = activeSection === section;
-                        return (
-                          <button
-                            key={section}
-                            onClick={() => {
-                              scrollToSection(section);
-                              setMobileMenuOpen(false);
-                            }}
-                            className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-3 px-4 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
-                              active
-                                ? 'border-transparent'
-                                : 'border-transparent hover:opacity-80 hover:bg-black/5 dark:hover:bg-white/5'
-                            }`}
-                            style={active 
-                              ? getActiveTabStyle(active, theme, activeCVData) 
-                              : {
-                                  color: theme === 'dark' 
-                                    ? (activeCVData.webTexts?.navbar_text_color_dark || '#E2E8F0') 
-                                    : (activeCVData.webTexts?.navbar_text_color || '#2D3136')
-                                }
-                            }
-                          >
-                            <span>{section}</span>
-                            {active && (
-                              <span 
-                                className="w-1.5 h-1.5 rounded-full animate-pulse" 
-                                style={{
-                                  backgroundColor: theme === 'dark' 
-                                    ? (activeCVData.webTexts?.navbar_active_color_dark || '#FFFFFF') 
-                                    : (activeCVData.webTexts?.navbar_active_color || '#FFFFFF')
-                                }} 
-                              />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </motion.header>
 
@@ -1965,14 +1889,14 @@ export default function App() {
                     setIsNavVisible(true);
                     lastScrollY.current = window.scrollY + 150; // Delay next scroll hide
                   }}
-                  className={`pointer-events-auto w-12 h-6 md:w-16 md:h-8 flex items-center justify-center rounded-b-full rounded-t-none border-t-0 border-x border-b shadow-md backdrop-blur-md cursor-pointer transition-colors ${
+                  className={`pointer-events-auto w-10 h-5 md:w-12 md:h-5.5 flex items-center justify-center rounded-b-full rounded-t-none border-t-0 border-x border-b shadow-sm backdrop-blur-md cursor-pointer transition-all ${
                     theme === 'dark'
                       ? 'bg-[#0f172a]/95 border-slate-800 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800/80 shadow-black/40'
                       : 'bg-white/95 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-slate-50/80 shadow-slate-100/60'
                   }`}
                   title="Tampilkan Navigasi"
                 >
-                  <ChevronsDown className="w-3 h-3 md:w-4 md:h-4 translate-y-[-1px] md:translate-y-[-2px]" />
+                  <ChevronsDown className="w-3 h-3 md:w-3.5 md:h-3.5 translate-y-[-1px]" />
                 </motion.button>
               )}
             </AnimatePresence>
@@ -1980,10 +1904,10 @@ export default function App() {
 
           {/* MOBILE VIEW NAVIGATION - FULL-WIDTH HEADER BAR */}
           <div className={`md:hidden fixed left-0 right-0 w-full z-50 ${
-            isPreviewMode ? 'top-10' : 'top-0'
+            isPreviewMode && !isSimulatedMobileFrame ? 'top-10' : 'top-0'
           }`}>
-            {/* Header Box Container - White Container with shadow */}
-            <div className={`relative z-10 flex items-center justify-between px-4 h-14 border-b shadow-sm transition-colors duration-250 ${
+            {/* Header Box Container */}
+            <div className={`relative z-10 flex items-center justify-between px-3 sm:px-4 h-10 sm:h-11 border-b shadow-xs transition-all duration-250 ${
               theme === 'dark' 
                 ? 'bg-slate-900 border-slate-800 text-slate-100' 
                 : 'bg-white border-slate-200 text-slate-800'
@@ -1995,19 +1919,20 @@ export default function App() {
             }
             >
               {/* Left Section: Menu icon on the far left, followed by the static "Portfolio" text */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Hamburger Menu Toggle Button */}
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className={`p-1 flex items-center justify-center transition-colors cursor-pointer select-none ${
+                  className={`p-1 rounded-md flex items-center justify-center transition-colors cursor-pointer select-none ${
                     theme === 'dark' ? 'text-slate-200 hover:text-emerald-400' : 'text-slate-800 hover:text-emerald-600'
                   }`}
+                  title="Menu"
                 >
-                  <Menu className="w-4 h-4" />
+                  <Menu className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
 
                 {/* Static Portfolio Title */}
-                <span className={`font-sans font-black tracking-widest text-xs uppercase ${
+                <span className={`font-sans font-bold tracking-widest text-[11px] sm:text-xs uppercase ${
                   theme === 'dark' ? 'text-white' : 'text-black'
                 }`}>
                   Portfolio
@@ -2015,16 +1940,19 @@ export default function App() {
               </div>
 
               {/* Configurations on Right */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Language button */}
                 <div ref={langContainerRefMobile} className="relative flex items-center">
                   <button
                     onClick={() => setShowLangConfirm(!showLangConfirm)}
-                    className={`p-1 flex items-center justify-center text-[9px] font-mono font-black uppercase transition-colors cursor-pointer select-none ${
-                      theme === 'dark' ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-800 hover:text-emerald-600'
+                    className={`px-2 py-0.5 rounded-full border text-[9px] font-mono font-bold uppercase transition-colors cursor-pointer select-none flex items-center gap-1 shadow-2xs ${
+                      theme === 'dark' 
+                        ? 'border-slate-700 text-slate-200 bg-slate-800/80 hover:bg-slate-800 hover:text-white' 
+                        : 'border-[#E3DDD3] text-[#2D3136] bg-white hover:bg-slate-50'
                     }`}
                     title={lang === 'id' ? 'Ubah Bahasa' : 'Change Language'}
                   >
+                    <Globe className="w-2.5 h-2.5 sm:w-3 sm:h-3" style={{ color: theme === 'dark' ? '#F2A1B0' : '#C81D25' }} />
                     <span>{lang}</span>
                   </button>
 
@@ -2034,14 +1962,14 @@ export default function App() {
                         initial={{ y: 5, scale: 0.95, opacity: 0 }}
                         animate={{ y: 0, scale: 1, opacity: 1 }}
                         exit={{ y: 5, scale: 0.95, opacity: 0 }}
-                        className={`absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-xl z-50 w-48 ${
+                        className={`absolute top-full right-0 mt-1.5 p-3 rounded-xl border shadow-xl z-50 w-48 sm:w-52 ${
                           theme === 'dark'
                             ? 'bg-slate-950 text-slate-100 border-slate-800 shadow-black/80'
                             : 'bg-white text-slate-850 border-slate-200 shadow-slate-200/80'
                         }`}
                       >
                         <div className="flex flex-col gap-2">
-                          <p className="text-[10px] font-medium leading-relaxed">
+                          <p className="text-[10px] sm:text-[11px] font-medium leading-relaxed">
                             {lang === 'id'
                               ? "Ganti ke Bahasa Inggris?"
                               : "Change to Indonesian?"}
@@ -2049,7 +1977,7 @@ export default function App() {
                           <div className="flex justify-end gap-1.5">
                             <button
                               onClick={() => setShowLangConfirm(false)}
-                              className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all cursor-pointer ${
+                              className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold transition-all cursor-pointer ${
                                 theme === 'dark'
                                   ? 'text-slate-400 hover:text-white bg-slate-900'
                                   : 'text-slate-500 hover:text-slate-800 bg-slate-50'
@@ -2062,7 +1990,7 @@ export default function App() {
                                 handleConfirmLanguageChange();
                                 setMobileMenuOpen(false);
                               }}
-                              className="px-2 py-1 rounded-md text-[9px] font-bold bg-emerald-600 text-white cursor-pointer"
+                              className="px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-bold bg-emerald-600 text-white cursor-pointer shadow-xs"
                             >
                               {lang === 'id' ? "Ya" : "Yes"}
                             </button>
@@ -2075,16 +2003,18 @@ export default function App() {
 
                 {/* Theme Toggle Button */}
                 <button
+                  id="theme-toggle-mobile-btn"
+                  data-theme-toggle="mobile"
                   onClick={(e) => {
                     toggleThemeWithAnimation(theme === 'dark' ? 'light' : 'dark', e);
                   }}
-                  className={`p-1 flex items-center justify-center transition-colors cursor-pointer select-none ${
-                    theme === 'dark' ? 'text-slate-200 hover:text-yellow-400' : 'text-slate-800 hover:text-emerald-600'
+                  className={`p-1 rounded-md flex items-center justify-center transition-colors cursor-pointer select-none ${
+                    theme === 'dark' ? 'text-slate-200 hover:text-yellow-400 hover:bg-slate-800/80' : 'text-slate-800 hover:text-emerald-600 hover:bg-slate-100/80'
                   }`}
                   title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
                 >
                   {theme === 'dark' ? (
-                    <Sun className="w-3.5 h-3.5 text-yellow-500 hover:text-yellow-600" />
+                    <Sun className="w-3.5 h-3.5 text-yellow-500 hover:text-yellow-400" />
                   ) : (
                     <Moon className="w-3.5 h-3.5 text-slate-600 hover:text-slate-950" />
                   )}
@@ -2112,7 +2042,7 @@ export default function App() {
                     animate={{ x: 0 }}
                     exit={{ x: "-100%" }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className={`fixed top-0 left-0 h-[100dvh] w-[60%] min-w-[220px] max-w-[280px] z-50 p-5 shadow-2xl flex flex-col justify-between border-r overflow-hidden ${
+                    className={`fixed top-0 left-0 h-[100dvh] w-[220px] sm:w-[250px] max-w-[75vw] z-50 p-3.5 sm:p-4 shadow-2xl flex flex-col justify-between border-r overflow-hidden ${
                       theme === 'dark'
                         ? 'bg-slate-950/98 border-slate-800 text-white'
                         : 'bg-white/98 border-slate-200 text-slate-800'
@@ -2125,33 +2055,33 @@ export default function App() {
                   >
                     <div>
                       {/* Drawer Header */}
-                      <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100 dark:border-slate-800/80">
-                        <span className={`font-sans font-black tracking-widest text-xs uppercase ${
+                      <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100 dark:border-slate-800/80">
+                        <span className={`font-sans font-bold tracking-widest text-xs uppercase ${
                           theme === 'dark' ? 'text-white' : 'text-slate-950'
                         }`}>
                           Portfolio
                         </span>
                         <button
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          className={`p-1 rounded-md transition-colors cursor-pointer ${
                             theme === 'dark' ? 'hover:bg-slate-900 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'
                           }`}
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
 
                       {/* Navigation links */}
-                      <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-col gap-1">
                         {['home', 'projects', 'skills', 'experience', 'contact'].map((section) => {
                           const active = activeSection === section;
                           const getIcon = (sec: string) => {
                             switch(sec) {
-                              case 'home': return <Home className="w-4 h-4" />;
-                              case 'projects': return <LayoutGrid className="w-4 h-4" />;
-                              case 'skills': return <Award className="w-4 h-4" />;
-                              case 'experience': return <Briefcase className="w-4 h-4" />;
-                              case 'contact': return <MessageCircle className="w-4 h-4" />;
+                              case 'home': return <Home className="w-3.5 h-3.5" />;
+                              case 'projects': return <LayoutGrid className="w-3.5 h-3.5" />;
+                              case 'skills': return <Award className="w-3.5 h-3.5" />;
+                              case 'experience': return <Briefcase className="w-3.5 h-3.5" />;
+                              case 'contact': return <MessageCircle className="w-3.5 h-3.5" />;
                               default: return null;
                             }
                           };
@@ -2162,19 +2092,19 @@ export default function App() {
                                 scrollToSection(section);
                                 setMobileMenuOpen(false);
                               }}
-                                className={`w-full text-left font-sans text-xs uppercase tracking-widest font-bold py-2.5 px-3 rounded-xl transition-all cursor-pointer border flex items-center justify-between ${
-                                  active
-                                    ? 'border-transparent'
-                                    : (theme === 'dark'
-                                        ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
-                                        : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
-                                }`}
-                            style={getActiveTabStyle(active, theme, activeCVData)}
-                         >
-                           <span className="flex items-center gap-2.5">
-                             {getIcon(section)}
-                             {section}
-                           </span>
+                              className={`w-full text-left font-sans text-xs uppercase tracking-wider font-semibold py-2 px-2.5 rounded-lg transition-all cursor-pointer border flex items-center justify-between ${
+                                active
+                                  ? 'border-transparent shadow-2xs'
+                                  : (theme === 'dark'
+                                      ? 'text-slate-400 border-transparent hover:text-white hover:bg-white/[0.04]'
+                                      : 'text-slate-500 border-transparent hover:text-slate-900 hover:bg-black/[0.03]')
+                              }`}
+                              style={getActiveTabStyle(active, theme, activeCVData)}
+                            >
+                              <span className="flex items-center gap-2">
+                                {getIcon(section)}
+                                {section}
+                              </span>
                               {active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                             </button>
                           );
@@ -2183,7 +2113,7 @@ export default function App() {
                     </div>
 
                     {/* Footer inside drawer */}
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80">
                       <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 text-center">
                         © 2026 {activeCVData.name || 'Portfolio'}
                       </p>
@@ -2196,8 +2126,27 @@ export default function App() {
         </>
       )}
 
-      {/* 2. MAIN GRID LAYOUT CONTENT */}
-      <main className={`flex-grow ${isPreviewMode ? 'pt-10' : 'pt-0'}`}>
+      {/* 2. MAIN CONTENT AREA: REAL SMARTPHONE SIMULATOR OR STANDARD FULLSCREEN MAIN */}
+      {isMobilePreviewActive ? (
+        <div className="flex-grow pt-4 pb-12 flex items-center justify-center">
+          <MobilePhoneMockup
+            cvData={cvData}
+            theme={theme}
+            lang={lang}
+            onClose={() => setPreviewDevice('desktop')}
+            onThemeChange={(newTheme) => {
+              setTheme(newTheme);
+              if (newTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+              } else {
+                document.documentElement.classList.remove('dark');
+              }
+            }}
+            onLangChange={(newLang) => setLang(newLang)}
+          />
+        </div>
+      ) : (
+        <main className={`flex-grow transition-all duration-300 ${isPreviewMode && !isSimulatedMobileFrame ? 'pt-10' : 'pt-0'}`}>
         <AnimatePresence mode="wait">
           {aboutSubPage ? (
             <AboutMeSubPages 
@@ -2271,7 +2220,17 @@ export default function App() {
             customBgUrl={activeCVData.webTexts?.home_bg_custom_url || activeCVData.webTexts?.home_custom_url || undefined}
           />
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
-          <FloatingAssetsOverlay sectionId="home" assets={activeCVData.floatingAssets} />
+          <FloatingAssetsOverlay 
+            sectionId="home" 
+            assets={activeCVData.floatingAssets} 
+            theme={theme}
+            isMobilePreview={isEffectiveMobile}
+            bgColor={
+              theme === 'dark'
+                ? (activeCVData.webTexts?.home_bg_color_dark || activeCVData.webTexts?.hero_bg_color_dark || activeCVData.webTexts?.theme_bg_color_dark || '#181A1B')
+                : (activeCVData.webTexts?.home_bg_color || activeCVData.webTexts?.hero_bg_color || activeCVData.webTexts?.theme_bg_color_light || '#F9F3E8')
+            }
+          />
           
           <div className="max-w-4xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 md:py-8 lg:py-10 relative w-full min-h-[calc(100vh-4rem)] flex-1 flex flex-col justify-center">
             
@@ -2313,50 +2272,50 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, ease: "easeOut", delay: 0.12 }}
-                className="relative z-10 pointer-events-none flex items-center justify-center w-full h-[225px] sm:h-[260px] my-1 overflow-visible"
+                className="relative z-10 pointer-events-auto flex items-center justify-center w-full h-[225px] sm:h-[260px] my-1 overflow-visible group"
               >
                 {currentProfileImageUrl && (
-                  <img 
-                    className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-all duration-700 ease-out select-none w-[220px] h-[220px] sm:w-[255px] sm:h-[255px] max-w-none ${
-                      isPng ? 'object-contain' : 'object-cover'
-                    }`}
-                    onClick={() => scrollToSection('profil')}
-                    title="Buka Halaman Tentang Saya (Story)"
-                    referrerPolicy="no-referrer"
-                    alt="Professional Portfolio Visual" 
-                    src={currentProfileImageUrl}
-                    style={{
-                      transform: `translate(-50%, -48%) scale(${Math.min(1.2, activeCVData.homeImageScale || 1)}) translate(${((activeCVData.homeImageX || 0) * 1.8)}px, ${((activeCVData.homeImageY || 0) * 1.5)}px)`,
-                      transformOrigin: 'center center',
-                      opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
-                      maskImage: (() => {
-                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
-                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
-                        if (maskStyle === 'fade_bottom') {
-                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_circle') {
-                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_edge') {
-                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        }
-                        return 'none';
-                      })(),
-                      WebkitMaskImage: (() => {
-                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
-                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
-                        if (maskStyle === 'fade_bottom') {
-                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_circle') {
-                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_edge') {
-                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        }
-                        return 'none';
-                      })()
-                    }}
-                  />
+                  <div className="relative w-full h-full flex items-center justify-center transition-transform duration-500 ease-out group-hover:scale-105 select-none">
+                    <img 
+                      className={`absolute left-1/2 top-1/2 select-none w-[220px] h-[220px] sm:w-[255px] sm:h-[255px] max-w-none transition-all duration-700 ease-out cursor-default ${
+                        isPng ? 'object-contain' : 'object-cover'
+                      }`}
+                      referrerPolicy="no-referrer"
+                      alt="Professional Portfolio Visual" 
+                      src={currentProfileImageUrl}
+                      style={{
+                        transform: `translate(-50%, -48%) scale(${Math.min(1.2, activeCVData.homeImageScale || 1)}) translate(${((activeCVData.homeImageX || 0) * 1.8)}px, ${((activeCVData.homeImageY || 0) * 1.5)}px)`,
+                        transformOrigin: 'center center',
+                        opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
+                        maskImage: (() => {
+                          const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                          const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                          const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                          if (maskStyle === 'fade_bottom') {
+                            return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_circle') {
+                            return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_edge') {
+                            return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          }
+                          return 'none';
+                        })(),
+                        WebkitMaskImage: (() => {
+                          const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                          const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                          const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                          if (maskStyle === 'fade_bottom') {
+                            return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_circle') {
+                            return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_edge') {
+                            return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          }
+                          return 'none';
+                        })()
+                      }}
+                    />
+                  </div>
                 )}
               </motion.div>
 
@@ -2389,36 +2348,40 @@ export default function App() {
                 ))}
               </motion.h1>
 
-              {/* 4. Deskripsi / Subtitle - Tebal (font-bold) seperti Desktop View */}
-              <motion.p 
+              {/* 4. Deskripsi / Subtitle - Biasa (font-normal) dengan format Markdown/README */}
+              <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.28, ease: "easeOut" }}
-                className={`font-sans font-bold text-xs sm:text-sm mb-4 leading-relaxed text-center max-w-sm sm:max-w-md mx-auto whitespace-pre-line transition-colors duration-200 ${
-                  theme === 'dark' ? 'text-slate-100' : 'text-slate-800'
+                className={`font-sans font-normal text-xs sm:text-sm mb-4 leading-relaxed text-center max-w-sm sm:max-w-md mx-auto transition-colors duration-200 ${
+                  theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
                 }`}
                 style={{
                   color: theme === 'dark' 
-                    ? (activeCVData.webTexts?.hero_subtitle_color_dark || '#E2E8F0') 
-                    : (activeCVData.webTexts?.hero_subtitle_color || '#2D3136')
+                    ? (activeCVData.webTexts?.hero_subtitle_color_dark || '#CBD5E1') 
+                    : (activeCVData.webTexts?.hero_subtitle_color || '#475569')
                 }}
               >
-                <span>
-                  {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
-                </span>
-              </motion.p>
+                <MarkdownText 
+                  content={activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."} 
+                  theme={theme}
+                />
+              </motion.div>
 
-              {/* 5. 2 Tombol Action CTA - Lebih Kecil & Ramping di Mobile View */}
+              {/* 5. 2 Tombol Action CTA - Lebih Kecil & Ramping di Mobile View (Responsif makin kecil sesuai layar) */}
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.35, ease: "easeOut" }}
-                className="flex flex-wrap gap-2 sm:gap-2.5 items-center justify-center pb-2"
+                className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-center pb-2"
               >
-                {/* Tombol Utama - "Hubungi Saya" */}
-                <button
-                  onClick={() => scrollToSection('contact')}
-                  className={`font-sans font-bold text-[11px] sm:text-xs px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-105 active:scale-95 select-none shadow-sm ${
+                {/* Tombol Utama - "About Me" */}
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  onClick={() => scrollToSection('profil')}
+                  className={`font-sans font-bold text-[10px] sm:text-xs px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer select-none shadow-xs transform-gpu will-change-transform ${
                     !activeCVData.webTexts?.hero_cta_primary_bg && (theme === 'dark' 
                       ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20')
@@ -2432,18 +2395,21 @@ export default function App() {
                       : (activeCVData.webTexts?.hero_cta_primary_text || undefined),
                   }}
                 >
-                  <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>Hubungi Saya</span>
-                </button>
+                  <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 transform-none" />
+                  <span>About Me</span>
+                </motion.button>
                 
                 {/* Tombol Sekunder - "Download Resume" */}
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                   onClick={() => {
                     const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
                     setCvModalDirectDownload(isMobileViewport);
                     setCvModalOpen(true);
                   }}
-                  className={`font-sans font-bold text-[11px] sm:text-xs px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full flex items-center gap-1.5 whitespace-nowrap transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-105 active:scale-95 select-none shadow-sm ${
+                  className={`font-sans font-bold text-[10px] sm:text-xs px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full flex items-center gap-1 sm:gap-1.5 whitespace-nowrap cursor-pointer select-none shadow-xs transform-gpu will-change-transform ${
                     !activeCVData.webTexts?.hero_cta_secondary_bg && (theme === 'dark' 
                       ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
                       : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40')
@@ -2457,9 +2423,9 @@ export default function App() {
                       : (activeCVData.webTexts?.hero_cta_secondary_text || undefined),
                   }}
                 >
-                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0 transform-none" />
                   <span>Download Resume</span>
-                </button>
+                </motion.button>
               </motion.div>
             </div>
 
@@ -2531,36 +2497,40 @@ export default function App() {
                   ))}
                 </motion.h1>
 
-                {/* Description/Deskripsi - Fluid Responsive */}
-                <motion.p 
+                {/* Description/Deskripsi - Biasa (font-normal) dengan format Markdown/README */}
+                <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.35, ease: "easeOut" }}
-                  className={`font-sans font-bold text-[clamp(0.8125rem,0.95vw,1.025rem)] mb-5 md:mb-7 leading-relaxed text-left whitespace-pre-line transition-colors duration-200 ${
-                    theme === 'dark' ? 'text-slate-100' : 'text-slate-800'
+                  className={`font-sans font-normal text-[clamp(0.8125rem,0.95vw,1.025rem)] mb-5 md:mb-7 leading-relaxed text-left transition-colors duration-200 ${
+                    theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
                   }`}
                   style={{
                     color: theme === 'dark' 
-                      ? (activeCVData.webTexts?.hero_subtitle_color_dark || '#E2E8F0') 
-                      : (activeCVData.webTexts?.hero_subtitle_color || '#2D3136')
+                      ? (activeCVData.webTexts?.hero_subtitle_color_dark || '#CBD5E1') 
+                      : (activeCVData.webTexts?.hero_subtitle_color || '#475569')
                   }}
                 >
-                  <span>
-                    {activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."}
-                  </span>
-                </motion.p>
+                  <MarkdownText 
+                    content={activeCVData.webTexts?.hero_subtitle || "Specialized in high-impact insights through custom SQL engines, Python workflows, and advanced Business Intelligence."} 
+                    theme={theme}
+                  />
+                </motion.div>
 
-                {/* Tombol Action CTA - Dua Tombol Modern Fluid Responsive */}
+                {/* Tombol Action CTA - Dua Tombol Modern Fluid Responsive (Perkecil & Responsif Makin Kecil Sesuai Layar) */}
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-                  className="flex flex-wrap gap-[clamp(0.65rem,0.9vw,1.25rem)] items-center justify-start"
+                  className="flex flex-wrap gap-[clamp(0.4rem,0.6vw,0.75rem)] items-center justify-start"
                 >
-                  {/* Tombol Utama - "Hubungi Saya" */}
-                  <button
-                    onClick={() => scrollToSection('contact')}
-                    className={`font-sans font-bold text-[clamp(0.75rem,0.95vw,1.15rem)] px-[clamp(1.1rem,1.4vw,2rem)] py-[clamp(0.6rem,0.75vw,1rem)] rounded-full flex items-center gap-[clamp(0.4rem,0.5vw,0.65rem)] whitespace-nowrap transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none shadow-md ${
+                  {/* Tombol Utama - "About Me" */}
+                  <motion.button
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    onClick={() => scrollToSection('profil')}
+                    className={`font-sans font-bold text-[clamp(0.68rem,0.78vw,0.875rem)] px-[clamp(0.75rem,0.95vw,1.25rem)] py-[clamp(0.35rem,0.45vw,0.6rem)] rounded-full flex items-center gap-[clamp(0.3rem,0.4vw,0.5rem)] whitespace-nowrap cursor-pointer select-none shadow-sm transform-gpu will-change-transform ${
                       !activeCVData.webTexts?.hero_cta_primary_bg && (theme === 'dark' 
                         ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30' 
                         : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20')
@@ -2574,18 +2544,21 @@ export default function App() {
                         : (activeCVData.webTexts?.hero_cta_primary_text || undefined),
                     }}
                   >
-                    <MessageCircle className="w-[clamp(0.875rem,1.05vw,1.3rem)] h-[clamp(0.875rem,1.05vw,1.3rem)] shrink-0" />
-                    <span>Hubungi Saya</span>
-                  </button>
+                    <User className="w-[clamp(0.75rem,0.88vw,1rem)] h-[clamp(0.75rem,0.88vw,1rem)] shrink-0 transform-none" />
+                    <span>About Me</span>
+                  </motion.button>
                   
                   {/* Tombol Sekunder - "Download Resume" */}
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                     onClick={() => {
                       const isMobileViewport = isMobile || (typeof window !== 'undefined' && window.innerWidth < 768);
                       setCvModalDirectDownload(isMobileViewport);
                       setCvModalOpen(true);
                     }}
-                    className={`font-sans font-bold text-[clamp(0.75rem,0.95vw,1.15rem)] px-[clamp(1.1rem,1.4vw,2rem)] py-[clamp(0.6rem,0.75vw,1rem)] rounded-full flex items-center gap-[clamp(0.4rem,0.5vw,0.65rem)] whitespace-nowrap transition-all duration-250 cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 select-none shadow-md ${
+                    className={`font-sans font-bold text-[clamp(0.68rem,0.78vw,0.875rem)] px-[clamp(0.75rem,0.95vw,1.25rem)] py-[clamp(0.35rem,0.45vw,0.6rem)] rounded-full flex items-center gap-[clamp(0.3rem,0.4vw,0.5rem)] whitespace-nowrap cursor-pointer select-none shadow-sm transform-gpu will-change-transform ${
                       !activeCVData.webTexts?.hero_cta_secondary_bg && (theme === 'dark' 
                         ? 'bg-white hover:bg-slate-100 text-slate-900 shadow-slate-100/20' 
                         : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-slate-200/40')
@@ -2599,63 +2572,63 @@ export default function App() {
                         : (activeCVData.webTexts?.hero_cta_secondary_text || undefined),
                     }}
                   >
-                    <Download className="w-[clamp(0.875rem,1.05vw,1.3rem)] h-[clamp(0.875rem,1.05vw,1.3rem)] shrink-0" />
+                    <Download className="w-[clamp(0.75rem,0.88vw,1rem)] h-[clamp(0.75rem,0.88vw,1rem)] shrink-0 transform-none" />
                     <span>Download Resume</span>
-                  </button>
+                  </motion.button>
                 </motion.div>
               </div>
 
-              {/* 2. Image/Gambar - RESPONSIVE CONTAINER & DYNAMIC SCALING */}
+              {/* 2. Image/Gambar - RESPONSIVE CONTAINER & DYNAMIC SCALING WITH HOVER ZOOM ONLY */}
               <motion.div 
                 initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.7, ease: "easeOut", delay: 0.3 }}
                 style={{ gridArea: 'image' }}
-                className="relative z-5 pointer-events-none flex items-center justify-center w-full min-h-[390px] lg:min-h-[470px] xl:min-h-[570px] 2xl:min-h-[670px]"
+                className="relative z-5 pointer-events-auto flex items-center justify-center w-full min-h-[390px] lg:min-h-[470px] xl:min-h-[570px] 2xl:min-h-[670px] group"
               >
                 {/* Image - Dynamic responsive scaling across laptop, desktop, and large displays */}
                 {currentProfileImageUrl && (
-                  <img 
-                    className={`absolute left-1/2 top-1/2 pointer-events-auto cursor-pointer transition-all duration-700 ease-out select-none md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none ${
-                      isPng ? 'object-contain' : 'object-cover'
-                    }`}
-                    onClick={() => scrollToSection('profil')}
-                    title="Buka Halaman Tentang Saya (Story)"
-                    referrerPolicy="no-referrer"
-                    alt="Professional Portfolio Visual" 
-                    src={currentProfileImageUrl}
-                    style={{
-                      transform: `translate(-50%, -50%) scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
-                      transformOrigin: 'center center',
-                      opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
-                      maskImage: (() => {
-                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
-                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
-                        if (maskStyle === 'fade_bottom') {
-                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_circle') {
-                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_edge') {
-                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        }
-                        return 'none';
-                      })(),
-                      WebkitMaskImage: (() => {
-                        const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
-                        const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
-                        const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
-                        if (maskStyle === 'fade_bottom') {
-                          return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_circle') {
-                          return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        } else if (maskStyle === 'fade_edge') {
-                          return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
-                        }
-                        return 'none';
-                      })()
-                    }}
-                  />
+                  <div className="relative w-full h-full flex items-center justify-center transition-transform duration-500 ease-out group-hover:scale-105 select-none">
+                    <img 
+                      className={`absolute left-1/2 top-1/2 select-none md:w-[360px] md:h-[360px] lg:w-[440px] lg:h-[440px] xl:w-[540px] xl:h-[540px] 2xl:w-[650px] 2xl:h-[650px] max-w-none transition-all duration-700 ease-out cursor-default ${
+                        isPng ? 'object-contain' : 'object-cover'
+                      }`}
+                      referrerPolicy="no-referrer"
+                      alt="Professional Portfolio Visual" 
+                      src={currentProfileImageUrl}
+                      style={{
+                        transform: `translate(-50%, -50%) scale(${activeCVData.homeImageScale || 1}) translate(${(activeCVData.homeImageX || 0) * 3.75}px, ${(activeCVData.homeImageY || 0) * 3.75}px)`,
+                        transformOrigin: 'center center',
+                        opacity: 1 - ((activeCVData as any).homeImageFade ?? 0),
+                        maskImage: (() => {
+                          const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                          const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                          const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                          if (maskStyle === 'fade_bottom') {
+                            return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_circle') {
+                            return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_edge') {
+                            return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          }
+                          return 'none';
+                        })(),
+                        WebkitMaskImage: (() => {
+                          const maskStyle = activeCVData.webTexts?.home_image_mask_style || 'normal';
+                          const fadeDepth = activeCVData.webTexts?.home_image_fade_depth || '66';
+                          const fadeWidth = activeCVData.webTexts?.home_image_fade_width || '84';
+                          if (maskStyle === 'fade_bottom') {
+                            return `linear-gradient(to bottom, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_circle') {
+                            return `radial-gradient(circle, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          } else if (maskStyle === 'fade_edge') {
+                            return `radial-gradient(ellipse, black ${fadeDepth}%, transparent ${fadeWidth}%)`;
+                          }
+                          return 'none';
+                        })()
+                      }}
+                    />
+                  </div>
                 )}
               </motion.div>
 
@@ -2665,12 +2638,12 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
                 style={{ gridArea: 'badge' }}
-                className="flex flex-col gap-1.5 items-start text-left justify-start self-start pt-10 md:pt-12 lg:pt-14 xl:pt-16 relative z-30"
+                className="flex flex-col gap-0 items-start text-left justify-start self-start pt-6 md:pt-8 lg:pt-10 xl:pt-12 relative z-30"
               >
                 {/* OPEN TO WORK - Bold warna hitam/putih dengan fluid scaling */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center">
                   <span 
-                    className={`font-sans text-[clamp(0.75rem,1.1vw,1.15rem)] font-black uppercase tracking-[0.15em] italic transition-colors duration-200 ${
+                    className={`font-sans text-[clamp(0.75rem,1.1vw,1.15rem)] font-black uppercase tracking-[0.14em] italic leading-tight transition-colors duration-200 ${
                       theme === 'dark' ? 'text-white' : 'text-black'
                     }`}
                     style={{
@@ -2683,9 +2656,9 @@ export default function App() {
                   </span>
                 </div>
                 
-                {/* Tahun - Font Black Ops One, lebih besar dan bold fluid */}
+                {/* Tahun - Font Black Ops One, lebih besar dan bold fluid rapat */}
                 <span 
-                  className={`font-black text-[clamp(2.75rem,4.75vw,5.25rem)] leading-none transition-colors duration-200 ${
+                  className={`font-black text-[clamp(2.75rem,4.75vw,5.25rem)] leading-[0.88] my-0.5 tracking-tight transition-colors duration-200 ${
                     theme === 'dark' ? 'text-white' : 'text-black'
                   }`}
                   style={{ 
@@ -2700,7 +2673,7 @@ export default function App() {
                 
                 {/* Lokasi - Bold dan hitam/putih fluid */}
                 <span 
-                  className={`font-sans font-black text-[clamp(0.875rem,1.2vw,1.35rem)] italic uppercase tracking-wider transition-colors duration-200 ${
+                  className={`font-sans font-black text-[clamp(0.8125rem,1.15vw,1.3rem)] italic uppercase tracking-wider leading-tight transition-colors duration-200 ${
                     theme === 'dark' ? 'text-white' : 'text-black'
                   }`}
                   style={{
@@ -2747,14 +2720,24 @@ export default function App() {
             />
           )}
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
-          <FloatingAssetsOverlay sectionId="projects" assets={activeCVData.floatingAssets} />
+          <FloatingAssetsOverlay 
+            sectionId="projects" 
+            assets={activeCVData.floatingAssets} 
+            theme={theme}
+            isMobilePreview={isEffectiveMobile}
+            bgColor={
+              theme === 'dark'
+                ? (activeCVData.webTexts?.projects_bg_color_dark || '#0B1120')
+                : (activeCVData.webTexts?.projects_bg_color || '#F8FAFC')
+            }
+          />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="mb-10 sm:mb-12 relative z-0">
               <motion.div 
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 32 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.1 }}
-                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
                 className="max-w-3xl"
               >
                 <h2 
@@ -2835,18 +2818,18 @@ export default function App() {
                   return (
                     <motion.div 
                       key={study.id} 
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 36 }}
                       whileInView={{ opacity: 1, y: 0 }}
-                      viewport={isMobile ? undefined : { once: true, amount: 0.05 }}
-                      transition={isMobile ? { duration: 0 } : { duration: 0.7, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                      viewport={isMobile ? undefined : { once: true, amount: 0.08 }}
+                      transition={isMobile ? { duration: 0 } : { duration: 1.2, delay: idx * 0.14, ease: [0.22, 1, 0.36, 1] }}
                       whileHover={isMobile ? undefined : { 
                         y: -10, 
-                        scale: 1.04, 
+                        scale: 1.03, 
                         zIndex: 100,
                         transition: { type: "spring", stiffness: 320, damping: 22, mass: 0.5 } 
                       }}
                       onClick={() => setSelectedProjectModal(study)}
-                      className="group relative h-[380px] sm:h-[420px] md:h-[440px] w-[84vw] sm:w-[360px] md:w-auto overflow-hidden rounded-2xl border border-slate-700/60 shadow-md hover:shadow-2xl transition-all duration-300 ease-out cursor-pointer shrink-0 snap-center md:snap-align-none z-10 hover:z-50 bg-slate-950 flex flex-col justify-between"
+                      className="group relative h-[400px] sm:h-[430px] md:h-[450px] lg:h-[460px] xl:h-[480px] 2xl:h-[500px] w-[84vw] sm:w-[340px] md:w-full overflow-hidden rounded-2xl border border-slate-700/60 shadow-md hover:shadow-2xl transition-all duration-300 ease-out cursor-pointer shrink-0 snap-center md:snap-align-none z-10 hover:z-50 bg-slate-950 flex flex-col justify-end"
                       title={lang === 'id' ? 'Klik untuk melihat detail proyek (Pop-Up)' : 'Click to view project details (Pop-Up)'}
                     >
                       {/* Background Image with Smooth Zoom Effect on Hover */}
@@ -2860,18 +2843,6 @@ export default function App() {
                       {/* Gradient Overlay for Text Readability & High Contrast */}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 via-40% to-slate-950/20 group-hover:from-slate-950 group-hover:via-slate-950/80 transition-all duration-500 pointer-events-none" />
 
-                      {/* Top Section: Index Badge & Hover Detail Pill */}
-                      <div className="relative z-20 p-4 sm:p-5 flex items-center justify-between pointer-events-none">
-                        <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-white/30 bg-black/40 backdrop-blur-md text-emerald-400 font-mono text-xs font-bold shadow-md">
-                          #{idx + 1}
-                        </div>
-                        
-                        <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 font-mono text-[9px] font-bold tracking-wider px-2.5 py-1 rounded-lg leading-none flex items-center gap-1.5 border border-white/20 bg-slate-950/80 text-emerald-400 shadow-md backdrop-blur-md">
-                          <Eye className="w-3 h-3" />
-                          <span>{lang === 'id' ? 'DETAIL' : 'VIEW'}</span>
-                        </div>
-                      </div>
-
                       {/* Content Container (Bottom Info with Slide & Hover Reveal) */}
                       <div className="relative z-20 p-5 sm:p-6 text-white pointer-events-none flex flex-col justify-end">
                         {/* Title & Short Description (positioned snug at bottom, slides up smoothly on hover) */}
@@ -2880,7 +2851,7 @@ export default function App() {
                             {study.title}
                           </h3>
                           {(study.shortDescription || study.description) && (
-                            <p className="text-xs sm:text-sm text-slate-300/90 line-clamp-2 leading-relaxed drop-shadow-sm font-sans">
+                            <p className="text-xs sm:text-sm text-slate-300/90 line-clamp-2 leading-relaxed drop-shadow-sm font-sans font-normal">
                               {study.shortDescription || study.description}
                             </p>
                           )}
@@ -2922,10 +2893,10 @@ export default function App() {
                 return (
                   <motion.div 
                     key={study.id} 
-                    initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                    initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 36 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={isMobile ? undefined : { once: true, amount: 0.05 }}
-                    transition={isMobile ? { duration: 0 } : { duration: 0.7, delay: idx * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                    viewport={isMobile ? undefined : { once: true, amount: 0.08 }}
+                    transition={isMobile ? { duration: 0 } : { duration: 1.2, delay: idx * 0.14, ease: [0.22, 1, 0.36, 1] }}
                     whileHover={isMobile ? undefined : { y: -8, transition: { duration: 0.25, ease: "easeOut" } }}
                     onClick={() => {
                       const url = study.projectUrl || 'https://github.com';
@@ -2978,11 +2949,11 @@ export default function App() {
                         {study.title}
                       </h3>
                       
-                      <p className={`text-[11px] sm:text-sm leading-relaxed mb-6 transition-colors duration-200 ${
+                      <div className={`text-[11px] sm:text-sm leading-relaxed mb-6 transition-colors duration-200 ${
                         theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
                       }`}>
-                        {study.description}
-                      </p>
+                        <MarkdownText content={study.description} theme={theme} />
+                      </div>
                     </div>
 
                     <div className={`pt-4 border-t flex justify-end items-center transition-colors duration-200 ${
@@ -3149,13 +3120,23 @@ export default function App() {
             />
           )}
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
-          <FloatingAssetsOverlay sectionId="skills" assets={activeCVData.floatingAssets} />
+          <FloatingAssetsOverlay 
+            sectionId="skills" 
+            assets={activeCVData.floatingAssets} 
+            theme={theme}
+            isMobilePreview={isEffectiveMobile}
+            bgColor={
+              theme === 'dark'
+                ? (activeCVData.webTexts?.skills_bg_color_dark || '#0F172A')
+                : (activeCVData.webTexts?.skills_bg_color || '#F8FAFC')
+            }
+          />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <motion.div 
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 32 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
               className="text-center max-w-2xl mx-auto mb-12"
             >
               <h2 
@@ -3226,13 +3207,23 @@ export default function App() {
             />
           )}
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
-          <FloatingAssetsOverlay sectionId="experience" assets={activeCVData.floatingAssets} />
+          <FloatingAssetsOverlay 
+            sectionId="experience" 
+            assets={activeCVData.floatingAssets} 
+            theme={theme}
+            isMobilePreview={isEffectiveMobile}
+            bgColor={
+              theme === 'dark'
+                ? (activeCVData.webTexts?.experience_bg_color_dark || '#111827')
+                : (activeCVData.webTexts?.experience_bg_color || '#F8FAFC')
+            }
+          />
           <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <motion.div 
-              initial={{ opacity: 0, y: 15 }}
+              initial={{ opacity: 0, y: 32 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 1.15, ease: [0.22, 1, 0.36, 1] }}
               className="max-w-3xl mb-6 sm:mb-12"
             >
               <h2 
@@ -3263,45 +3254,49 @@ export default function App() {
 
             {/* Timeline Cards */}
             <div className="space-y-3 sm:space-y-6 max-w-4xl xl:max-w-5xl">
-              {!activeCVData.experiences || activeCVData.experiences.length === 0 ? (
-                <div className={`p-8 rounded-xl border text-center transition-all ${
-                  theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
-                }`}
-                style={
-                  theme === 'dark'
-                    ? (activeCVData.webTexts?.experience_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color_dark } : undefined)
-                    : (activeCVData.webTexts?.experience_card_bg_color ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color } : undefined)
-                }
-                >
-                  <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
-                  <h3 className="font-sans font-bold text-base mb-2">Belum ada Pengalaman Kerja</h3>
-                  <p className="text-sm max-w-md mx-auto leading-relaxed text-slate-400">
-                    Tambahkan riwayat pengalaman kerja baru Anda melalui Admin Panel di pojok kanan atas.
-                  </p>
-                </div>
-              ) : (
-                activeCVData.experiences.map((exp, expIdx) => {
-                const isExpanded = expandedExperienceId === exp.id;
-                return (
-                  <motion.div 
-                    key={exp.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.05 }}
-                    transition={{ duration: 0.7, delay: expIdx * 0.06, ease: [0.16, 1, 0.3, 1] }}
-                    whileHover={{ scale: 1.01, transition: { duration: 0.25, ease: "easeOut" } }}
-                    onClick={() => setExpandedExperienceId(isExpanded ? null : exp.id)}
-                    className={`bento-card p-3.5 sm:p-6 rounded-xl border cursor-pointer select-none transition-[border-color,background-color,box-shadow] duration-250 ${
-                      isExpanded 
-                        ? 'border-emerald-500/45 shadow-sm bg-emerald-500/5' 
-                        : (theme === 'dark' ? 'border-slate-800 bg-slate-900/60 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300')
+              {(() => {
+                const visibleExperiences = (activeCVData.experiences || []).filter(exp => exp.showOnHome !== false && exp.showOnWeb !== false);
+                if (visibleExperiences.length === 0) {
+                  return (
+                    <div className={`p-8 rounded-xl border text-center transition-all ${
+                      theme === 'dark' ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700 shadow-sm'
                     }`}
                     style={
                       theme === 'dark'
-                        ? (activeCVData.webTexts?.experience_card_bg_color_dark && !isExpanded ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color_dark } : undefined)
-                        : (activeCVData.webTexts?.experience_card_bg_color && !isExpanded ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color } : undefined)
+                        ? (activeCVData.webTexts?.experience_card_bg_color_dark ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color_dark } : undefined)
+                        : (activeCVData.webTexts?.experience_card_bg_color ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color } : undefined)
                     }
-                  >
+                    >
+                      <Database className="w-10 h-10 text-emerald-500 mx-auto mb-4 shrink-0" />
+                      <h3 className="font-sans font-bold text-base mb-2">Belum ada Pengalaman Kerja</h3>
+                      <p className="text-sm max-w-md mx-auto leading-relaxed text-slate-400">
+                        Tambahkan riwayat pengalaman kerja baru Anda melalui Admin Panel di pojok kanan atas.
+                      </p>
+                    </div>
+                  );
+                }
+                return visibleExperiences.map((exp, expIdx) => {
+                  const isExpanded = expandedExpMap[exp.id] !== undefined ? expandedExpMap[exp.id] : (expIdx === 0);
+                  return (
+                    <motion.div 
+                      key={exp.id}
+                      initial={{ opacity: 0, y: 36 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, amount: 0.08 }}
+                      transition={{ duration: 1.2, delay: expIdx * 0.14, ease: [0.22, 1, 0.36, 1] }}
+                      whileHover={{ scale: 1.01, transition: { duration: 0.25, ease: "easeOut" } }}
+                      onClick={() => setExpandedExpMap(prev => ({ ...prev, [exp.id]: !isExpanded }))}
+                      className={`bento-card p-3.5 sm:p-6 rounded-xl border cursor-pointer select-none transition-[border-color,background-color,box-shadow] duration-250 ${
+                        isExpanded 
+                          ? 'border-emerald-500/45 shadow-sm bg-emerald-500/5' 
+                          : (theme === 'dark' ? 'border-slate-800 bg-slate-900/60 hover:border-slate-700' : 'border-slate-200 bg-white hover:border-slate-300')
+                      }`}
+                      style={
+                        theme === 'dark'
+                          ? (activeCVData.webTexts?.experience_card_bg_color_dark && !isExpanded ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color_dark } : undefined)
+                          : (activeCVData.webTexts?.experience_card_bg_color && !isExpanded ? { backgroundColor: activeCVData.webTexts.experience_card_bg_color } : undefined)
+                      }
+                    >
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-2">
                       <div className="flex gap-3 sm:gap-4 items-center">
                         <div>
@@ -3366,7 +3361,9 @@ export default function App() {
                                   className="flex items-start gap-2.5"
                                 >
                                   <span className="w-2 h-2 rounded bg-emerald-500 shrink-0 mt-1.5" />
-                                  <span className="leading-relaxed text-justify w-full">{bullet}</span>
+                                  <span className="leading-relaxed text-justify w-full">
+                                    <MarkdownText content={bullet} theme={theme} inline />
+                                  </span>
                                 </motion.li>
                               ))}
                             </ul>
@@ -3389,7 +3386,8 @@ export default function App() {
                     </AnimatePresence>
                   </motion.div>
                 );
-              }))}
+              });
+            })()}
             </div>
 
           </div>
@@ -3426,7 +3424,17 @@ export default function App() {
             />
           )}
           {/* FLOATING DECORATIVE ASSETS OVERLAY */}
-          <FloatingAssetsOverlay sectionId="contact" assets={activeCVData.floatingAssets} />
+          <FloatingAssetsOverlay 
+            sectionId="contact" 
+            assets={activeCVData.floatingAssets} 
+            theme={theme}
+            isMobilePreview={isEffectiveMobile}
+            bgColor={
+              theme === 'dark'
+                ? (activeCVData.webTexts?.contact_bg_color_dark || '#111827')
+                : (activeCVData.webTexts?.contact_bg_color || '#FFFFFF')
+            }
+          />
           <div className="w-full max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <ContactForm 
               email={activeCVData.email} 
@@ -3442,39 +3450,42 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+      )}
 
       {/* 3. PROFESSIONAL FOOTER */}
-      <footer className={`transition-colors duration-250 py-6 sm:py-10 border-t ${
-        theme === 'dark' 
-          ? 'bg-slate-900 border-slate-800 text-slate-400' 
-          : 'bg-white border-slate-200 text-slate-500'
-      }`}
-      style={
-        theme === 'dark'
-          ? (activeCVData.webTexts?.footer_bg_color_dark ? { backgroundColor: activeCVData.webTexts.footer_bg_color_dark } : undefined)
-          : (activeCVData.webTexts?.footer_bg_color ? { backgroundColor: activeCVData.webTexts.footer_bg_color } : undefined)
-      }
-      >
-        <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-6">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-center sm:justify-start">
-            <p className="font-mono text-[9px] sm:text-[10px] text-slate-500 text-center sm:text-left select-none">
-              © 2026 {activeCVData.name || 'Portfolio'}. Released under MIT License.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Unified Social Media Icon Controls */}
-            {(() => {
-               const list = [...(activeCVData.customSocials || [])];
+      {!isMobilePreviewActive && (
+        <footer className={`transition-colors duration-250 py-6 sm:py-10 border-t ${
+          theme === 'dark' 
+            ? 'bg-slate-900 border-slate-800 text-slate-400' 
+            : 'bg-white border-slate-200 text-slate-500'
+        }`}
+        style={
+          theme === 'dark'
+            ? (activeCVData.webTexts?.footer_bg_color_dark ? { backgroundColor: activeCVData.webTexts.footer_bg_color_dark } : undefined)
+            : (activeCVData.webTexts?.footer_bg_color ? { backgroundColor: activeCVData.webTexts.footer_bg_color } : undefined)
+        }
+        >
+          <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-6">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-center sm:justify-start">
+              <p className="font-mono text-[9px] sm:text-[10px] text-slate-500 text-center sm:text-left select-none">
+                © 2026 {activeCVData.name || 'Portfolio'}. Released under MIT License.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Unified Social Media Icon Controls */}
+              {(() => {
+                 const list = [...(activeCVData.customSocials || [])];
 
-              return list
-                .filter(s => (s.value || s.usernameOrUrl) && s.showOnWeb !== false)
-                .map((s) => (
-                  <SocialFooterButton key={s.id} s={s} theme={theme} />
-                ));
-            })()}
+                return list
+                  .filter(s => (s.value || s.usernameOrUrl) && s.showOnWeb !== false)
+                  .map((s) => (
+                    <SocialFooterButton key={s.id} s={s} theme={theme} />
+                  ));
+              })()}
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       {/* 4. MODALS PREVIEW DRAWER */}
       <AnimatePresence>
@@ -3496,10 +3507,11 @@ export default function App() {
         theme={theme}
         onDiscussProject={() => scrollToSection('contact')}
         lang={lang}
+        activeCVData={activeCVData}
       />
 
       {/* 5. FLOATING PENCIL ACTION BUTTON & QUICK EDITOR DRAWER (PREVIEW MODE ONLY) */}
-      {isPreviewMode && !isAdminView && (
+      {isPreviewMode && !isAdminView && !isSimulatedMobileFrame && (
         <>
           {/* Floating Pencil Button at Bottom-Right */}
           <div className="fixed bottom-6 right-6 z-[90] flex items-center gap-2">
@@ -3545,6 +3557,8 @@ export default function App() {
             isStoryView={isStoryView}
             activeProjectPresentationId={activeProjectPresentationId}
             theme={theme}
+            previewDevice={previewDevice}
+            onTogglePreviewDevice={setPreviewDevice}
           />
         </>
       )}

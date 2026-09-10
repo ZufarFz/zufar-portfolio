@@ -122,10 +122,10 @@ export default function ContactForm({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
       {/* Contact Metadata Column */}
       <motion.div 
-        initial={{ opacity: 0, x: -15 }}
+        initial={{ opacity: 0, x: -35 }}
         whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, amount: 0.1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        viewport={{ once: true, amount: 0.15 }}
+        transition={{ duration: 1.25, ease: [0.22, 1, 0.36, 1] }}
         className="lg:col-span-5 flex flex-col justify-between"
       >
         <div>
@@ -152,7 +152,7 @@ export default function ContactForm({
 
           <div className="space-y-4 mt-8">
             <div className="flex items-center gap-4 text-slate-700 dark:text-slate-300">
-              <span className="p-2 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-lg shrink-0 flex items-center justify-center">
+              <span className="p-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shrink-0 flex items-center justify-center shadow-sm">
                 <Mail className="w-5 h-5 text-slate-500 dark:text-slate-400" />
               </span>
               <div>
@@ -171,7 +171,7 @@ export default function ContactForm({
             </div>
 
             <div className="flex items-center gap-4 text-slate-700 dark:text-slate-300">
-              <span className="p-2 bg-slate-100/80 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50 rounded-lg shrink-0 flex items-center justify-center">
+              <span className="p-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shrink-0 flex items-center justify-center shadow-sm">
                 <MapPin className="w-5 h-5 text-slate-500 dark:text-slate-400" />
               </span>
               <div>
@@ -189,17 +189,17 @@ export default function ContactForm({
 
       {/* Form Submission Pipeline */}
       <motion.div 
-        initial={{ opacity: 0, x: 15 }}
+        initial={{ opacity: 0, x: 35 }}
         whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, amount: 0.1 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        viewport={{ once: true, amount: 0.15 }}
+        transition={{ duration: 1.25, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
         className="lg:col-span-7"
       >
         <AnimatePresence mode="wait">
           <motion.form 
             key="contact-form"
             onSubmit={handleFormSubmit}
-            className="bg-white dark:bg-slate-900/40 p-4 sm:p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5 sm:space-y-4"
+            className="bg-white dark:bg-slate-900 p-4 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg dark:shadow-2xl dark:shadow-black/50 space-y-2.5 sm:space-y-4 transition-all"
             style={
               theme === 'dark'
                 ? (webTexts?.contact_card_bg_color_dark ? { backgroundColor: webTexts.contact_card_bg_color_dark } : undefined)
@@ -266,10 +266,10 @@ export default function ContactForm({
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                  className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500 outline-none transition-all ${
                     theme === 'dark' 
-                      ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
-                      : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                      ? 'bg-slate-950/60 hover:bg-slate-950/80 focus:bg-slate-950/95 border-slate-800 text-slate-100 placeholder-slate-500' 
+                      : 'bg-slate-50/70 hover:bg-white/90 focus:bg-white border-slate-200 text-slate-800 placeholder-slate-400'
                   }`}
                   placeholder={lang === 'id' ? "Nama Anda" : "Your Name"}
                   disabled={loading}
@@ -285,10 +285,10 @@ export default function ContactForm({
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                  className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500 outline-none transition-all ${
                     theme === 'dark' 
-                      ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
-                      : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                      ? 'bg-slate-950/60 hover:bg-slate-950/80 focus:bg-slate-950/95 border-slate-800 text-slate-100 placeholder-slate-500' 
+                      : 'bg-slate-50/70 hover:bg-white/90 focus:bg-white border-slate-200 text-slate-800 placeholder-slate-400'
                   }`}
                   placeholder={lang === 'id' ? "emailAnda@perusahaan.com" : "youremail@company.com"}
                   disabled={loading}
@@ -305,10 +305,10 @@ export default function ContactForm({
                 name="inquiryType"
                 value={formData.inquiryType}
                 onChange={handleInputChange}
-                className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500 outline-none transition-all ${
                   theme === 'dark' 
-                    ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
-                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                    ? 'bg-slate-950/60 hover:bg-slate-950/80 focus:bg-slate-950/95 border-slate-800 text-slate-100 placeholder-slate-500' 
+                    : 'bg-slate-50/70 hover:bg-white/90 focus:bg-white border-slate-200 text-slate-800 placeholder-slate-400'
                 }`}
                 placeholder={lang === 'id' ? "Subjek Pesan" : "Your Subject"}
                 disabled={loading}
@@ -324,10 +324,10 @@ export default function ContactForm({
                 value={formData.message}
                 onChange={handleInputChange}
                 rows={3}
-                className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all ${
+                className={`w-full border rounded-lg px-3.5 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500 outline-none transition-all ${
                   theme === 'dark' 
-                    ? 'bg-slate-950 border-slate-800 text-slate-100 placeholder-slate-600' 
-                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                    ? 'bg-slate-950/60 hover:bg-slate-950/80 focus:bg-slate-950/95 border-slate-800 text-slate-100 placeholder-slate-500' 
+                    : 'bg-slate-50/70 hover:bg-white/90 focus:bg-white border-slate-200 text-slate-800 placeholder-slate-400'
                 }`}
                 placeholder={lang === 'id' ? "Tulis pesan Anda di sini..." : "Write us a message"}
                 disabled={loading}
@@ -337,23 +337,32 @@ export default function ContactForm({
             <motion.button
               type="submit"
               disabled={loading}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider shadow-md select-none ${
+              whileHover={{ scale: 1.006 }}
+              whileTap={{ scale: 0.994 }}
+              className={`w-full py-2 sm:py-2.5 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 cursor-pointer text-[11px] sm:text-xs uppercase tracking-wider select-none shadow-sm ${
                 theme === 'dark'
-                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/80 shadow-slate-950/30'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 shadow-sm'
+                  ? 'bg-slate-800/95 hover:bg-slate-700/95 text-slate-100 border border-slate-700/90 shadow-slate-950/40'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 hover:border-slate-400 shadow-sm'
               }`}
+              style={
+                theme === 'dark'
+                  ? (webTexts?.contact_btn_bg_color_dark ? { backgroundColor: webTexts.contact_btn_bg_color_dark } : undefined)
+                  : (webTexts?.contact_btn_bg_color ? { backgroundColor: webTexts.contact_btn_bg_color } : undefined)
+              }
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {lang === 'id' ? "Mengirim Email..." : "Sending Email..."}
+                  <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`} />
+                  <span className={theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}>
+                    {lang === 'id' ? "Mengirim Email..." : "Sending Email..."}
+                  </span>
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
-                  {lang === 'id' ? "Kirim Email" : "Send Email"}
+                  <Send className={`w-3.5 h-3.5 shrink-0 transform-none ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`} />
+                  <span className={theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}>
+                    {lang === 'id' ? "Kirim Email" : "Send Email"}
+                  </span>
                 </>
               )}
             </motion.button>

@@ -97,22 +97,23 @@ textarea:-webkit-autofill:active {
   box-shadow: 0 0 0px 1000px #020617 inset !important;
 }
 
-/* Lux transition profiles */
-.bg-slate-900, 
-.bg-slate-950, 
-.border-slate-800, 
-.text-slate-100, 
-.text-slate-200, 
-.text-slate-400,
-input,
-textarea,
-aside,
-main,
-header {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Lux transition profiles for browsers without native View Transitions */
+@supports not (view-transition-name: root) {
+  .bg-slate-900, 
+  .bg-slate-950, 
+  .border-slate-800, 
+  .text-slate-100, 
+  .text-slate-200, 
+  .text-slate-400,
+  input,
+  textarea,
+  aside,
+  main,
+  header {
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
 /* Adaptive Light Theme adjustments */
@@ -234,17 +235,12 @@ html:not(.dark) textarea::placeholder {
 }
 
 /* ==========================================
-   VIEW TRANSITION CIRCULAR REVEAL ANIMATION
+   HIGH-PERFORMANCE VIEW TRANSITION CIRCULAR REVEAL
    ========================================== */
-::view-transition-image-pair(root) {
-  isolation: auto;
-}
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
-  display: block;
 }
 
 ::view-transition-old(root) {
@@ -254,17 +250,5 @@ html:not(.dark) textarea::placeholder {
 ::view-transition-new(root) {
   z-index: 9999;
   will-change: clip-path;
-}
-
-/* Optimize View Transitions performance on mobile by disabling intensive filters & transition-delays during screenshot capture */
-html.in-transition *, 
-html.in-transition ::before, 
-html.in-transition ::after {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
-  text-shadow: none !important;
-  transition-duration: 0s !important;
-  animation-duration: 0s !important;
 }
 

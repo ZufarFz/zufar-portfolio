@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CaseStudy, CaseStudySlide } from '../types';
+import MarkdownText from './MarkdownText';
 
 interface CaseStudyPresentationPageProps {
   project: CaseStudy;
@@ -189,7 +190,9 @@ export default function CaseStudyPresentationPage({ project, onClose, theme, aut
                   theme === 'dark' ? 'text-slate-300' : 'text-slate-650'
                 }`}
               >
-                <p className="whitespace-pre-line">{currentSlide.content}</p>
+                <div className="leading-relaxed">
+                  <MarkdownText content={currentSlide.content} theme={theme} />
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>

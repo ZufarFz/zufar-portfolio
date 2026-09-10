@@ -52,7 +52,30 @@ import {
   Search,
   GripHorizontal,
   PictureInPicture2,
-  Dock
+  Dock,
+  ArrowUp,
+  ArrowDown,
+  Share2,
+  Globe,
+  Link,
+  MessageSquare,
+  Phone,
+  AtSign,
+  Send,
+  CheckSquare,
+  Square,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  UserCheck,
+  EyeOff,
+  Columns,
+  ArrowRightLeft,
+  Monitor,
+  Smartphone,
+  Clock,
+  Play
 } from 'lucide-react';
 import { 
   CVData, 
@@ -66,7 +89,8 @@ import {
   SkillItem,
   SkillCategory,
   CustomSubPage,
-  FloatingAsset
+  FloatingAsset,
+  CustomSocial
 } from '../types';
 import { saveCVData, uploadFileToStorage, resetCVDataToDefault } from '../lib/storage';
 import { DEFAULT_CV_DATA, DEFAULT_WEB_TEXTS, ID_TRANSLATIONS } from '../data/portfolioData';
@@ -75,6 +99,38 @@ import TechLogo from './TechLogo';
 import ThemeTemplateStudio from './ThemeTemplateStudio';
 import { HERO_THEME_TEMPLATES } from '../data/themeTemplates';
 import { HERO_LAYOUT_TEMPLATES, LayoutTemplate } from '../data/layoutTemplates';
+import { AIAssistantModal } from './AIAssistantModal';
+import { JobExperienceAiModal } from './JobExperienceAiModal';
+import { ExperienceTranslateModal } from './ExperienceTranslateModal';
+import { SubpageItemTranslateModal } from './SubpageItemTranslateModal';
+import { ExperiencePeriodEditor } from './ExperiencePeriodEditor';
+import { formatExperiencePeriod } from '../lib/experienceDateHelpers';
+import SocialIcon, { getAbsoluteSocialUrl } from './SocialIcon';
+import MarkdownText from './MarkdownText';
+
+const SOCIAL_PLATFORM_PRESETS = [
+  { id: 'linkedin', name: 'LinkedIn', placeholder: 'muhammad-zufar-fauzi', urlPrefix: 'linkedin.com/in/' },
+  { id: 'github', name: 'GitHub', placeholder: 'ZufarFz', urlPrefix: 'github.com/' },
+  { id: 'whatsapp', name: 'WhatsApp', placeholder: '085123333230 / 6285...', urlPrefix: 'wa.me/' },
+  { id: 'instagram', name: 'Instagram', placeholder: 'Zuf.Fz_', urlPrefix: 'instagram.com/' },
+  { id: 'email', name: 'Email', placeholder: 'contact@domain.com', urlPrefix: 'mailto:' },
+  { id: 'website', name: 'Website / Portfolio', placeholder: 'https://portfolio-zufar.netlify.app', urlPrefix: '' },
+  { id: 'x', name: 'X / Twitter', placeholder: '@username', urlPrefix: 'x.com/' },
+  { id: 'youtube', name: 'YouTube', placeholder: '@channel', urlPrefix: 'youtube.com/' },
+  { id: 'tiktok', name: 'TikTok', placeholder: '@username', urlPrefix: 'tiktok.com/@' },
+  { id: 'telegram', name: 'Telegram', placeholder: 'username', urlPrefix: 't.me/' },
+  { id: 'discord', name: 'Discord', placeholder: 'discord.gg/invite', urlPrefix: 'discord.gg/' },
+  { id: 'medium', name: 'Medium', placeholder: '@username', urlPrefix: 'medium.com/@' },
+  { id: 'threads', name: 'Threads', placeholder: 'username', urlPrefix: 'threads.net/@' },
+  { id: 'facebook', name: 'Facebook', placeholder: 'profile_name', urlPrefix: 'facebook.com/' },
+  { id: 'dribbble', name: 'Dribbble', placeholder: 'username', urlPrefix: 'dribbble.com/' },
+  { id: 'behance', name: 'Behance', placeholder: 'username', urlPrefix: 'behance.net/' },
+  { id: 'gitlab', name: 'GitLab', placeholder: 'username', urlPrefix: 'gitlab.com/' },
+  { id: 'stackoverflow', name: 'Stack Overflow', placeholder: 'users/12345/name', urlPrefix: 'stackoverflow.com/' },
+  { id: 'bluesky', name: 'Bluesky', placeholder: 'username.bsky.social', urlPrefix: 'bsky.app/profile/' },
+  { id: 'slack', name: 'Slack', placeholder: 'workspace-name', urlPrefix: 'slack.com/' },
+  { id: 'custom', name: 'Platform Lainnya', placeholder: 'https://...', urlPrefix: '' }
+];
 
 interface QuickEditorDrawerProps {
   isOpen: boolean;
@@ -87,6 +143,8 @@ interface QuickEditorDrawerProps {
   isStoryView?: boolean;
   activeProjectPresentationId?: string | null;
   theme: 'light' | 'dark';
+  previewDevice?: 'desktop' | 'mobile';
+  onTogglePreviewDevice?: (device: 'desktop' | 'mobile') => void;
 }
 
 export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
@@ -99,20 +157,269 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   aboutSubPage,
   isStoryView,
   activeProjectPresentationId,
-  theme
+  theme,
+  previewDevice = 'desktop',
+  onTogglePreviewDevice
 }) => {
   const isDark = theme === 'dark';
   const [localData, setLocalData] = useState<CVData>(cvData);
   const [editLang, setEditLang] = useState<'id' | 'en'>(currentLang);
-  const [editorMode, setEditorMode] = useState<'id' | 'en' | 'assets'>('id');
+  const [editorMode, setEditorMode] = useState<'id' | 'en' | 'assets' | 'social'>('id');
   const [assetTab, setAssetTab] = useState<'templates' | 'bg_patterns' | 'floating_assets' | 'bg_shadows' | 'bg_colors' | 'images' | 'idcard' | 'gooey_cursor'>('templates');
   const [activeBgSection, setActiveBgSection] = useState<string>('home');
+  const [activeDeviceMode, setActiveDeviceMode] = useState<'desktop' | 'mobile'>(() => {
+    if (previewDevice === 'mobile') return 'mobile';
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return 'mobile';
+    return 'desktop';
+  });
   const [appliedAllNotice, setAppliedAllNotice] = useState<boolean>(false);
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (previewDevice && previewDevice !== activeDeviceMode) {
+      setActiveDeviceMode(previewDevice);
+    }
+  }, [previewDevice]);
+
+  const handleSetDeviceMode = (device: 'desktop' | 'mobile') => {
+    setActiveDeviceMode(device);
+    if (onTogglePreviewDevice) {
+      onTogglePreviewDevice(device);
+    }
+  };
   const [resetNotice, setResetNotice] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [activeTab, setActiveTab] = useState<string>('auto');
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [showMarkdownGuide, setShowMarkdownGuide] = useState<boolean>(false);
+
+  // Social Media & CV Studio State
+  const [socialCvSubTab, setSocialCvSubTab] = useState<'socials' | 'methodology_cv' | 'cv_layout'>('socials');
+  const [methodologyTranslateModalOpen, setMethodologyTranslateModalOpen] = useState<boolean>(false);
+  const [isAddingSocial, setIsAddingSocial] = useState<boolean>(false);
+  const [newSocialData, setNewSocialData] = useState<{
+    platform: string;
+    name: string;
+    value: string;
+    usernameOrUrl: string;
+    showOnWeb: boolean;
+    showOnCvHeader: boolean;
+    showOnCvFooter: boolean;
+  }>({
+    platform: 'LinkedIn',
+    name: 'LinkedIn',
+    value: '',
+    usernameOrUrl: '',
+    showOnWeb: true,
+    showOnCvHeader: true,
+    showOnCvFooter: true,
+  });
+  const [socialSearchQuery, setSocialSearchQuery] = useState<string>('');
+
+  // AI Assistant Modal State & Helpers
+  const [aiModalState, setAiModalState] = useState<{
+    isOpen: boolean;
+    fieldLabel: string;
+    currentValue: string;
+    targetLang: 'id' | 'en';
+    onApply: (text: string) => void;
+    contextHint?: string;
+  }>({
+    isOpen: false,
+    fieldLabel: '',
+    currentValue: '',
+    targetLang: 'id',
+    onApply: () => {},
+  });
+
+  // Dedicated Per-Job AI Assistant Modal State
+  const [jobAiModalState, setJobAiModalState] = useState<{
+    isOpen: boolean;
+    experienceBaseId: string;
+    role: string;
+    company: string;
+    existingBullets: string[];
+  }>({
+    isOpen: false,
+    experienceBaseId: '',
+    role: '',
+    company: '',
+    existingBullets: [],
+  });
+
+  // Dedicated Per-Job AI Language Transfer Modal State
+  const [expTranslateModalState, setExpTranslateModalState] = useState<{
+    isOpen: boolean;
+    experienceBaseId: string;
+    sourceLang: 'id' | 'en';
+    sourceData: {
+      role: string;
+      company: string;
+      period: string;
+      bulletPoints: string[];
+    };
+  }>({
+    isOpen: false,
+    experienceBaseId: '',
+    sourceLang: 'id',
+    sourceData: {
+      role: '',
+      company: '',
+      period: '',
+      bulletPoints: [],
+    },
+  });
+
+  const handleApplyExperienceTranslation = (
+    translatedData: { role: string; company: string; period: string; bulletPoints: string[] },
+    targetLang: 'id' | 'en'
+  ) => {
+    handleUpdate((prev) => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const updatedPairs = pairs.map((pair) => {
+        if (pair.baseId === expTranslateModalState.experienceBaseId) {
+          return {
+            ...pair,
+            [targetLang]: {
+              ...(pair[targetLang] as Experience),
+              role: translatedData.role,
+              company: translatedData.company,
+              period: translatedData.period,
+              bulletPoints: translatedData.bulletPoints,
+            },
+          };
+        }
+        return pair;
+      });
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach((p) => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList,
+      };
+    });
+  };
+
+  // Subpage Items (Personality, Hobbies, Story Slides, Education, Goals) AI Translation Modal State
+  const [subpageTranslateModalState, setSubpageTranslateModalState] = useState<{
+    isOpen: boolean;
+    baseId: string;
+    listKey: keyof CVData;
+    sourceLang: 'id' | 'en';
+    itemType: 'personality' | 'hobby' | 'career_goal' | 'education' | 'story_slide' | 'generic';
+    sourceData: {
+      title: string;
+      description: string;
+    };
+    labels?: {
+      itemTypeName?: string;
+      titleLabel?: string;
+      descriptionLabel?: string;
+    };
+  }>({
+    isOpen: false,
+    baseId: '',
+    listKey: 'personality',
+    sourceLang: 'id',
+    itemType: 'personality',
+    sourceData: {
+      title: '',
+      description: '',
+    },
+  });
+
+  const handleApplySubpageTranslation = (
+    translatedData: { title: string; description: string },
+    targetLang: 'id' | 'en'
+  ) => {
+    const { listKey, baseId } = subpageTranslateModalState;
+    if (listKey === 'educationSections') {
+      updateBilingualItem('educationSections', baseId, targetLang, 'title', translatedData.title);
+      updateBilingualItem('educationSections', baseId, targetLang, 'content', translatedData.description);
+    } else {
+      updateBilingualItem(listKey, baseId, targetLang, 'title', translatedData.title);
+      updateBilingualItem(listKey, baseId, targetLang, 'description', translatedData.description);
+    }
+  };
+
+  const handleApplyMethodologyTranslation = (
+    translatedData: { title: string; description: string },
+    targetLang: 'id' | 'en'
+  ) => {
+    handleUpdate((prev) => {
+      const nextTexts = { ...(prev.webTexts || {}) };
+      nextTexts[`methodologyTitle_${targetLang}`] = translatedData.title;
+      nextTexts[`methodologyText_${targetLang}`] = translatedData.description;
+      if (editLang === targetLang) {
+        nextTexts.methodologyTitle = translatedData.title;
+        nextTexts.methodologyText = translatedData.description;
+      }
+      return {
+        ...prev,
+        methodologyTitle: editLang === targetLang ? translatedData.title : (prev.methodologyTitle || translatedData.title),
+        methodologyText: editLang === targetLang ? translatedData.description : (prev.methodologyText || translatedData.description),
+        webTexts: nextTexts,
+      };
+    });
+  };
+
+  const openSubpageTranslate = (
+    listKey: keyof CVData,
+    baseId: string,
+    itemType: 'personality' | 'hobby' | 'career_goal' | 'education' | 'story_slide' | 'generic',
+    sourceData: { title: string; description: string },
+    labels?: { itemTypeName?: string; titleLabel?: string; descriptionLabel?: string }
+  ) => {
+    setSubpageTranslateModalState({
+      isOpen: true,
+      baseId,
+      listKey,
+      sourceLang: editLang,
+      itemType,
+      sourceData,
+      labels,
+    });
+  };
+
+  const openAiAssistant = (
+    fieldLabel: string,
+    currentValue: string,
+    onApply: (text: string) => void,
+    targetLang: 'id' | 'en' = editLang,
+    contextHint?: string
+  ) => {
+    setAiModalState({
+      isOpen: true,
+      fieldLabel,
+      currentValue,
+      targetLang,
+      onApply,
+      contextHint
+    });
+  };
+
+  const renderAiButton = (
+    fieldLabel: string,
+    currentValue: string,
+    onApply: (text: string) => void,
+    contextHint?: string
+  ) => (
+    <button
+      type="button"
+      onClick={() => openAiAssistant(fieldLabel, currentValue, onApply, editLang, contextHint)}
+      title={`AI Writing Assistant: Tingkatkan ${fieldLabel}`}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-gradient-to-r from-purple-600/25 via-indigo-600/25 to-violet-600/25 hover:from-purple-600/40 hover:to-indigo-600/40 text-purple-300 hover:text-purple-200 border border-purple-500/30 hover:border-purple-400/60 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+    >
+      <Sparkles className="w-2.5 h-2.5 text-purple-400 animate-pulse" />
+      <span>✨ AI Enhance</span>
+    </button>
+  );
 
   // Floating Pop-out Window States & Dragging Handler
   const [isFloating, setIsFloating] = useState<boolean>(false);
@@ -464,8 +771,11 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   };
 
   const handleWebTextChange = (key: string, value: string, targetLang: 'id' | 'en') => {
-    // Check if key is a visual design / background property that should persist universally across languages
+    // Check if key is a visual design / background / gooey cursor property that should persist universally across languages
     const isVisualAsset = 
+      key.startsWith('gooey_') ||
+      key.includes('gooey_') ||
+      key.includes('enable_gooey_cursor') ||
       key.includes('_bg_style') ||
       key.includes('_bg_pattern_') ||
       key.includes('_custom_svg') ||
@@ -487,34 +797,40 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
       const nextTexts = { ...(prev.webTexts || {}) };
 
       if (isVisualAsset) {
-        // Universal write: assign to base key and both language variants so it never gets lost
-        nextTexts[key] = value;
-        nextTexts[`${key}_id`] = value;
-        nextTexts[`${key}_en`] = value;
-
-        // Synchronize dual aliases for custom svg / custom url
-        if (key.endsWith('_custom_svg')) {
-          const bgKey = key.replace('_custom_svg', '_bg_custom_svg');
-          nextTexts[bgKey] = value;
-          nextTexts[`${bgKey}_id`] = value;
-          nextTexts[`${bgKey}_en`] = value;
-        } else if (key.endsWith('_bg_custom_svg')) {
-          const baseKey = key.replace('_bg_custom_svg', '_custom_svg');
-          nextTexts[baseKey] = value;
-          nextTexts[`${baseKey}_id`] = value;
-          nextTexts[`${baseKey}_en`] = value;
+        // Strip any language suffix if present on universal keys
+        let baseKey = key;
+        if (baseKey.endsWith('_id') || baseKey.endsWith('_en')) {
+          baseKey = baseKey.slice(0, -3);
         }
 
-        if (key.endsWith('_custom_url')) {
-          const bgKey = key.replace('_custom_url', '_bg_custom_url');
+        // Universal write: assign to base key and both language variants so it never gets lost
+        nextTexts[baseKey] = value;
+        nextTexts[`${baseKey}_id`] = value;
+        nextTexts[`${baseKey}_en`] = value;
+
+        // Synchronize dual aliases for custom svg / custom url
+        if (baseKey.endsWith('_custom_svg')) {
+          const bgKey = baseKey.replace('_custom_svg', '_bg_custom_svg');
           nextTexts[bgKey] = value;
           nextTexts[`${bgKey}_id`] = value;
           nextTexts[`${bgKey}_en`] = value;
-        } else if (key.endsWith('_bg_custom_url')) {
-          const baseKey = key.replace('_bg_custom_url', '_custom_url');
-          nextTexts[baseKey] = value;
-          nextTexts[`${baseKey}_id`] = value;
-          nextTexts[`${baseKey}_en`] = value;
+        } else if (baseKey.endsWith('_bg_custom_svg')) {
+          const bKey = baseKey.replace('_bg_custom_svg', '_custom_svg');
+          nextTexts[bKey] = value;
+          nextTexts[`${bKey}_id`] = value;
+          nextTexts[`${bKey}_en`] = value;
+        }
+
+        if (baseKey.endsWith('_custom_url')) {
+          const bgKey = baseKey.replace('_custom_url', '_bg_custom_url');
+          nextTexts[bgKey] = value;
+          nextTexts[`${bgKey}_id`] = value;
+          nextTexts[`${bgKey}_en`] = value;
+        } else if (baseKey.endsWith('_bg_custom_url')) {
+          const bKey = baseKey.replace('_bg_custom_url', '_custom_url');
+          nextTexts[bKey] = value;
+          nextTexts[`${bKey}_id`] = value;
+          nextTexts[`${bKey}_en`] = value;
         }
 
         // Synchronize subpage prefixes if needed (about_subpage_xxx <-> xxx)
@@ -705,7 +1021,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
       const currentList = (prev[listKey] as any[] || []);
       const pairs = getBilingualPairs(currentList);
       
-      const sharedFields = ['customSvg', 'svgUrl', 'category', 'showOnWeb', 'showOnCV', 'level', 'icon', 'year', 'period', 'image', 'projectUrl', 'tags', 'tools'];
+      const sharedFields = ['customSvg', 'svgUrl', 'category', 'showOnWeb', 'showOnCV', 'showOnHome', 'level', 'icon', 'year', 'startDate', 'endDate', 'startMonth', 'startYear', 'endMonth', 'endYear', 'isCurrent', 'periodMode', 'image', 'projectUrl', 'tags', 'tools'];
 
       const updatedPairs = pairs.map(pair => {
         if (pair.baseId === baseId) {
@@ -853,30 +1169,376 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
   // Helper for Case Studies
   const bilingualProjects = getBilingualPairs<CaseStudy>(
     localData.caseStudies,
-    (baseId) => ({ id: `${baseId}-en`, title: 'Project Title', shortDescription: '', description: '', tags: [], image: '', tools: [] }),
-    (baseId) => ({ id: `${baseId}-id`, title: 'Judul Proyek', shortDescription: '', description: '', tags: [], image: '', tools: [] })
+    (baseId) => ({ id: `${baseId}-en`, title: 'Project Title', shortDescription: '', description: '', tags: [], image: '', image2: '', image3: '', tools: [] }),
+    (baseId) => ({ id: `${baseId}-id`, title: 'Judul Proyek', shortDescription: '', description: '', tags: [], image: '', image2: '', image3: '', tools: [] })
   );
 
   // Helper for Experiences
   const bilingualExperiences = getBilingualPairs<Experience>(
     localData.experiences,
-    (baseId) => ({ id: `${baseId}-en`, role: 'Job Role', company: 'Company Name', period: '2022 - Present', bulletPoints: [] }),
-    (baseId) => ({ id: `${baseId}-id`, role: 'Posisi / Pekerjaan', company: 'Perusahaan', period: '2022 - Sekarang', bulletPoints: [] })
+    (baseId) => ({ id: `${baseId}-en`, role: 'Job Role', company: 'Company Name', period: '2022 - Present', bulletPoints: [], tools: [], showOnHome: true, showOnWeb: true, showOnCV: true }),
+    (baseId) => ({ id: `${baseId}-id`, role: 'Posisi / Pekerjaan', company: 'Perusahaan', period: '2022 - Sekarang', bulletPoints: [], tools: [], showOnHome: true, showOnWeb: true, showOnCV: true })
   );
+
+  const handleAddExperience = () => {
+    const baseId = `exp-${Date.now()}`;
+    const thisYear = new Date().getFullYear();
+    const enItem: Experience = {
+      id: `${baseId}-en`,
+      role: 'New Role / Position',
+      company: 'Company Name',
+      period: `${thisYear} — Present`,
+      bulletPoints: [
+        'Describe key responsibility or achievement in this role.',
+        'Another measurable accomplishment or project contribution.'
+      ],
+      tools: ['SQL', 'Python'],
+      showOnHome: true,
+      showOnWeb: true,
+      showOnCV: true,
+      startYear: String(thisYear),
+      startMonth: '01',
+      isCurrent: true,
+      periodMode: 'date'
+    };
+    const idItem: Experience = {
+      id: `${baseId}-id`,
+      role: 'Posisi / Peran Baru',
+      company: 'Nama Perusahaan',
+      period: `${thisYear} — Sekarang`,
+      bulletPoints: [
+        'Deskripsikan tanggung jawab utama atau pencapaian pada posisi ini.',
+        'Poin pencapaian terukur atau kontribusi proyek lainnya.'
+      ],
+      tools: ['SQL', 'Python'],
+      showOnHome: true,
+      showOnWeb: true,
+      showOnCV: true,
+      startYear: String(thisYear),
+      startMonth: '01',
+      isCurrent: true,
+      periodMode: 'date'
+    };
+    handleUpdate(prev => ({
+      ...prev,
+      experiences: [...(prev.experiences || []), enItem, idItem]
+    }));
+  };
+
+  const handleUpdateExperienceDates = (
+    baseId: string,
+    startMonth: string,
+    startYear: string,
+    endMonth: string,
+    endYear: string,
+    isCurrent: boolean
+  ) => {
+    const periodId = formatExperiencePeriod(startMonth, startYear, endMonth, endYear, isCurrent, 'id');
+    const periodEn = formatExperiencePeriod(startMonth, startYear, endMonth, endYear, isCurrent, 'en');
+    const startDate = startYear ? (startMonth ? `${startYear}-${startMonth}` : startYear) : '';
+    const endDate = isCurrent ? '' : (endYear ? (endMonth ? `${endYear}-${endMonth}` : endYear) : '');
+
+    handleUpdate(prev => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const updatedPairs = pairs.map(pair => {
+        if (pair.baseId === baseId) {
+          return {
+            ...pair,
+            en: {
+              ...pair.en,
+              period: periodEn,
+              startDate,
+              endDate,
+              startMonth,
+              startYear,
+              endMonth: isCurrent ? '' : endMonth,
+              endYear: isCurrent ? '' : endYear,
+              isCurrent,
+              periodMode: 'date' as const
+            },
+            id: {
+              ...pair.id,
+              period: periodId,
+              startDate,
+              endDate,
+              startMonth,
+              startYear,
+              endMonth: isCurrent ? '' : endMonth,
+              endYear: isCurrent ? '' : endYear,
+              isCurrent,
+              periodMode: 'date' as const
+            }
+          };
+        }
+        return pair;
+      });
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach(p => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList
+      };
+    });
+  };
+
+  const handleManualExperiencePeriodChange = (baseId: string, targetLang: 'id' | 'en', text: string) => {
+    handleUpdate(prev => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const updatedPairs = pairs.map(pair => {
+        if (pair.baseId === baseId) {
+          return {
+            ...pair,
+            [targetLang]: {
+              ...(pair[targetLang] as any),
+              period: text,
+              periodMode: 'custom' as const
+            }
+          };
+        }
+        return pair;
+      });
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach(p => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList
+      };
+    });
+  };
+
+  const handleMoveExperience = (baseId: string, direction: 'up' | 'down') => {
+    handleUpdate(prev => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const index = pairs.findIndex(p => p.baseId === baseId);
+      if (index === -1) return prev;
+
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= pairs.length) return prev;
+
+      const updatedPairs = [...pairs];
+      const [movedPair] = updatedPairs.splice(index, 1);
+      updatedPairs.splice(targetIndex, 0, movedPair);
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach(p => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList
+      };
+    });
+  };
+
+  const handleRemoveExperience = (baseId: string) => {
+    handleUpdate(prev => ({
+      ...prev,
+      experiences: (prev.experiences || []).filter(e => 
+        e.id !== `${baseId}-en` && e.id !== `${baseId}-id` && e.id !== baseId
+      )
+    }));
+  };
+
+  const handleDuplicateExperience = (baseId: string) => {
+    const pair = bilingualExperiences.find(p => p.baseId === baseId);
+    if (!pair) return;
+    const newBaseId = `exp-${Date.now()}`;
+    const enItem: Experience = {
+      ...pair.en,
+      id: `${newBaseId}-en`,
+      role: `${pair.en?.role || 'Job Role'} (Copy)`
+    };
+    const idItem: Experience = {
+      ...pair.id,
+      id: `${newBaseId}-id`,
+      role: `${pair.id?.role || 'Posisi'} (Salinan)`
+    };
+    handleUpdate(prev => ({
+      ...prev,
+      experiences: [...(prev.experiences || []), enItem, idItem]
+    }));
+  };
+
+  const handleAddBulletPoint = (baseId: string, targetLang: 'id' | 'en') => {
+    handleUpdate(prev => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const updatedPairs = pairs.map(pair => {
+        if (pair.baseId === baseId) {
+          const currentBullets = pair[targetLang]?.bulletPoints || [];
+          return {
+            ...pair,
+            [targetLang]: {
+              ...(pair[targetLang] as Experience),
+              bulletPoints: [...currentBullets, 'Poin tanggung jawab / pencapaian baru...']
+            }
+          };
+        }
+        return pair;
+      });
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach(p => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList
+      };
+    });
+  };
+
+  const handleUpdateBulletPoint = (baseId: string, targetLang: 'id' | 'en', bulletIndex: number, text: string) => {
+    handleUpdate(prev => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const updatedPairs = pairs.map(pair => {
+        if (pair.baseId === baseId) {
+          const currentBullets = [...(pair[targetLang]?.bulletPoints || [])];
+          currentBullets[bulletIndex] = text;
+          return {
+            ...pair,
+            [targetLang]: {
+              ...(pair[targetLang] as Experience),
+              bulletPoints: currentBullets
+            }
+          };
+        }
+        return pair;
+      });
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach(p => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList
+      };
+    });
+  };
+
+  const handleRemoveBulletPoint = (baseId: string, targetLang: 'id' | 'en', bulletIndex: number) => {
+    handleUpdate(prev => {
+      const currentList = prev.experiences || [];
+      const pairs = getBilingualPairs(currentList);
+      const updatedPairs = pairs.map(pair => {
+        if (pair.baseId === baseId) {
+          const currentBullets = (pair[targetLang]?.bulletPoints || []).filter((_, idx) => idx !== bulletIndex);
+          return {
+            ...pair,
+            [targetLang]: {
+              ...(pair[targetLang] as Experience),
+              bulletPoints: currentBullets
+            }
+          };
+        }
+        return pair;
+      });
+
+      const flatList: Experience[] = [];
+      updatedPairs.forEach(p => {
+        flatList.push({ ...p.en, id: `${p.baseId}-en` });
+        flatList.push({ ...p.id, id: `${p.baseId}-id` });
+      });
+
+      return {
+        ...prev,
+        experiences: flatList
+      };
+    });
+  };
 
   // Helper for Personality
   const bilingualPersonality = getBilingualPairs<PersonalityItem>(
     localData.personality,
-    (baseId) => ({ id: `${baseId}-en`, title: 'Trait Title', description: '' }),
-    (baseId) => ({ id: `${baseId}-id`, title: 'Karakter / Aspek', description: '' })
+    (baseId) => ({ id: `${baseId}-en`, title: 'Trait Title', description: '', icon: 'Smile' }),
+    (baseId) => ({ id: `${baseId}-id`, title: 'Karakter / Aspek', description: '', icon: 'Smile' })
   );
+
+  const handleAddPersonality = () => {
+    const baseId = `pers-${Date.now()}`;
+    const enItem: PersonalityItem = {
+      id: `${baseId}-en`,
+      title: 'New Trait / Operating Principle',
+      description: 'Describe professional principle, work ethics, or character aspect in English...',
+      icon: 'Smile'
+    };
+    const idItem: PersonalityItem = {
+      id: `${baseId}-id`,
+      title: 'Pilar Karakter & Nilai Baru',
+      description: 'Deskripsikan prinsip profesional, etika kerja, atau karakter dalam Bahasa Indonesia...',
+      icon: 'Smile'
+    };
+    handleUpdate(prev => ({
+      ...prev,
+      personality: [...(prev.personality || []), enItem, idItem]
+    }));
+  };
+
+  const handleRemovePersonality = (baseId: string) => {
+    handleUpdate(prev => ({
+      ...prev,
+      personality: (prev.personality || []).filter(p => 
+        p.id !== `${baseId}-en` && p.id !== `${baseId}-id` && p.id !== baseId
+      )
+    }));
+  };
 
   // Helper for Hobbies
   const bilingualHobbies = getBilingualPairs<HobbyItem>(
     localData.hobbies,
-    (baseId) => ({ id: `${baseId}-en`, title: 'Hobby Title', description: '' }),
-    (baseId) => ({ id: `${baseId}-id`, title: 'Judul Hobi', description: '' })
+    (baseId) => ({ id: `${baseId}-en`, title: 'Hobby Title', description: '', icon: 'Heart' }),
+    (baseId) => ({ id: `${baseId}-id`, title: 'Judul Hobi', description: '', icon: 'Heart' })
   );
+
+  const handleAddHobby = () => {
+    const baseId = `hobby-${Date.now()}`;
+    const enItem: HobbyItem = {
+      id: `${baseId}-en`,
+      title: 'New Hobby / Creative Pursuit',
+      description: 'Describe creative interest, inspiration, or active pursuit outside work...',
+      icon: 'Heart'
+    };
+    const idItem: HobbyItem = {
+      id: `${baseId}-id`,
+      title: 'Hobi & Minat Baru',
+      description: 'Deskripsikan hobi, minat kreatif, atau aktivitas inspiratif di luar jam kerja...',
+      icon: 'Heart'
+    };
+    handleUpdate(prev => ({
+      ...prev,
+      hobbies: [...(prev.hobbies || []), enItem, idItem]
+    }));
+  };
+
+  const handleRemoveHobby = (baseId: string) => {
+    handleUpdate(prev => ({
+      ...prev,
+      hobbies: (prev.hobbies || []).filter(h => 
+        h.id !== `${baseId}-en` && h.id !== `${baseId}-id` && h.id !== baseId
+      )
+    }));
+  };
 
   // Helper for Career Goals
   const bilingualCareerGoals = getBilingualPairs<CareerGoalItem>(
@@ -1128,6 +1790,26 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
     handleUpdate(prev => ({
       ...prev,
       floatingAssets: (prev.floatingAssets || []).map(a => a.id === id ? { ...a, [field]: value } : a)
+    }));
+  };
+
+  const handleCopyFromDesktop = (id: string) => {
+    handleUpdate(prev => ({
+      ...prev,
+      floatingAssets: (prev.floatingAssets || []).map(a => {
+        if (a.id === id) {
+          return {
+            ...a,
+            mobileX: a.x,
+            mobileY: a.y,
+            mobileWidth: a.width || 80,
+            mobileOpacity: a.opacity !== undefined ? a.opacity : 0.8,
+            mobileRotation: a.rotation || 0,
+            mobileFlipX: a.flipX || false,
+          };
+        }
+        return a;
+      })
     }));
   };
 
@@ -1405,15 +2087,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
               <div className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-2 text-xs ${
                 isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'
               }`}>
-            {/* 3-Way Mode Selector: ID | EN | Aset & Desain */}
-            <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-300 dark:border-slate-700 shadow-inner">
+            {/* 4-Way Mode Selector: ID | EN | Aset & Desain | Media Sosial */}
+            <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-300 dark:border-slate-700 shadow-inner overflow-x-auto max-w-full">
               <button
                 type="button"
                 onClick={() => {
                   setEditLang('id');
                   setEditorMode('id');
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   editorMode === 'id'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -1429,7 +2111,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                   setEditLang('en');
                   setEditorMode('en');
                 }}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
                   editorMode === 'en'
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -1442,7 +2124,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
               <button
                 type="button"
                 onClick={() => setEditorMode('assets')}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   editorMode === 'assets'
                     ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-300'
@@ -1452,28 +2134,84 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 <Palette className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                 <span>Aset &amp; Desain</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setEditorMode('social')}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                  editorMode === 'social'
+                    ? 'bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-sm ring-1 ring-sky-400/50'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-300'
+                }`}
+                title="Atur Medsos, Kontak Utama, dan Pengaturan CV (Core Methodology)"
+              >
+                <Share2 className="w-3.5 h-3.5 text-sky-300" />
+                <span>Medsos &amp; CV</span>
+              </button>
             </div>
 
             {/* Context / Sub-Tab Selector based on active Mode */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-slate-400 font-semibold">
-                {editorMode === 'assets' ? 'Aset Halaman:' : 'Bagian:'}
-              </span>
-              <select
-                value={editorMode === 'assets' ? activeBgSection : activeTab}
-                onChange={(e) => {
-                  if (editorMode === 'assets') {
-                    setActiveBgSection(e.target.value);
-                  } else {
-                    setActiveTab(e.target.value);
-                  }
-                }}
-                className={`text-[11px] font-bold rounded-md px-2 py-1 border outline-none cursor-pointer ${
-                  isDark
-                    ? 'bg-slate-800 border-slate-700 text-slate-200'
-                    : 'bg-white border-slate-300 text-slate-700'
-                }`}
-              >
+            {editorMode === 'social' ? (
+              <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800/90 p-0.5 rounded-lg border border-slate-300 dark:border-slate-700 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setSocialCvSubTab('socials')}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    socialCvSubTab === 'socials'
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Kelola Akun Media Sosial & Kontak"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Medsos</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSocialCvSubTab('methodology_cv')}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    socialCvSubTab === 'methodology_cv'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Pengaturan Tulisan Core Methodology & AI Transfer Bahasa"
+                >
+                  <FileText className="w-3 h-3" />
+                  <span>Methodology</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSocialCvSubTab('cv_layout')}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    socialCvSubTab === 'cv_layout'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Pengaturan Tata Letak Kolom Skill, Header, & Foto Profil CV"
+                >
+                  <Sliders className="w-3 h-3" />
+                  <span>Layout CV</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-slate-400 font-semibold">
+                  {editorMode === 'assets' ? 'Aset Halaman:' : 'Bagian:'}
+                </span>
+                <select
+                  value={editorMode === 'assets' ? activeBgSection : activeTab}
+                  onChange={(e) => {
+                    if (editorMode === 'assets') {
+                      setActiveBgSection(e.target.value);
+                    } else {
+                      setActiveTab(e.target.value);
+                    }
+                  }}
+                  className={`text-[11px] font-bold rounded-md px-2 py-1 border outline-none cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-800 border-slate-700 text-slate-200'
+                      : 'bg-white border-slate-300 text-slate-700'
+                  }`}
+                >
                 {editorMode === 'assets' ? (
                   <>
                     <option value={getBgSectionForCategory(detectedCategory)}>
@@ -1523,6 +2261,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 )}
               </select>
             </div>
+            )}
           </div>
 
           {/* 2.5 SUB-ASSET CATEGORY BAR WHEN IN ASSETS MODE */}
@@ -1826,6 +2565,63 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       </button>
                     </div>
 
+                    {/* DEDICATED PREVIEW VIEWPORT TOGGLE: DESKTOP vs MOBILE */}
+                    <div className={`p-3.5 rounded-xl border transition-all ${
+                      activeDeviceMode === 'mobile'
+                        ? 'bg-amber-500/10 border-amber-500/40 ring-1 ring-amber-500/30'
+                        : 'bg-blue-500/10 border-blue-500/40'
+                    }`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            {activeDeviceMode === 'mobile' ? (
+                              <Smartphone className="w-4 h-4 text-amber-400 shrink-0" />
+                            ) : (
+                              <Monitor className="w-4 h-4 text-blue-400 shrink-0" />
+                            )}
+                            <span className="text-xs font-bold text-slate-100">
+                              Mode Posisi &amp; Ukuran:{' '}
+                              <span className={activeDeviceMode === 'mobile' ? 'text-amber-300 font-extrabold' : 'text-blue-300 font-extrabold'}>
+                                {activeDeviceMode === 'mobile' ? '📱 Khusus Mobile (HP)' : '💻 Desktop (Komputer)'}
+                              </span>
+                            </span>
+                          </div>
+                          <p className="text-[10.5px] text-slate-400 leading-snug">
+                            {activeDeviceMode === 'mobile'
+                              ? 'Layar dialihkan ke Simulator Smartphone Asli (iPhone 15 Pro, Galaxy S24). Media query CSS, susunan kartu, dan koordinat mobile aktif 100% persis seperti di HP fisik.'
+                              : 'Layar preview dalam ukuran penuh desktop. Nilai koordinat & ukuran di bawah ini berlaku untuk pengunjung di layar laptop / komputer.'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-800 shrink-0 shadow-inner">
+                          <button
+                            type="button"
+                            onClick={() => handleSetDeviceMode('desktop')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                              activeDeviceMode === 'desktop'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                          >
+                            <Monitor className="w-3.5 h-3.5" />
+                            <span>Desktop</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetDeviceMode('mobile')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                              activeDeviceMode === 'mobile'
+                                ? 'bg-amber-500 text-slate-950 font-black shadow-md'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            }`}
+                          >
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>Mobile (HP)</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Fast Presets Box */}
                     <div className={`p-3.5 rounded-xl border ${cardBg} space-y-2.5`}>
                       <span className="text-[11px] font-bold text-slate-300 block">
@@ -2104,219 +2900,463 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                                 </div>
                               </div>
 
-                              {/* Form Input Row 4: Sliders Posisi X & Y, Ukuran, Opasitas */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                                {/* Posisi Horizontal X (%) */}
-                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
-                                    <span>Posisi X (Horizontal):</span>
-                                    <span className="font-mono text-emerald-400">{asset.x}%</span>
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    step={1}
-                                    value={asset.x}
-                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'x', parseInt(e.target.value, 10))}
-                                    className="w-full accent-emerald-500 cursor-pointer"
-                                  />
-                                  <div className="flex justify-between text-[9px] text-slate-500">
-                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'x', 10)} className="hover:text-emerald-400">Kiri (10%)</button>
-                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'x', 50)} className="hover:text-emerald-400">Tengah (50%)</button>
-                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'x', 85)} className="hover:text-emerald-400">Kanan (85%)</button>
-                                  </div>
-                                </div>
+                              {/* Form Input Row 4: Sliders Posisi X & Y, Ukuran, Opasitas (Responsive Desktop vs Mobile) */}
+                              {(() => {
+                                const isMobileMode = activeDeviceMode === 'mobile';
+                                const curX = isMobileMode ? (asset.mobileX !== undefined ? asset.mobileX : asset.x) : asset.x;
+                                const curY = isMobileMode ? (asset.mobileY !== undefined ? asset.mobileY : asset.y) : asset.y;
+                                const curWidth = isMobileMode ? (asset.mobileWidth !== undefined ? asset.mobileWidth : (asset.width || 80)) : (asset.width || 80);
+                                const curOpacity = isMobileMode ? (asset.mobileOpacity !== undefined ? asset.mobileOpacity : (asset.opacity ?? 0.8)) : (asset.opacity ?? 0.8);
+                                const curRotation = isMobileMode ? (asset.mobileRotation !== undefined ? asset.mobileRotation : (asset.rotation || 0)) : (asset.rotation || 0);
+                                const curFlipX = isMobileMode ? (asset.mobileFlipX !== undefined ? asset.mobileFlipX : (asset.flipX || false)) : (asset.flipX || false);
+                                const accentColor = isMobileMode ? 'accent-amber-500' : 'accent-emerald-500';
+                                const valColor = isMobileMode ? 'text-amber-400' : 'text-emerald-400';
 
-                                {/* Posisi Vertikal Y (%) */}
-                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
-                                    <span>Posisi Y (Vertikal):</span>
-                                    <span className="font-mono text-emerald-400">{asset.y}%</span>
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    step={1}
-                                    value={asset.y}
-                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'y', parseInt(e.target.value, 10))}
-                                    className="w-full accent-emerald-500 cursor-pointer"
-                                  />
-                                  <div className="flex justify-between text-[9px] text-slate-500">
-                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'y', 15)} className="hover:text-emerald-400">Atas (15%)</button>
-                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'y', 50)} className="hover:text-emerald-400">Tengah (50%)</button>
-                                    <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, 'y', 85)} className="hover:text-emerald-400">Bawah (85%)</button>
-                                  </div>
-                                </div>
+                                return (
+                                  <div className="space-y-3 pt-1">
+                                    {/* Mobile/Desktop Contextual Badge & Actions */}
+                                    <div className={`p-2.5 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
+                                      isMobileMode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-900 border-slate-800'
+                                    }`}>
+                                      <div className="flex items-center gap-2">
+                                        {isMobileMode ? (
+                                          <Smartphone className="w-4 h-4 text-amber-400 shrink-0" />
+                                        ) : (
+                                          <Monitor className="w-4 h-4 text-emerald-400 shrink-0" />
+                                        )}
+                                        <div>
+                                          <p className={`text-[11px] font-bold ${isMobileMode ? 'text-amber-300' : 'text-slate-200'}`}>
+                                            {isMobileMode ? 'Pengaturan Posisi Khusus Mobile (HP)' : 'Pengaturan Posisi Mode Desktop'}
+                                          </p>
+                                          <p className="text-[9.5px] text-slate-400">
+                                            {isMobileMode 
+                                              ? 'Koordinat X, Y, & ukuran ini hanya aktif di layar smartphone.'
+                                              : 'Koordinat X, Y, & ukuran ini aktif di layar laptop / komputer.'}
+                                          </p>
+                                        </div>
+                                      </div>
 
-                                {/* Ukuran Lebar (Width in px) dengan Slider Besar & Input Angka & Preset */}
-                                <div className="space-y-1.5">
-                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
-                                    <div className="flex items-center gap-1.5">
-                                      <span>Ukuran Besar / Kecil:</span>
-                                      <span className="text-[9px] text-emerald-400 font-normal bg-emerald-950/40 px-1 rounded border border-emerald-500/20">⚡ Responsif Layar</span>
+                                      {isMobileMode && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCopyFromDesktop(asset.id)}
+                                          className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10.5px] font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-sm"
+                                          title="Salin koordinat posisi dan ukuran saat ini dari mode desktop"
+                                        >
+                                          <Copy className="w-3 h-3" />
+                                          <span>Salin dari Desktop</span>
+                                        </button>
+                                      )}
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                      <input
-                                        type="number"
-                                        min={10}
-                                        max={2000}
-                                        value={asset.width || 80}
-                                        onChange={(e) => handleUpdateFloatingAsset(asset.id, 'width', parseInt(e.target.value, 10) || 80)}
-                                        className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 font-mono text-[11px] text-emerald-400 text-right focus:outline-none focus:border-emerald-500"
-                                      />
-                                      <span className="text-[10px] text-slate-400 font-mono">px</span>
+
+                                    {/* Hide on Mobile / Desktop Toggles */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg bg-slate-950/60 border border-slate-800 text-[10.5px]">
+                                      <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-300 hover:text-white">
+                                        <input
+                                          type="checkbox"
+                                          checked={asset.hideOnMobile || false}
+                                          onChange={(e) => handleUpdateFloatingAsset(asset.id, 'hideOnMobile', e.target.checked)}
+                                          className="accent-amber-500 w-3.5 h-3.5 rounded cursor-pointer"
+                                        />
+                                        <span>🚫 Sembunyikan di HP (Mobile)</span>
+                                      </label>
+                                      <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-300 hover:text-white">
+                                        <input
+                                          type="checkbox"
+                                          checked={asset.hideOnDesktop || false}
+                                          onChange={(e) => handleUpdateFloatingAsset(asset.id, 'hideOnDesktop', e.target.checked)}
+                                          className="accent-blue-500 w-3.5 h-3.5 rounded cursor-pointer"
+                                        />
+                                        <span>🚫 Sembunyikan di Desktop</span>
+                                      </label>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {/* Posisi Horizontal X (%) */}
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                          <span>Posisi X (Horizontal):</span>
+                                          <span className={`font-mono ${valColor}`}>{curX}%</span>
+                                        </div>
+                                        <input
+                                          type="range"
+                                          min={0}
+                                          max={100}
+                                          step={1}
+                                          value={curX}
+                                          onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileX' : 'x', parseInt(e.target.value, 10))}
+                                          className={`w-full ${accentColor} cursor-pointer`}
+                                        />
+                                        <div className="flex justify-between text-[9px] text-slate-500">
+                                          <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileX' : 'x', 10)} className="hover:text-amber-400">Kiri (10%)</button>
+                                          <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileX' : 'x', 50)} className="hover:text-amber-400">Tengah (50%)</button>
+                                          <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileX' : 'x', 85)} className="hover:text-amber-400">Kanan (85%)</button>
+                                        </div>
+                                      </div>
+
+                                      {/* Posisi Vertikal Y (%) */}
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                          <span>Posisi Y (Vertikal):</span>
+                                          <span className={`font-mono ${valColor}`}>{curY}%</span>
+                                        </div>
+                                        <input
+                                          type="range"
+                                          min={0}
+                                          max={100}
+                                          step={1}
+                                          value={curY}
+                                          onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileY' : 'y', parseInt(e.target.value, 10))}
+                                          className={`w-full ${accentColor} cursor-pointer`}
+                                        />
+                                        <div className="flex justify-between text-[9px] text-slate-500">
+                                          <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileY' : 'y', 15)} className="hover:text-amber-400">Atas (15%)</button>
+                                          <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileY' : 'y', 50)} className="hover:text-amber-400">Tengah (50%)</button>
+                                          <button type="button" onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileY' : 'y', 85)} className="hover:text-amber-400">Bawah (85%)</button>
+                                        </div>
+                                      </div>
+
+                                      {/* Ukuran Lebar (Width in px) */}
+                                      <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                          <div className="flex items-center gap-1.5">
+                                            <span>Ukuran Lebar:</span>
+                                            {isMobileMode ? (
+                                              <span className="text-[9px] text-amber-400 font-normal bg-amber-950/40 px-1 rounded border border-amber-500/20">📱 Mobile Pixel</span>
+                                            ) : (
+                                              <span className="text-[9px] text-emerald-400 font-normal bg-emerald-950/40 px-1 rounded border border-emerald-500/20">⚡ Responsif Layar</span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            <input
+                                              type="number"
+                                              min={10}
+                                              max={2000}
+                                              value={curWidth}
+                                              onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileWidth' : 'width', parseInt(e.target.value, 10) || 80)}
+                                              className={`w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 font-mono text-[11px] ${valColor} text-right focus:outline-none`}
+                                            />
+                                            <span className="text-[10px] text-slate-400 font-mono">px</span>
+                                          </div>
+                                        </div>
+                                        <input
+                                          type="range"
+                                          min={15}
+                                          max={isMobileMode ? 600 : 1200}
+                                          step={5}
+                                          value={curWidth}
+                                          onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileWidth' : 'width', parseInt(e.target.value, 10))}
+                                          className={`w-full ${accentColor} cursor-pointer`}
+                                        />
+                                        {/* Quick Size Presets */}
+                                        <div className="flex flex-wrap gap-1 text-[9.5px]">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileWidth' : 'width', isMobileMode ? 40 : 60)}
+                                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                          >
+                                            Kecil ({isMobileMode ? '40px' : '60px'})
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileWidth' : 'width', isMobileMode ? 80 : 150)}
+                                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                          >
+                                            Sedang ({isMobileMode ? '80px' : '150px'})
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileWidth' : 'width', isMobileMode ? 140 : 350)}
+                                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                          >
+                                            Besar ({isMobileMode ? '140px' : '350px'})
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileWidth' : 'width', isMobileMode ? 220 : 650)}
+                                            className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+                                          >
+                                            Ekstra ({isMobileMode ? '220px' : '650px'})
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Opasitas (Transparency) */}
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
+                                          <span>Opasitas Transparansi:</span>
+                                          <span className={`font-mono ${valColor}`}>{Math.round(curOpacity * 100)}%</span>
+                                        </div>
+                                        <input
+                                          type="range"
+                                          min={0.1}
+                                          max={1}
+                                          step={0.05}
+                                          value={curOpacity}
+                                          onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileOpacity' : 'opacity', parseFloat(e.target.value))}
+                                          className={`w-full ${accentColor} cursor-pointer`}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Form Input Row 4.5: POSISI LAPISAN (LAYER DEPTH / STACK ORDER) */}
+                                    <div className="p-3 rounded-xl border bg-slate-900/60 border-slate-800 space-y-2">
+                                      <label className="text-[10.5px] font-bold text-slate-200 flex items-center justify-between">
+                                        <span className="flex items-center gap-1.5">
+                                          <Layers className="w-3.5 h-3.5 text-emerald-400" />
+                                          <span>Posisi Lapisan (Layer Stacking Order):</span>
+                                        </span>
+                                        <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                                          {asset.layer === 'bg' ? 'Layer #1 (Background)' : asset.layer === 'above_all' ? 'Layer #3 (Top Foreground)' : 'Layer #2 (Di Atas Gambar)'}
+                                        </span>
+                                      </label>
+                                      <select
+                                        value={asset.layer || (asset.zIndex === 2 ? 'bg' : asset.zIndex === 30 ? 'above_all' : 'above_image')}
+                                        onChange={(e) => {
+                                          const newLayer = e.target.value as 'bg' | 'above_image' | 'above_all';
+                                          handleUpdateFloatingAsset(asset.id, 'layer', newLayer);
+                                          if (newLayer === 'bg') handleUpdateFloatingAsset(asset.id, 'zIndex', 2);
+                                          else if (newLayer === 'above_image') handleUpdateFloatingAsset(asset.id, 'zIndex', 8);
+                                          else if (newLayer === 'above_all') handleUpdateFloatingAsset(asset.id, 'zIndex', 30);
+                                        }}
+                                        className={inputClass}
+                                      >
+                                        <option value="bg">🥉 Setara Background (Di atas Pattern, Di bawah Gambar/Avatar &amp; Tulisan)</option>
+                                        <option value="above_image">🥈 Di atas Gambar &amp; Lingkaran Avatar (Di bawah Tulisan / Text)</option>
+                                        <option value="above_all">🥇 Di atas Semua Konten (Di atas Gambar &amp; Di atas Tulisan / Judul)</option>
+                                      </select>
+                                      <p className="text-[10px] text-slate-400">
+                                        {asset.layer === 'bg' && '✨ Aset berada pas di atas pattern background, di bawah semua gambar profil dan tulisan.'}
+                                        {(asset.layer === 'above_image' || (!asset.layer && asset.zIndex !== 2 && asset.zIndex !== 30)) && '✨ Aset berada di atas lingkaran/foto avatar, namun teks dan judul utama tetap berada di atasnya agar terbaca sempurna.'}
+                                        {asset.layer === 'above_all' && '✨ Aset berada di paling depan melayang melintasi tulisan dan gambar.'}
+                                      </p>
+                                    </div>
+
+                                    {/* Form Input Row 5: PENGATURAN ANIMASI LENGKAP (ANIMASI MASUK, DELAY, DURASI, LOOP, ROTASI & FLIP) */}
+                                    <div className="p-3 rounded-xl border bg-slate-900/60 border-slate-800 space-y-3 pt-3">
+                                      <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                                        <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                          <span>Pengaturan Animasi &amp; Gerakan (Motion Settings):</span>
+                                        </label>
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const curDur = asset.entryDuration || 1500;
+                                              handleUpdateFloatingAsset(asset.id, 'entryDuration', curDur === 1500 ? 1501 : 1500);
+                                            }}
+                                            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all cursor-pointer"
+                                            title="Klik untuk memutar ulang animasi masuk pada preview langsung"
+                                          >
+                                            <Play className="w-2.5 h-2.5 fill-current" />
+                                            <span>Uji Animasi</span>
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {/* 1. Animasi Masuk */}
+                                        <div>
+                                          <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                            ✨ Animasi Masuk (Entry Animation):
+                                          </label>
+                                          <select
+                                            value={asset.entryAnimation || 'none'}
+                                            onChange={(e) => handleUpdateFloatingAsset(asset.id, 'entryAnimation', e.target.value)}
+                                            className={inputClass}
+                                          >
+                                            <option value="none">🛑 Langsung Tampil (Tanpa Animasi Masuk)</option>
+                                            <option value="fade">🌫️ Fade In (Muncul Perlahan)</option>
+                                            <option value="slide_up">⬆️ Slide Up (Naik dari Bawah)</option>
+                                            <option value="slide_down">⬇️ Slide Down (Turun dari Atas)</option>
+                                            <option value="slide_left">⬅️ Slide Left (Masuk dari Kiri)</option>
+                                            <option value="slide_right">➡️ Slide Right (Masuk dari Kanan)</option>
+                                            <option value="zoom_in">🔍 Zoom In (Pop Membesar)</option>
+                                            <option value="zoom_out">🔎 Zoom Out (Mengecil dari Luar)</option>
+                                            <option value="rotate_in">🔄 Rotate In (Putar &amp; Masuk)</option>
+                                            <option value="bounce_in">🤾 Bounce In (Membumbung Kenyal)</option>
+                                          </select>
+                                        </div>
+
+                                        {/* 2. Animasi Dijalankan Terus (Loop) */}
+                                        <div>
+                                          <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                            🔄 Animasi Dijalankan Terus (Looping):
+                                          </label>
+                                          <select
+                                            value={asset.animation || 'float'}
+                                            onChange={(e) => handleUpdateFloatingAsset(asset.id, 'animation', e.target.value)}
+                                            className={inputClass}
+                                          >
+                                            <option value="float">🕊️ Float (Melayang Bergelombang)</option>
+                                            <option value="pulse">⭐ Pulse (Denyut Skala)</option>
+                                            <option value="bounce">🚀 Bounce (Membumbung Atas-Bawah)</option>
+                                            <option value="spin">🌸 Spin (Berputar Lambat 360°)</option>
+                                            <option value="drift">⛵ Drift (Melayang Diagonal Santai)</option>
+                                            <option value="sway">🌿 Sway (Goyang Kiri-Kanan)</option>
+                                            <option value="none">🛑 Diam (Tanpa Animasi Loop)</option>
+                                          </select>
+                                        </div>
+                                      </div>
+
+                                      {/* Durasi / Kecepatan Animasi Masuk (ms) */}
+                                      <div className="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
+                                            <Sparkles className="w-3 h-3 text-cyan-400" />
+                                            <span>Durasi / Kecepatan Animasi Masuk (Milidetik):</span>
+                                          </label>
+                                          <div className="flex items-center gap-1.5">
+                                            <input
+                                              type="number"
+                                              min={100}
+                                              max={8000}
+                                              step={100}
+                                              value={asset.entryDuration ?? 1500}
+                                              onChange={(e) => handleUpdateFloatingAsset(asset.id, 'entryDuration', Math.max(100, parseInt(e.target.value, 10) || 1500))}
+                                              className="w-20 px-2 py-0.5 text-[11px] font-mono text-center font-bold bg-slate-900 border border-slate-700 rounded text-cyan-300 focus:outline-none focus:border-cyan-400"
+                                              placeholder="1500"
+                                            />
+                                            <span className="text-[10px] font-bold text-slate-400 font-mono">ms</span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Quick Presets for Duration */}
+                                        <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-800/60 text-[9.5px]">
+                                          <span className="text-slate-500 font-medium mr-1">Preset Durasi:</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDuration', 800)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDuration ?? 1500) === 800 ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            800 ms (Cepat)
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDuration', 1200)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDuration ?? 1500) === 1200 ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            1200 ms (Medium)
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDuration', 1500)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDuration ?? 1500) === 1500 ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            1500 ms (Slow Smooth)
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDuration', 2000)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDuration ?? 1500) === 2000 ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            2000 ms (Super Slow)
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Delay Animasi Masuk (ms) */}
+                                      <div className="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
+                                            <Clock className="w-3 h-3 text-amber-400" />
+                                            <span>Jeda / Delay Animasi Masuk (Milidetik):</span>
+                                          </label>
+                                          <div className="flex items-center gap-1.5">
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              max={10000}
+                                              step={50}
+                                              value={asset.entryDelay ?? 0}
+                                              onChange={(e) => handleUpdateFloatingAsset(asset.id, 'entryDelay', Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                              className="w-20 px-2 py-0.5 text-[11px] font-mono text-center font-bold bg-slate-900 border border-slate-700 rounded text-amber-300 focus:outline-none focus:border-amber-400"
+                                              placeholder="0"
+                                            />
+                                            <span className="text-[10px] font-bold text-slate-400 font-mono">ms</span>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Quick Presets for Delay */}
+                                        <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-slate-800/60 text-[9.5px]">
+                                          <span className="text-slate-500 font-medium mr-1">Preset Cepat:</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDelay', 0)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDelay ?? 0) === 0 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            0 ms (Instan)
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDelay', 200)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDelay ?? 0) === 200 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            200 ms
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDelay', 400)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDelay ?? 0) === 400 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            400 ms
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDelay', 600)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDelay ?? 0) === 600 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            600 ms
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateFloatingAsset(asset.id, 'entryDelay', 1000)}
+                                            className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all ${(asset.entryDelay ?? 0) === 1000 ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                                          >
+                                            1000 ms (1s)
+                                          </button>
+                                        </div>
+                                        <p className="text-[9.5px] text-slate-400 italic">
+                                          💡 Setiap perubahan opsi di atas otomatis langsung memutar ulang animasi masuk pada preview tanpa perlu refresh halaman!
+                                        </p>
+                                      </div>
+
+                                      {/* Rotasi & Mirroring */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                        <div>
+                                          <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
+                                            Rotasi Kemiringan (°):
+                                          </label>
+                                          <input
+                                            type="number"
+                                            min={-180}
+                                            max={180}
+                                            value={curRotation}
+                                            onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileRotation' : 'rotation', parseInt(e.target.value, 10) || 0)}
+                                            className={inputClass}
+                                            placeholder="0°"
+                                          />
+                                        </div>
+
+                                        <div className="flex flex-col justify-end">
+                                          <label className="flex items-center gap-2 cursor-pointer p-2 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all">
+                                            <input
+                                              type="checkbox"
+                                              checked={curFlipX}
+                                              onChange={(e) => handleUpdateFloatingAsset(asset.id, isMobileMode ? 'mobileFlipX' : 'flipX', e.target.checked)}
+                                              className={`${accentColor} w-4 h-4 rounded cursor-pointer`}
+                                            />
+                                            <span className="text-[11px] font-bold text-slate-300">
+                                              Flip Horizontal (Cermin X)
+                                            </span>
+                                          </label>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                  <input
-                                    type="range"
-                                    min={15}
-                                    max={1200}
-                                    step={5}
-                                    value={asset.width || 80}
-                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'width', parseInt(e.target.value, 10))}
-                                    className="w-full accent-emerald-500 cursor-pointer"
-                                  />
-                                  {/* Quick Size Presets */}
-                                  <div className="flex flex-wrap gap-1 text-[9.5px]">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 60)}
-                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
-                                    >
-                                      Kecil (60px)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 150)}
-                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
-                                    >
-                                      Sedang (150px)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 350)}
-                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
-                                    >
-                                      Besar (350px)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 650)}
-                                      className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
-                                    >
-                                      Sangat Besar (650px)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateFloatingAsset(asset.id, 'width', 1000)}
-                                      className="px-1.5 py-0.5 rounded bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 transition-all"
-                                    >
-                                      Giant (1000px)
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Opasitas (Transparency) */}
-                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center text-[10.5px] font-bold text-slate-300">
-                                    <span>Opasitas Transparansi:</span>
-                                    <span className="font-mono text-emerald-400">{Math.round((asset.opacity ?? 0.8) * 100)}%</span>
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min={0.1}
-                                    max={1}
-                                    step={0.05}
-                                    value={asset.opacity ?? 0.8}
-                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'opacity', parseFloat(e.target.value))}
-                                    className="w-full accent-emerald-500 cursor-pointer"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Form Input Row 4.5: POSISI LAPISAN (LAYER DEPTH / STACK ORDER) */}
-                              <div className="p-3 rounded-xl border bg-slate-900/60 border-slate-800 space-y-2">
-                                <label className="text-[10.5px] font-bold text-slate-200 flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5">
-                                    <Layers className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>Posisi Lapisan (Layer Stacking Order):</span>
-                                  </span>
-                                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                                    {asset.layer === 'bg' ? 'Layer #1 (Background)' : asset.layer === 'above_all' ? 'Layer #3 (Top Foreground)' : 'Layer #2 (Di Atas Gambar)'}
-                                  </span>
-                                </label>
-                                <select
-                                  value={asset.layer || (asset.zIndex === 2 ? 'bg' : asset.zIndex === 30 ? 'above_all' : 'above_image')}
-                                  onChange={(e) => {
-                                    const newLayer = e.target.value as 'bg' | 'above_image' | 'above_all';
-                                    handleUpdateFloatingAsset(asset.id, 'layer', newLayer);
-                                    if (newLayer === 'bg') handleUpdateFloatingAsset(asset.id, 'zIndex', 2);
-                                    else if (newLayer === 'above_image') handleUpdateFloatingAsset(asset.id, 'zIndex', 8);
-                                    else if (newLayer === 'above_all') handleUpdateFloatingAsset(asset.id, 'zIndex', 30);
-                                  }}
-                                  className={inputClass}
-                                >
-                                  <option value="bg">🥉 Setara Background (Di atas Pattern, Di bawah Gambar/Avatar & Tulisan)</option>
-                                  <option value="above_image">🥈 Di atas Gambar & Lingkaran Avatar (Di bawah Tulisan / Text)</option>
-                                  <option value="above_all">🥇 Di atas Semua Konten (Di atas Gambar & Di atas Tulisan / Judul)</option>
-                                </select>
-                                <p className="text-[10px] text-slate-400">
-                                  {asset.layer === 'bg' && '✨ Aset berada pas di atas pattern background, di bawah semua gambar profil dan tulisan.'}
-                                  {(asset.layer === 'above_image' || (!asset.layer && asset.zIndex !== 2 && asset.zIndex !== 30)) && '✨ Aset berada di atas lingkaran/foto avatar, namun teks dan judul utama tetap berada di atasnya agar terbaca sempurna.'}
-                                  {asset.layer === 'above_all' && '✨ Aset berada di paling depan melayang melintasi tulisan dan gambar.'}
-                                </p>
-                              </div>
-
-                              {/* Form Input Row 5: Animasi & Rotasi & Mirroring */}
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800">
-                                <div>
-                                  <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
-                                    Efek Animasi Melayang:
-                                  </label>
-                                  <select
-                                    value={asset.animation || 'float'}
-                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'animation', e.target.value)}
-                                    className={inputClass}
-                                  >
-                                    <option value="float">🕊️ Float (Melayang Ombak)</option>
-                                    <option value="pulse">⭐ Pulse (Bersetubuh/Denyut)</option>
-                                    <option value="bounce">🚀 Bounce (Membumbung)</option>
-                                    <option value="spin">🌸 Spin (Berputar Lambat)</option>
-                                    <option value="none">🛑 Diam (Tanpa Animasi)</option>
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label className="text-[10.5px] font-bold text-slate-300 block mb-1">
-                                    Rotasi Kemiringan (°):
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min={-180}
-                                    max={180}
-                                    value={asset.rotation || 0}
-                                    onChange={(e) => handleUpdateFloatingAsset(asset.id, 'rotation', parseInt(e.target.value, 10) || 0)}
-                                    className={inputClass}
-                                    placeholder="0°"
-                                  />
-                                </div>
-
-                                <div className="flex flex-col justify-end">
-                                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all">
-                                    <input
-                                      type="checkbox"
-                                      checked={asset.flipX || false}
-                                      onChange={(e) => handleUpdateFloatingAsset(asset.id, 'flipX', e.target.checked)}
-                                      className="accent-emerald-500 w-4 h-4 rounded cursor-pointer"
-                                    />
-                                    <span className="text-[11px] font-bold text-slate-300">
-                                      Flip Horizontal (Cermin X)
-                                    </span>
-                                  </label>
-                                </div>
-                              </div>
+                                );
+                              })()}
 
                             </div>
                           );
@@ -4428,7 +5468,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                       <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
                         <div>
                           <p className="text-xs font-bold text-slate-200">Membesar Saat Menyorot Objek</p>
-                          <p className="text-[10px] text-slate-400">Perbesar ukuran lingkaran saat kursor berada di atas tombol atau tautan yang bisa diklik</p>
+                          <p className="text-[10px] text-slate-400">Perbesar ukuran badan lingkaran ulat saat kursor berada di atas tombol atau tautan</p>
                         </div>
                         <button
                           type="button"
@@ -4444,6 +5484,44 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                         >
                           <span>{localData.webTexts?.gooey_cursor_hover_scale === 'true' ? 'Membesar (Aktif)' : 'Ukuran Tetap (Nonaktif)'}</span>
                         </button>
+                      </div>
+
+                      {/* Emot / Ikon Reaksi Saat Menyorot Elemen (Terpisah Sendiri) */}
+                      <div className="space-y-2 pt-3 border-t border-slate-800/80">
+                        <div>
+                          <p className="text-xs font-bold text-slate-200">Emot / Balon Reaksi Saat Menyorot Objek</p>
+                          <p className="text-[10px] text-slate-400">Pilih emot / balon reaksi yang muncul di atas kepala ulat saat menyorot elemen interaktif:</p>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                          {[
+                            { id: 'question', label: '❓ Tanda Tanya', desc: 'Balon pop-up tanda tanya (?)' },
+                            { id: 'exclamation', label: '❗ Tanda Seru', desc: 'Balon pop-up tanda seru (!)' },
+                            { id: 'heart', label: '❤️ Love / Hati', desc: 'Balon pop-up emot cinta' },
+                            { id: 'sparkle', label: '✨ Bintang Kilau', desc: 'Balon pop-up kilau berkilau' },
+                            { id: 'wide_eyes', label: '👀 Mata Melotot', desc: 'Pupil mata terbuka lebar' },
+                            { id: 'none', label: '🚫 Tanpa Emot', desc: 'Tidak menampilkan balon reaksi' },
+                          ].map((rx) => {
+                            const currentReaction = localData.webTexts?.gooey_cursor_hover_reaction || 'question';
+                            const isSelected = currentReaction === rx.id;
+                            return (
+                              <button
+                                key={rx.id}
+                                type="button"
+                                onClick={() => {
+                                  handleWebTextChange('gooey_cursor_hover_reaction', rx.id, editLang);
+                                }}
+                                className={`p-2 rounded-lg text-left transition-all border cursor-pointer select-none flex flex-col justify-between ${
+                                  isSelected
+                                    ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/50'
+                                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                                }`}
+                              >
+                                <span className="text-[11px] font-bold block">{rx.label}</span>
+                                <span className="text-[9px] text-slate-400 mt-0.5 leading-tight">{rx.desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {/* Slider Besaran / Tebal Kursor */}
@@ -4553,10 +5631,2042 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
             ) : null}
 
             {/* ==================================================================== */}
+            {/* MEDSOS & CV STUDIO (MEDSOS + CORE METHODOLOGY) */}
+            {/* ==================================================================== */}
+            {editorMode === 'social' ? (
+              <div className="space-y-6">
+                {/* 1. SUB-TAB 1: MEDIA SOSIAL & KONTAK */}
+                {socialCvSubTab === 'socials' && (
+                  <div className="space-y-6">
+                    {/* 1.1 Header Overview & Live Stats Banner */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-3 relative overflow-hidden`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-md shrink-0">
+                            <Share2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-sky-400 flex items-center gap-1.5">
+                              <span>Pengaturan Media Sosial &amp; Kontak</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
+                              Kelola akun sosial media, kontak utama narahubung profil, serta visibilitas di Web dan Header/Footer CV.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingSocial(true)}
+                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 self-start sm:self-auto active:scale-95 shrink-0"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Tambah Akun Baru</span>
+                        </button>
+                      </div>
+
+                      {/* Summary Metric Chips */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80">
+                        <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-center">
+                          <span className="text-[10px] text-slate-400 block">Total Akun</span>
+                          <span className="text-sm font-bold text-slate-200">{(localData.customSocials || []).length} Akun</span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-sky-950/40 border border-sky-500/30 text-center">
+                          <span className="text-[10px] text-sky-300 block">🌐 Tampil di Web</span>
+                          <span className="text-sm font-bold text-sky-400">
+                            {(localData.customSocials || []).filter(s => s.showOnWeb !== false).length}
+                          </span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-center">
+                          <span className="text-[10px] text-emerald-300 block">📄 CV Header/Footer</span>
+                          <span className="text-sm font-bold text-emerald-400">
+                            {(localData.customSocials || []).filter(s => s.showOnCvHeader || s.showOnCvFooter).length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 1.2 FORM TAMBAH AKUN BARU (EXPANDABLE MODAL / CARD) */}
+                    {isAddingSocial && (
+                      <div className={`p-4 sm:p-5 rounded-xl border-2 border-sky-500/60 bg-slate-900/95 shadow-xl space-y-4`}>
+                        <div className="flex items-center justify-between pb-2 border-b border-sky-500/30">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1 rounded-md bg-sky-500/20 text-sky-400">
+                              <Plus className="w-4 h-4" />
+                            </div>
+                            <h5 className="font-bold text-xs uppercase tracking-wider text-sky-400">
+                              Tambah Akun Media Sosial / Tautan Baru
+                            </h5>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingSocial(false)}
+                            className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Quick Preset Selector */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[10.5px] font-bold text-slate-300">
+                            Pilih Platform Populer (Klik untuk Mengisi Otomatis):
+                          </label>
+                          <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 rounded-lg bg-slate-950/60 border border-slate-800">
+                            {SOCIAL_PLATFORM_PRESETS.map((preset) => {
+                              const isSelected = newSocialData.platform.toLowerCase() === preset.id.toLowerCase();
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewSocialData(prev => ({
+                                      ...prev,
+                                      platform: preset.name,
+                                      name: preset.name,
+                                      usernameOrUrl: prev.usernameOrUrl || '',
+                                    }));
+                                  }}
+                                  className={`px-2 py-1 rounded-md text-[10.5px] font-medium transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                                    isSelected
+                                      ? 'bg-sky-600 text-white font-bold shadow-sm'
+                                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
+                                  }`}
+                                >
+                                  <SocialIcon platform={preset.id} className="w-3.5 h-3.5" useBrandColor={!isSelected} />
+                                  <span>{preset.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Form Fields */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10.5px] font-bold text-slate-400 mb-1">
+                              Nama Platform / Judul
+                            </label>
+                            <input
+                              type="text"
+                              value={newSocialData.name}
+                              onChange={(e) => setNewSocialData(prev => ({ ...prev, name: e.target.value, platform: e.target.value }))}
+                              placeholder="mis. LinkedIn, Instagram, Discord..."
+                              className={inputClass}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10.5px] font-bold text-slate-400 mb-1">
+                              Nama Akun / Label Tampilan
+                            </label>
+                            <input
+                              type="text"
+                              value={newSocialData.value}
+                              onChange={(e) => setNewSocialData(prev => ({ ...prev, value: e.target.value }))}
+                              placeholder="mis. Muhammad Zufar Fauzi / @username"
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1">
+                            Username atau URL Lengkap
+                          </label>
+                          <input
+                            type="text"
+                            value={newSocialData.usernameOrUrl}
+                            onChange={(e) => setNewSocialData(prev => ({ ...prev, usernameOrUrl: e.target.value }))}
+                            placeholder="mis. username / https://linkedin.com/in/... / 0851..."
+                            className={inputClass}
+                          />
+                          {newSocialData.usernameOrUrl && (
+                            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-sky-400">
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                              <span className="truncate">
+                                Target Link: <code className="text-sky-300">{getAbsoluteSocialUrl(newSocialData.platform || newSocialData.name, newSocialData.usernameOrUrl)}</code>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Visibility Checkboxes in Add Form */}
+                        <div className="space-y-2 pt-2 border-t border-slate-800">
+                          <label className="block text-[10.5px] font-bold text-slate-300">
+                            Penempatan &amp; Visibilitas:
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-[11px] font-medium text-slate-300 cursor-pointer hover:bg-slate-800">
+                              <input
+                                type="checkbox"
+                                checked={newSocialData.showOnWeb}
+                                onChange={(e) => setNewSocialData(prev => ({ ...prev, showOnWeb: e.target.checked }))}
+                                className="rounded accent-sky-500 cursor-pointer"
+                              />
+                              <span>🌐 Tampil di Web</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-[11px] font-medium text-slate-300 cursor-pointer hover:bg-slate-800">
+                              <input
+                                type="checkbox"
+                                checked={newSocialData.showOnCvHeader}
+                                onChange={(e) => setNewSocialData(prev => ({ ...prev, showOnCvHeader: e.target.checked }))}
+                                className="rounded accent-emerald-500 cursor-pointer"
+                              />
+                              <span>📄 CV Header</span>
+                            </label>
+
+                            <label className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/60 border border-slate-700/60 text-[11px] font-medium text-slate-300 cursor-pointer hover:bg-slate-800">
+                              <input
+                                type="checkbox"
+                                checked={newSocialData.showOnCvFooter}
+                                onChange={(e) => setNewSocialData(prev => ({ ...prev, showOnCvFooter: e.target.checked }))}
+                                className="rounded accent-teal-500 cursor-pointer"
+                              />
+                              <span>📑 CV Footer</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Form Action Buttons */}
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingSocial(false)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-all cursor-pointer"
+                          >
+                            Batal
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const platformName = newSocialData.platform.trim() || newSocialData.name.trim() || 'Custom';
+                              const displayVal = newSocialData.value.trim() || newSocialData.usernameOrUrl.trim() || platformName;
+                              const urlVal = newSocialData.usernameOrUrl.trim() || newSocialData.value.trim();
+                              if (!urlVal && !displayVal) return;
+
+                              const newId = `social-${Date.now()}`;
+                              const newSocial: CustomSocial = {
+                                id: newId,
+                                name: platformName,
+                                value: displayVal,
+                                usernameOrUrl: urlVal,
+                                showOnWeb: newSocialData.showOnWeb,
+                                showOnCvHeader: newSocialData.showOnCvHeader,
+                                showOnCvFooter: newSocialData.showOnCvFooter,
+                              };
+
+                              handleUpdate(prev => {
+                                const list = [...(prev.customSocials || []), newSocial];
+                                let footerList = prev.footerSocials || [];
+                                if (newSocialData.showOnWeb || newSocialData.showOnCvFooter) {
+                                  footerList = Array.from(new Set([...footerList, newId]));
+                                }
+                                let headerList = prev.headerContacts || [];
+                                if (newSocialData.showOnCvHeader) {
+                                  headerList = Array.from(new Set([...headerList, newId]));
+                                }
+
+                                return {
+                                  ...prev,
+                                  customSocials: list,
+                                  footerSocials: footerList,
+                                  headerContacts: headerList,
+                                };
+                              });
+
+                              setNewSocialData({
+                                platform: 'LinkedIn',
+                                name: 'LinkedIn',
+                                value: '',
+                                usernameOrUrl: '',
+                                showOnWeb: true,
+                                showOnCvHeader: true,
+                                showOnCvFooter: true,
+                              });
+                              setIsAddingSocial(false);
+                            }}
+                            className="px-4 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-md transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Simpan Akun Baru</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 1.3 KONTAK UTAMA & PROFIL LANGSUNG */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center justify-between pb-1 border-b border-sky-500/20">
+                        <h5 className="font-bold text-xs uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5" />
+                          <span>Kontak Utama &amp; Narahubung Profil</span>
+                        </h5>
+                        <span className="text-[10px] text-slate-400">Sinkronisasi Instan</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {/* Email */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-sky-400" />
+                            <span>Alamat Email Utama</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={localData.email || ''}
+                            onChange={(e) => handleUpdate(prev => ({ ...prev, email: e.target.value }))}
+                            placeholder="contoh@gmail.com"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* Lokasi */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <Globe className="w-3 h-3 text-emerald-400" />
+                            <span>Lokasi / Domisili</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.location || ''}
+                            onChange={(e) => handleUpdate(prev => ({ ...prev, location: e.target.value }))}
+                            placeholder="Klaten, Jawa Tengah / Indonesia"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* WhatsApp */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <SocialIcon platform="whatsapp" className="w-3 h-3" />
+                            <span>Nomor WhatsApp / Telepon</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.whatsapp || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => {
+                                const updatedCustoms = (prev.customSocials || []).map(s => {
+                                  if (s.id === 'social-whatsapp' || s.name?.toLowerCase() === 'whatsapp') {
+                                    return { ...s, value: val, usernameOrUrl: val };
+                                  }
+                                  return s;
+                                });
+                                return { ...prev, whatsapp: val, customSocials: updatedCustoms };
+                              });
+                            }}
+                            placeholder="085123333230 atau +6285..."
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* LinkedIn */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <SocialIcon platform="linkedin" className="w-3 h-3" />
+                            <span>LinkedIn Utama</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.linkedin || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => {
+                                const updatedCustoms = (prev.customSocials || []).map(s => {
+                                  if (s.id === 'social-linkedin' || s.name?.toLowerCase() === 'linkedin') {
+                                    return { ...s, usernameOrUrl: val };
+                                  }
+                                  return s;
+                                });
+                                return { ...prev, linkedin: val, customSocials: updatedCustoms };
+                              });
+                            }}
+                            placeholder="muhammad-zufar-fauzi atau link lengkap"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* GitHub */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <SocialIcon platform="github" className="w-3 h-3" />
+                            <span>GitHub Utama</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.github || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => {
+                                const updatedCustoms = (prev.customSocials || []).map(s => {
+                                  if (s.id === 'social-github' || s.name?.toLowerCase() === 'github') {
+                                    return { ...s, usernameOrUrl: val };
+                                  }
+                                  return s;
+                                });
+                                return { ...prev, github: val, customSocials: updatedCustoms };
+                              });
+                            }}
+                            placeholder="ZufarFz atau link lengkap"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* Instagram */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                            <SocialIcon platform="instagram" className="w-3 h-3" />
+                            <span>Instagram Utama</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.instagram || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => {
+                                const updatedCustoms = (prev.customSocials || []).map(s => {
+                                  if (s.id === 'social-instagram' || s.name?.toLowerCase() === 'instagram') {
+                                    return { ...s, value: val, usernameOrUrl: val };
+                                  }
+                                  return s;
+                                });
+                                return { ...prev, instagram: val, customSocials: updatedCustoms };
+                              });
+                            }}
+                            placeholder="Zuf.Fz_ atau link lengkap"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 1.4 DAFTAR KARTU MEDIA SOSIAL (CUSTOM SOCIALS LIST) */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                            <Link className="w-3.5 h-3.5" />
+                            <span>Daftar Akun Media Sosial &amp; Tautan ({ (localData.customSocials || []).length })</span>
+                          </h5>
+                          <p className="text-[10px] text-slate-400">
+                            Atur urutan tampilan, label nama, tautan, dan centang di mana akun ini akan muncul
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingSocial(true)}
+                          className="px-2.5 py-1 rounded-md bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Tambah</span>
+                        </button>
+                      </div>
+
+                      {(localData.customSocials || []).length === 0 ? (
+                        <div className={`p-6 rounded-xl border ${cardBg} text-center space-y-2`}>
+                          <Share2 className="w-8 h-8 text-slate-500 mx-auto" />
+                          <p className="text-xs font-semibold text-slate-300">Belum ada akun media sosial yang terdaftar.</p>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingSocial(true)}
+                            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs cursor-pointer shadow transition-all inline-flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Tambah Akun Pertama</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {(localData.customSocials || []).map((social, index) => {
+                            const directUrl = getAbsoluteSocialUrl(social.name || social.id, social.usernameOrUrl || social.value);
+
+                            return (
+                              <div
+                                key={social.id || index}
+                                className={`p-3.5 rounded-xl border ${cardBg} space-y-3 hover:border-sky-500/40 transition-all shadow-xs`}
+                              >
+                                {/* Card Header */}
+                                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                                      <SocialIcon platform={social.name || social.id} className="w-4 h-4" useBrandColor />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-bold text-xs text-slate-200 block truncate">
+                                        {social.name || 'Platform'}
+                                      </span>
+                                      <a
+                                        href={directUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-[10px] text-sky-400 hover:underline flex items-center gap-1 truncate"
+                                      >
+                                        <span className="truncate">{social.usernameOrUrl || social.value || 'Belum ada tautan'}</span>
+                                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                      </a>
+                                    </div>
+                                  </div>
+
+                                  {/* Ordering and Delete controls */}
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      disabled={index === 0}
+                                      onClick={() => {
+                                        if (index === 0) return;
+                                        handleUpdate(prev => {
+                                          const list = [...(prev.customSocials || [])];
+                                          const temp = list[index];
+                                          list[index] = list[index - 1];
+                                          list[index - 1] = temp;
+                                          return { ...prev, customSocials: list };
+                                        });
+                                      }}
+                                      className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all cursor-pointer"
+                                      title="Pindah ke Atas"
+                                    >
+                                      <ArrowUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={index === (localData.customSocials || []).length - 1}
+                                      onClick={() => {
+                                        if (index >= (localData.customSocials || []).length - 1) return;
+                                        handleUpdate(prev => {
+                                          const list = [...(prev.customSocials || [])];
+                                          const temp = list[index];
+                                          list[index] = list[index + 1];
+                                          list[index + 1] = temp;
+                                          return { ...prev, customSocials: list };
+                                        });
+                                      }}
+                                      className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all cursor-pointer"
+                                      title="Pindah ke Bawah"
+                                    >
+                                      <ArrowDown className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleUpdate(prev => ({
+                                          ...prev,
+                                          customSocials: (prev.customSocials || []).filter((_, i) => i !== index),
+                                          headerContacts: (prev.headerContacts || []).filter(id => id !== social.id),
+                                          footerSocials: (prev.footerSocials || []).filter(id => id !== social.id),
+                                        }));
+                                      }}
+                                      className="p-1 rounded-md bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-all cursor-pointer ml-1"
+                                      title="Hapus Akun Ini"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Card Inline Edit Fields */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                                      Nama Platform
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={social.name || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        handleUpdate(prev => {
+                                          const list = [...(prev.customSocials || [])];
+                                          list[index] = { ...list[index], name: val };
+                                          return { ...prev, customSocials: list };
+                                        });
+                                      }}
+                                      placeholder="Nama Platform"
+                                      className={inputClass}
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                                      Label / Nama Akun Tampilan
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={social.value || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        handleUpdate(prev => {
+                                          const list = [...(prev.customSocials || [])];
+                                          list[index] = { ...list[index], value: val };
+                                          return { ...prev, customSocials: list };
+                                        });
+                                      }}
+                                      placeholder="Nama akun"
+                                      className={inputClass}
+                                    />
+                                  </div>
+
+                                  <div className="sm:col-span-2">
+                                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                                      Username / URL Tautan
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={social.usernameOrUrl || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        handleUpdate(prev => {
+                                          const list = [...(prev.customSocials || [])];
+                                          list[index] = { ...list[index], usernameOrUrl: val };
+                                          return { ...prev, customSocials: list };
+                                        });
+                                      }}
+                                      placeholder="https://... atau username"
+                                      className={inputClass}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Card Visibility Matrix Checkboxes */}
+                                <div className="pt-2 border-t border-slate-800/80">
+                                  <span className="text-[10px] font-bold text-slate-400 block mb-1.5">
+                                    Penempatan &amp; Visibilitas:
+                                  </span>
+                                  <div className="flex flex-wrap gap-2 text-[10.5px]">
+                                    {/* 🌐 Web */}
+                                    <label className={`px-2 py-1 rounded-md border flex items-center gap-1.5 cursor-pointer transition-all ${
+                                      social.showOnWeb !== false
+                                        ? 'bg-sky-500/10 border-sky-500/40 text-sky-300 font-semibold'
+                                        : 'bg-slate-800/40 border-slate-700/40 text-slate-400'
+                                    }`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={social.showOnWeb !== false}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          handleUpdate(prev => {
+                                            const list = [...(prev.customSocials || [])];
+                                            list[index] = { ...list[index], showOnWeb: checked };
+                                            return { ...prev, customSocials: list };
+                                          });
+                                        }}
+                                        className="rounded accent-sky-500 cursor-pointer"
+                                      />
+                                      <span>🌐 Web</span>
+                                    </label>
+
+                                    {/* 📄 CV Header */}
+                                    <label className={`px-2 py-1 rounded-md border flex items-center gap-1.5 cursor-pointer transition-all ${
+                                      social.showOnCvHeader
+                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold'
+                                        : 'bg-slate-800/40 border-slate-700/40 text-slate-400'
+                                    }`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={!!social.showOnCvHeader}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          handleUpdate(prev => {
+                                            const list = [...(prev.customSocials || [])];
+                                            list[index] = { ...list[index], showOnCvHeader: checked };
+                                            let hList = prev.headerContacts || [];
+                                            if (checked) {
+                                              hList = Array.from(new Set([...hList, social.id]));
+                                            } else {
+                                              hList = hList.filter(id => id !== social.id);
+                                            }
+                                            return { ...prev, customSocials: list, headerContacts: hList };
+                                          });
+                                        }}
+                                        className="rounded accent-emerald-500 cursor-pointer"
+                                      />
+                                      <span>📄 CV Header</span>
+                                    </label>
+
+                                    {/* 📑 CV Footer */}
+                                    <label className={`px-2 py-1 rounded-md border flex items-center gap-1.5 cursor-pointer transition-all ${
+                                      social.showOnCvFooter
+                                        ? 'bg-teal-500/10 border-teal-500/40 text-teal-300 font-semibold'
+                                        : 'bg-slate-800/40 border-slate-700/40 text-slate-400'
+                                    }`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={!!social.showOnCvFooter}
+                                        onChange={(e) => {
+                                          const checked = e.target.checked;
+                                          handleUpdate(prev => {
+                                            const list = [...(prev.customSocials || [])];
+                                            list[index] = { ...list[index], showOnCvFooter: checked };
+                                            let fList = prev.footerSocials || [];
+                                            if (checked) {
+                                              fList = Array.from(new Set([...fList, social.id]));
+                                            } else {
+                                              fList = fList.filter(id => id !== social.id);
+                                            }
+                                            return { ...prev, customSocials: list, footerSocials: fList };
+                                          });
+                                        }}
+                                        className="rounded accent-teal-500 cursor-pointer"
+                                      />
+                                      <span>📑 CV Footer</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 1.5 MATRIKS PENEMPATAN KONTAK CEPAT */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center justify-between pb-1 border-b border-sky-500/20">
+                        <h5 className="font-bold text-xs uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>Matriks Penempatan Kontak Cepat di CV</span>
+                        </h5>
+                        <span className="text-[10px] text-slate-400">Header &amp; Footer Presets</span>
+                      </div>
+
+                      {/* Header Contacts (CV Header) */}
+                      <div className="space-y-2">
+                        <label className="block text-[11px] font-bold text-slate-300">
+                          1. Kontak di Header CV (<code className="text-emerald-400">headerContacts</code>):
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { id: 'location', label: '📍 Lokasi' },
+                            { id: 'email', label: '✉️ Email' },
+                            { id: 'social-linkedin', label: '💼 LinkedIn' },
+                            { id: 'social-github', label: '🐙 GitHub' },
+                            { id: 'social-whatsapp', label: '💬 WhatsApp' },
+                            { id: 'social-instagram', label: '📷 Instagram' },
+                            ...(localData.customSocials || []).map(s => ({ id: s.id, label: `🔗 ${s.name}` }))
+                          ].map(item => {
+                            const isChecked = (localData.headerContacts || []).includes(item.id);
+                            return (
+                              <button
+                                key={`header-${item.id}`}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdate(prev => {
+                                    const current = prev.headerContacts || [];
+                                    const next = isChecked ? current.filter(x => x !== item.id) : [...current, item.id];
+                                    return { ...prev, headerContacts: next };
+                                  });
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  isChecked
+                                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                                    : 'bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                                }`}
+                              >
+                                {isChecked ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3 text-slate-500" />}
+                                <span>{item.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Footer Contacts (CV Footer) */}
+                      <div className="space-y-2 pt-2 border-t border-slate-800">
+                        <label className="block text-[11px] font-bold text-slate-300">
+                          2. Tautan di Footer CV (<code className="text-teal-400">footerSocials</code>):
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { id: 'social-linkedin', label: '💼 LinkedIn' },
+                            { id: 'social-github', label: '🐙 GitHub' },
+                            { id: 'social-whatsapp', label: '💬 WhatsApp' },
+                            { id: 'social-instagram', label: '📷 Instagram' },
+                            { id: 'email', label: '✉️ Email' },
+                            ...(localData.customSocials || []).map(s => ({ id: s.id, label: `🔗 ${s.name}` }))
+                          ].map(item => {
+                            const isChecked = (localData.footerSocials || []).includes(item.id);
+                            return (
+                              <button
+                                key={`footer-${item.id}`}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdate(prev => {
+                                    const current = prev.footerSocials || [];
+                                    const next = isChecked ? current.filter(x => x !== item.id) : [...current, item.id];
+                                    return { ...prev, footerSocials: next };
+                                  });
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  isChecked
+                                    ? 'bg-teal-600 text-white border-teal-500 shadow-xs'
+                                    : 'bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                                }`}
+                              >
+                                {isChecked ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3 text-slate-500" />}
+                                <span>{item.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 1.6 LIVE PREVIEW BAR */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Pratinjau Tombol Media Sosial di Website:</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500">Live Preview</span>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 flex flex-wrap items-center gap-2">
+                        {(localData.customSocials || []).filter(s => s.showOnWeb !== false).map((social) => {
+                          const link = getAbsoluteSocialUrl(social.name || social.id, social.usernameOrUrl || social.value);
+                          return (
+                            <a
+                              key={`preview-${social.id}`}
+                              href={link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-sky-500/50 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-all shadow-xs"
+                            >
+                              <SocialIcon platform={social.name || social.id} className="w-3.5 h-3.5" useBrandColor />
+                              <span>{social.value || social.name}</span>
+                              <ExternalLink className="w-2.5 h-2.5 text-slate-400" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. SUB-TAB 2: CORE METHODOLOGY & CV SETTINGS */}
+                {socialCvSubTab === 'methodology_cv' && (
+                  <div className="space-y-6">
+                    {/* 2.1 Header Banner */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-3 relative overflow-hidden`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shrink-0">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-emerald-400 flex items-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-amber-300" />
+                              <span>Pengaturan CV &amp; Core Methodology</span>
+                            </h4>
+                            <p className="text-[11px] text-slate-400 mt-0.5 leading-tight">
+                              Atur judul &amp; deskripsi filosofi analitis (&ldquo;Core Methodology&rdquo;) yang tampil di CV interaktif &amp; cetak.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Language Indicator & Quick Switch */}
+                        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-lg border border-slate-700 self-start sm:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => setEditLang('id')}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                              editLang === 'id'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <span>🇮🇩</span> ID
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditLang('en')}
+                            className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                              editLang === 'en'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            <span>🇬🇧</span> EN
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2.2 CARD 1: PENGATURAN TULISAN "CORE METHODOLOGY" */}
+                    <div className={`p-4 sm:p-5 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-emerald-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 rounded-md bg-emerald-500/20 text-emerald-400">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-xs uppercase tracking-wider text-emerald-400">
+                              Tulisan &amp; Filosofi &ldquo;Core Methodology&rdquo;
+                            </h5>
+                            <span className="text-[10px] text-slate-400 block">
+                              Bahasa Aktif: <strong className="text-emerald-300">{editLang === 'id' ? '🇮🇩 Bahasa Indonesia' : '🇬🇧 English'}</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* AI Language Transfer Button */}
+                        <button
+                          type="button"
+                          onClick={() => setMethodologyTranslateModalOpen(true)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/40 flex items-center gap-1.5 cursor-pointer active:scale-95 border border-emerald-400/40"
+                          title="Transfer Bahasa Otomatis (ID <-> EN) menggunakan AI Gemini"
+                        >
+                          <Languages className="w-3.5 h-3.5" />
+                          <span>Transfer Bahasa (AI)</span>
+                        </button>
+                      </div>
+
+                      {/* Quick AI Translate Helper Bar */}
+                      <div className="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>
+                            Dukungan Dual-Bahasa: Tulis dalam satu bahasa, lalu gunakan <strong>Transfer Bahasa (AI)</strong> untuk menerjemahkan ke versi counterpart secara otomatis.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMethodologyTranslateModalOpen(true)}
+                          className="px-2.5 py-1 rounded-md text-[10.5px] font-bold bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 border border-emerald-400/30 cursor-pointer flex items-center gap-1 shrink-0 transition-all active:scale-95"
+                        >
+                          <ArrowRightLeft className="w-3 h-3 text-emerald-300" />
+                          <span>AI Transfer ({editLang === 'id' ? 'ID ➜ EN' : 'EN ➜ ID'})</span>
+                        </button>
+                      </div>
+
+                      {/* Judul Core Methodology */}
+                      {(() => {
+                        const currentMethodologyTitle = editLang === 'id'
+                          ? (localData.webTexts?.[`methodologyTitle_id`] || (localData.webTexts?.methodologyTitle && editLang === 'id' ? localData.webTexts.methodologyTitle : '') || localData.methodologyTitle || (ID_TRANSLATIONS as any).methodologyTitle || 'Metodologi Utama')
+                          : (localData.webTexts?.[`methodologyTitle_en`] || (localData.webTexts?.methodologyTitle && editLang === 'en' ? localData.webTexts.methodologyTitle : '') || localData.methodologyTitle || 'Core Methodology');
+
+                        const currentMethodologyText = editLang === 'id'
+                          ? (localData.webTexts?.[`methodologyText_id`] || (localData.webTexts?.methodologyText && editLang === 'id' ? localData.webTexts.methodologyText : '') || localData.methodologyText || (ID_TRANSLATIONS as any).methodologyText || '')
+                          : (localData.webTexts?.[`methodologyText_en`] || (localData.webTexts?.methodologyText && editLang === 'en' ? localData.webTexts.methodologyText : '') || localData.methodologyText || '');
+
+                        return (
+                          <div className="space-y-4">
+                            {/* Input Judul */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-[10.5px] font-bold text-slate-300">
+                                  1. Judul Seksi Metodologi ({editLang.toUpperCase()}):
+                                </label>
+                                {renderAiButton(
+                                  `Judul Core Methodology (${editLang.toUpperCase()})`,
+                                  currentMethodologyTitle,
+                                  (val) => {
+                                    handleUpdate(prev => {
+                                      const nextTexts = { ...(prev.webTexts || {}) };
+                                      nextTexts[`methodologyTitle_${editLang}`] = val;
+                                      nextTexts.methodologyTitle = val;
+                                      return {
+                                        ...prev,
+                                        methodologyTitle: val,
+                                        webTexts: nextTexts
+                                      };
+                                    });
+                                  },
+                                  "Judul seksi metodologi kerja analitis pada dokumen resume CV"
+                                )}
+                              </div>
+                              <input
+                                type="text"
+                                value={currentMethodologyTitle}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  handleUpdate(prev => {
+                                    const nextTexts = { ...(prev.webTexts || {}) };
+                                    nextTexts[`methodologyTitle_${editLang}`] = val;
+                                    nextTexts.methodologyTitle = val;
+                                    return {
+                                      ...prev,
+                                      methodologyTitle: val,
+                                      webTexts: nextTexts
+                                    };
+                                  });
+                                }}
+                                placeholder={editLang === 'id' ? 'mis. Metodologi Utama / Filosofi Kerja' : 'e.g. Core Methodology'}
+                                className={inputClass}
+                              />
+                              <p className="text-[10px] text-slate-400 mt-1">
+                                Tampil sebagai judul seksi beraksen bintang di dokumen Resume/CV interaktif dan ekspor Word.
+                              </p>
+                            </div>
+
+                            {/* Textarea Deskripsi Metodologi */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-[10.5px] font-bold text-slate-300">
+                                  2. Deskripsi &amp; Filosofi Analitis ({editLang.toUpperCase()}):
+                                </label>
+                                {renderAiButton(
+                                  `Deskripsi Core Methodology (${editLang.toUpperCase()})`,
+                                  currentMethodologyText,
+                                  (val) => {
+                                    handleUpdate(prev => {
+                                      const nextTexts = { ...(prev.webTexts || {}) };
+                                      nextTexts[`methodologyText_${editLang}`] = val;
+                                      nextTexts.methodologyText = val;
+                                      return {
+                                        ...prev,
+                                        methodologyText: val,
+                                        webTexts: nextTexts
+                                      };
+                                    });
+                                  },
+                                  "Deskripsi filosofi analitis data pipeline, transparansi metrik, dan validasi statistik untuk resume CV"
+                                )}
+                              </div>
+                              <textarea
+                                rows={5}
+                                value={currentMethodologyText}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  handleUpdate(prev => {
+                                    const nextTexts = { ...(prev.webTexts || {}) };
+                                    nextTexts[`methodologyText_${editLang}`] = val;
+                                    nextTexts.methodologyText = val;
+                                    return {
+                                      ...prev,
+                                      methodologyText: val,
+                                      webTexts: nextTexts
+                                    };
+                                  });
+                                }}
+                                placeholder={
+                                  editLang === 'id'
+                                    ? 'Tuliskan pendekatan, prinsip analitis, dan metodologi kerja Anda...'
+                                    : 'Write your analytical philosophy, data pipeline principles, and methodology...'
+                                }
+                                className={`${inputClass} font-sans leading-relaxed resize-y`}
+                              />
+                              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-400">
+                                <span>Mendukung format Markdown: <code>**tebal**</code>, <code>*miring*</code>, <code>_garis bawah_</code></span>
+                                <span>{(currentMethodologyText || '').length} Karakter</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 2.3 CARD 2: LIVE PRATINJAU KOTAK "CORE METHODOLOGY" DI RESUME */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                      <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
+                        <h5 className="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Pratinjau Tampilan &ldquo;Core Methodology&rdquo; di Resume CV</span>
+                        </h5>
+                        <span className="text-[10px] text-slate-500">Live Preview</span>
+                      </div>
+
+                      {(() => {
+                        const previewTitle = editLang === 'id'
+                          ? (localData.webTexts?.[`methodologyTitle_id`] || (localData.webTexts?.methodologyTitle && editLang === 'id' ? localData.webTexts.methodologyTitle : '') || localData.methodologyTitle || (ID_TRANSLATIONS as any).methodologyTitle || 'Metodologi Utama')
+                          : (localData.webTexts?.[`methodologyTitle_en`] || (localData.webTexts?.methodologyTitle && editLang === 'en' ? localData.webTexts.methodologyTitle : '') || localData.methodologyTitle || 'Core Methodology');
+
+                        const previewText = editLang === 'id'
+                          ? (localData.webTexts?.[`methodologyText_id`] || (localData.webTexts?.methodologyText && editLang === 'id' ? localData.webTexts.methodologyText : '') || localData.methodologyText || (ID_TRANSLATIONS as any).methodologyText || '')
+                          : (localData.webTexts?.[`methodologyText_en`] || (localData.webTexts?.methodologyText && editLang === 'en' ? localData.webTexts.methodologyText : '') || localData.methodologyText || '');
+
+                        return (
+                          <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2.5 shadow-md">
+                            <div className="flex items-center gap-2 pb-1.5 border-b border-slate-800">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                              <h6 className="text-[11px] font-bold tracking-wider text-slate-200 uppercase">
+                                {previewTitle}
+                              </h6>
+                            </div>
+                            <div className="text-[11px] leading-relaxed text-slate-300 italic">
+                              {previewText ? (
+                                <MarkdownText content={previewText} theme="dark" />
+                              ) : (
+                                <span className="text-slate-500 italic">(Belum ada deskripsi metodologi)</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 2.4 CARD 3: PENATAAN SEKSI RESUME CV (SECTION ORDER) */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
+                        <h5 className="font-bold text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>Urutan &amp; Penataan Seksi Dokumen CV</span>
+                        </h5>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleUpdate(prev => ({
+                              ...prev,
+                              layoutSettings: {
+                                fontSize: 'standard',
+                                spacing: 'standard',
+                                layoutStyle: 'left-sidebar',
+                                fontFamily: 'sans',
+                                themeColor: 'blue',
+                                ...(prev.layoutSettings || {}),
+                                sectionOrder: ['arsenal', 'education', 'experience', 'methodology']
+                              }
+                            }));
+                          }}
+                          className="text-[10.5px] font-semibold text-slate-400 hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition-colors"
+                          title="Kembalikan ke Urutan Standar"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Reset Urutan</span>
+                        </button>
+                      </div>
+
+                      {(() => {
+                        const currentOrder = (localData.layoutSettings?.sectionOrder && localData.layoutSettings.sectionOrder.length > 0)
+                          ? localData.layoutSettings.sectionOrder
+                          : ['arsenal', 'education', 'experience', 'methodology'];
+
+                        const sectionLabels: Record<string, { name: string; icon: any; color: string }> = {
+                          arsenal: { name: 'Technical Arsenal (Keahlian Teknis)', icon: Cpu, color: 'text-sky-400' },
+                          education: { name: 'Pendidikan & Riwayat Akademis', icon: GraduationCap, color: 'text-amber-400' },
+                          experience: { name: 'Pengalaman Kerja & Karir', icon: Briefcase, color: 'text-indigo-400' },
+                          methodology: { name: 'Core Methodology (Filosofi Kerja)', icon: Sparkles, color: 'text-emerald-400' },
+                        };
+
+                        return (
+                          <div className="space-y-2">
+                            {currentOrder.map((secId, index) => {
+                              const secInfo = sectionLabels[secId] || { name: secId, icon: FileText, color: 'text-slate-400' };
+                              const SecIcon = secInfo.icon;
+                              const isFirst = index === 0;
+                              const isLast = index === currentOrder.length - 1;
+
+                              return (
+                                <div
+                                  key={secId}
+                                  className={`p-2.5 rounded-lg border flex items-center justify-between gap-2 transition-all ${
+                                    secId === 'methodology'
+                                      ? 'bg-emerald-950/20 border-emerald-500/40'
+                                      : 'bg-slate-900/70 border-slate-800'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <span className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-[10px] font-bold text-slate-300 flex items-center justify-center shrink-0">
+                                      {index + 1}
+                                    </span>
+                                    <SecIcon className={`w-4 h-4 ${secInfo.color} shrink-0`} />
+                                    <span className={`text-xs font-semibold truncate ${secId === 'methodology' ? 'text-emerald-300 font-bold' : 'text-slate-200'}`}>
+                                      {secInfo.name}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      disabled={isFirst}
+                                      onClick={() => {
+                                        if (isFirst) return;
+                                        const newOrder = [...currentOrder];
+                                        const temp = newOrder[index];
+                                        newOrder[index] = newOrder[index - 1];
+                                        newOrder[index - 1] = temp;
+                                        handleUpdate(prev => ({
+                                          ...prev,
+                                          layoutSettings: {
+                                            fontSize: 'standard',
+                                            spacing: 'standard',
+                                            layoutStyle: 'left-sidebar',
+                                            fontFamily: 'sans',
+                                            themeColor: 'blue',
+                                            ...(prev.layoutSettings || {}),
+                                            sectionOrder: newOrder
+                                          }
+                                        }));
+                                      }}
+                                      className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all cursor-pointer"
+                                      title="Pindah ke Atas"
+                                    >
+                                      <ArrowUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={isLast}
+                                      onClick={() => {
+                                        if (isLast) return;
+                                        const newOrder = [...currentOrder];
+                                        const temp = newOrder[index];
+                                        newOrder[index] = newOrder[index + 1];
+                                        newOrder[index + 1] = temp;
+                                        handleUpdate(prev => ({
+                                          ...prev,
+                                          layoutSettings: {
+                                            fontSize: 'standard',
+                                            spacing: 'standard',
+                                            layoutStyle: 'left-sidebar',
+                                            fontFamily: 'sans',
+                                            themeColor: 'blue',
+                                            ...(prev.layoutSettings || {}),
+                                            sectionOrder: newOrder
+                                          }
+                                        }));
+                                      }}
+                                      className="p-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all cursor-pointer"
+                                      title="Pindah ke Bawah"
+                                    >
+                                      <ArrowDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* ------------------------------------------------------------- */}
+                {/* 3. SUB-TAB 3: PENGATURAN LAYOUT & DESAIN CV */}
+                {/* ------------------------------------------------------------- */}
+                {socialCvSubTab === 'cv_layout' && (
+                  <div className="space-y-6">
+                    {/* Header Banner */}
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-900 border border-indigo-500/30">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400">
+                            <Sliders className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-white flex items-center gap-2">
+                              <span>Studio Layout &amp; Desain Resume CV</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-500/40">
+                                Real-time
+                              </span>
+                            </h4>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              Atur posisi kolom keahlian (kiri/kanan), perataan header, posisi foto profil, dan urutan seksi CV.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleUpdate((prev) => ({
+                              ...prev,
+                              layoutSettings: {
+                                layoutStyle: 'left-sidebar',
+                                headerAlignment: 'left',
+                                headerPhotoPosition: 'left',
+                                contactPosition: 'bottom',
+                                fontSize: 'standard',
+                                spacing: 'standard',
+                                fontFamily: 'sans',
+                                themeColor: 'blue',
+                                sectionOrder: ['arsenal', 'education', 'experience', 'methodology']
+                              }
+                            }));
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 cursor-pointer flex items-center gap-1.5 transition-all"
+                          title="Kembalikan semua pengaturan layout ke nilai bawaan pabrik"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Reset Layout Standar</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* MINI LIVE VISUALIZER */}
+                    {(() => {
+                      const curLayout = localData.layoutSettings?.layoutStyle || 'left-sidebar';
+                      const curAlign = localData.layoutSettings?.headerAlignment || 'left';
+                      const curPhotoPos = localData.layoutSettings?.headerPhotoPosition || 'left';
+                      const curTheme = localData.layoutSettings?.themeColor || 'blue';
+
+                      const themeAccentMap: Record<string, { bar: string; badge: string; text: string }> = {
+                        emerald: { bar: 'bg-emerald-500', badge: 'bg-emerald-500/20 text-emerald-400', text: 'Emerald Green' },
+                        blue: { bar: 'bg-blue-600', badge: 'bg-blue-500/20 text-blue-400', text: 'Royal Blue' },
+                        slate: { bar: 'bg-slate-600', badge: 'bg-slate-500/20 text-slate-300', text: 'Slate Classic' },
+                        indigo: { bar: 'bg-indigo-600', badge: 'bg-indigo-500/20 text-indigo-400', text: 'Deep Indigo' },
+                        rose: { bar: 'bg-rose-600', badge: 'bg-rose-500/20 text-rose-400', text: 'Rose Crimson' },
+                        amber: { bar: 'bg-amber-600', badge: 'bg-amber-500/20 text-amber-400', text: 'Warm Amber' },
+                      };
+                      const activeTheme = themeAccentMap[curTheme] || themeAccentMap.blue;
+
+                      return (
+                        <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
+                          <div className="flex items-center justify-between pb-1 border-b border-indigo-500/20">
+                            <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Simulasi Miniatur Tata Letak Resume CV</span>
+                            </h5>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {curLayout} &bull; {curAlign} &bull; foto {curPhotoPos}
+                            </span>
+                          </div>
+
+                          {/* Mini Paper Sheet Visualizer */}
+                          <div className="p-3 rounded-lg bg-slate-900 border border-slate-700/80 flex flex-col items-center">
+                            <div className="w-full max-w-sm bg-white rounded-md p-3.5 text-slate-900 shadow-md flex flex-col gap-2.5 transition-all">
+                              {/* Accent Top Bar */}
+                              <div className={`w-full h-1 rounded-full ${activeTheme.bar}`} />
+
+                              {/* Header Simulation */}
+                              <div className={`w-full pb-2 border-b border-slate-300 flex flex-col ${
+                                curAlign === 'center' ? 'items-center text-center' :
+                                curAlign === 'right' ? 'items-end text-right' :
+                                curAlign === 'justify' ? 'items-stretch' : 'items-start text-left'
+                              }`}>
+                                <div className={`flex w-full items-center gap-2 ${
+                                  curPhotoPos === 'top'
+                                    ? (curAlign === 'center' ? 'flex-col items-center' : curAlign === 'right' ? 'flex-col items-end' : 'flex-col items-start')
+                                    : curPhotoPos === 'right'
+                                      ? 'flex-row-reverse justify-between'
+                                      : curAlign === 'center'
+                                        ? 'flex-col items-center justify-center'
+                                        : curAlign === 'justify'
+                                          ? 'flex-row items-center justify-between'
+                                          : 'flex-row items-center justify-between'
+                                }`}>
+                                  {/* Photo node in mini */}
+                                  {curPhotoPos !== 'none' && (
+                                    <div className="w-7 h-7 rounded-full bg-slate-200 border border-slate-300 overflow-hidden shrink-0 flex items-center justify-center">
+                                      {localData.avatarUrl ? (
+                                        <img src={localData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <User className="w-4 h-4 text-slate-400" />
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Name & Title block */}
+                                  <div className={`flex flex-col ${
+                                    curAlign === 'center' ? 'items-center text-center' :
+                                    curAlign === 'right' ? 'items-end text-right' : 'items-start text-left'
+                                  }`}>
+                                    <span className="text-[11px] font-black tracking-tight text-slate-900 leading-tight">
+                                      {localData.name || 'NAMA LENGKAP'}
+                                    </span>
+                                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                                      {localData.title || 'PROFESSIONAL TITLE'}
+                                    </span>
+                                  </div>
+
+                                  {/* Contacts simulation */}
+                                  {curAlign === 'justify' && (
+                                    <div className="text-[7.5px] text-slate-500 font-mono text-right shrink-0">
+                                      {localData.email ? localData.email : 'contact@domain.com'}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {curAlign !== 'justify' && (
+                                  <div className={`text-[7.5px] text-slate-500 font-mono mt-1 flex flex-wrap gap-1 ${
+                                    curAlign === 'center' ? 'justify-center' : curAlign === 'right' ? 'justify-end' : 'justify-start'
+                                  }`}>
+                                    <span>{localData.location || 'Indonesia'}</span>
+                                    <span>&bull;</span>
+                                    <span>{localData.email || 'email@example.com'}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Columns Simulation */}
+                              <div className="w-full pt-1 flex gap-2 text-[8px]">
+                                {curLayout === 'left-sidebar' && (
+                                  <>
+                                    {/* Left Sidebar: Skill & Edu */}
+                                    <div className="w-1/3 bg-slate-100 rounded p-1.5 flex flex-col gap-1 border border-slate-200">
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Skills</span>
+                                      </div>
+                                      <div className="space-y-0.5 text-[7px] text-slate-600">
+                                        <div className="h-1 bg-slate-300 rounded w-4/5" />
+                                        <div className="h-1 bg-slate-300 rounded w-3/5" />
+                                        <div className="h-1 bg-slate-300 rounded w-4/5" />
+                                      </div>
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 mt-1 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Pendidikan</span>
+                                      </div>
+                                      <div className="h-1 bg-slate-300 rounded w-full" />
+                                    </div>
+
+                                    {/* Right Content: Experience & Methodology */}
+                                    <div className="w-2/3 bg-slate-50 rounded p-1.5 flex flex-col gap-1.5 border border-slate-200">
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Pengalaman</span>
+                                      </div>
+                                      <div className="space-y-1 text-[7px] text-slate-600">
+                                        <div className="h-1.5 bg-slate-300 rounded w-full" />
+                                        <div className="h-1 bg-slate-200 rounded w-5/6" />
+                                        <div className="h-1 bg-slate-200 rounded w-4/6" />
+                                      </div>
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 mt-0.5 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Methodology</span>
+                                      </div>
+                                      <div className="h-1 bg-slate-200 rounded w-full" />
+                                    </div>
+                                  </>
+                                )}
+
+                                {curLayout === 'right-sidebar' && (
+                                  <>
+                                    {/* Left Content: Experience & Methodology */}
+                                    <div className="w-2/3 bg-slate-50 rounded p-1.5 flex flex-col gap-1.5 border border-slate-200">
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Pengalaman</span>
+                                      </div>
+                                      <div className="space-y-1 text-[7px] text-slate-600">
+                                        <div className="h-1.5 bg-slate-300 rounded w-full" />
+                                        <div className="h-1 bg-slate-200 rounded w-5/6" />
+                                        <div className="h-1 bg-slate-200 rounded w-4/6" />
+                                      </div>
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 mt-0.5 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Methodology</span>
+                                      </div>
+                                      <div className="h-1 bg-slate-200 rounded w-full" />
+                                    </div>
+
+                                    {/* Right Sidebar: Skill & Edu */}
+                                    <div className="w-1/3 bg-slate-100 rounded p-1.5 flex flex-col gap-1 border border-slate-200">
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Skills</span>
+                                      </div>
+                                      <div className="space-y-0.5 text-[7px] text-slate-600">
+                                        <div className="h-1 bg-slate-300 rounded w-4/5" />
+                                        <div className="h-1 bg-slate-300 rounded w-3/5" />
+                                        <div className="h-1 bg-slate-300 rounded w-4/5" />
+                                      </div>
+                                      <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 mt-1 flex items-center gap-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                        <span>Pendidikan</span>
+                                      </div>
+                                      <div className="h-1 bg-slate-300 rounded w-full" />
+                                    </div>
+                                  </>
+                                )}
+
+                                {curLayout === 'single-column' && (
+                                  <div className="w-full bg-slate-50 rounded p-1.5 flex flex-col gap-1.5 border border-slate-200">
+                                    <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 flex items-center gap-0.5">
+                                      <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                      <span>Pengalaman Kerja (Penuh)</span>
+                                    </div>
+                                    <div className="h-1 bg-slate-300 rounded w-full" />
+                                    <div className="font-bold text-slate-800 text-[8px] border-b border-slate-300 pb-0.5 mt-1 flex items-center gap-0.5">
+                                      <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bar}`} />
+                                      <span>Technical Arsenal &amp; Skills</span>
+                                    </div>
+                                    <div className="h-1 bg-slate-300 rounded w-4/5" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* CARD 1: POSISI SKILL & TATA LETAK KOLOM */}
+                    <div className={`p-4 sm:p-5 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                        <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400">
+                          <Columns className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400">
+                            1. Tata Letak Kolom &amp; Posisi Keahlian (Skills)
+                          </h5>
+                          <span className="text-[10px] text-slate-400">
+                            Tentukan letak kolom Technical Arsenal &amp; Pendidikan terhadap riwayat pengalaman kerja
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Option 1: Skill di Kiri */}
+                        {(() => {
+                          const isSelected = (localData.layoutSettings?.layoutStyle || 'left-sidebar') === 'left-sidebar';
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdate((prev) => ({
+                                  ...prev,
+                                  layoutSettings: {
+                                    fontSize: 'standard',
+                                    spacing: 'standard',
+                                    fontFamily: 'sans',
+                                    themeColor: 'blue',
+                                    ...(prev.layoutSettings || {}),
+                                    layoutStyle: 'left-sidebar'
+                                  }
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-2.5 transition-all cursor-pointer relative ${
+                                isSelected
+                                  ? 'bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/40 text-white'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  <span>Skill di Sisi Kiri</span>
+                                </span>
+                                {isSelected && (
+                                  <span className="p-0.5 rounded-full bg-indigo-600 text-white">
+                                    <Check className="w-3 h-3" />
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Visual Mini Schematic */}
+                              <div className="w-full h-12 bg-slate-950 rounded border border-slate-800 p-1 flex gap-1 items-stretch">
+                                <div className="w-1/3 bg-indigo-900/80 rounded border border-indigo-500/60 flex flex-col items-center justify-center p-0.5">
+                                  <span className="text-[7px] font-black text-indigo-200">SKILLS</span>
+                                  <span className="text-[6px] text-indigo-300">&amp; EDU</span>
+                                </div>
+                                <div className="w-2/3 bg-slate-800/80 rounded border border-slate-700 flex flex-col justify-center px-1 gap-0.5">
+                                  <span className="text-[7px] font-black text-slate-300">PENGALAMAN</span>
+                                  <div className="h-1 bg-slate-600 rounded w-4/5" />
+                                </div>
+                              </div>
+
+                              <p className="text-[10px] text-slate-400 leading-snug">
+                                Kolom kiri memuat Technical Arsenal &amp; Pendidikan. Kolom kanan memuat Pengalaman Kerja &amp; Core Methodology.
+                              </p>
+                            </button>
+                          );
+                        })()}
+
+                        {/* Option 2: Skill di Kanan */}
+                        {(() => {
+                          const isSelected = localData.layoutSettings?.layoutStyle === 'right-sidebar';
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdate((prev) => ({
+                                  ...prev,
+                                  layoutSettings: {
+                                    fontSize: 'standard',
+                                    spacing: 'standard',
+                                    fontFamily: 'sans',
+                                    themeColor: 'blue',
+                                    ...(prev.layoutSettings || {}),
+                                    layoutStyle: 'right-sidebar'
+                                  }
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-2.5 transition-all cursor-pointer relative ${
+                                isSelected
+                                  ? 'bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/40 text-white'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  <span>Skill di Sisi Kanan</span>
+                                </span>
+                                {isSelected && (
+                                  <span className="p-0.5 rounded-full bg-indigo-600 text-white">
+                                    <Check className="w-3 h-3" />
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Visual Mini Schematic */}
+                              <div className="w-full h-12 bg-slate-950 rounded border border-slate-800 p-1 flex gap-1 items-stretch">
+                                <div className="w-2/3 bg-slate-800/80 rounded border border-slate-700 flex flex-col justify-center px-1 gap-0.5">
+                                  <span className="text-[7px] font-black text-slate-300">PENGALAMAN</span>
+                                  <div className="h-1 bg-slate-600 rounded w-4/5" />
+                                </div>
+                                <div className="w-1/3 bg-indigo-900/80 rounded border border-indigo-500/60 flex flex-col items-center justify-center p-0.5">
+                                  <span className="text-[7px] font-black text-indigo-200">SKILLS</span>
+                                  <span className="text-[6px] text-indigo-300">&amp; EDU</span>
+                                </div>
+                              </div>
+
+                              <p className="text-[10px] text-slate-400 leading-snug">
+                                Kolom kiri memuat Pengalaman Kerja &amp; Core Methodology. Kolom kanan memuat Technical Arsenal &amp; Pendidikan.
+                              </p>
+                            </button>
+                          );
+                        })()}
+
+                        {/* Option 3: 1 Kolom Penuh */}
+                        {(() => {
+                          const isSelected = localData.layoutSettings?.layoutStyle === 'single-column';
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdate((prev) => ({
+                                  ...prev,
+                                  layoutSettings: {
+                                    fontSize: 'standard',
+                                    spacing: 'standard',
+                                    fontFamily: 'sans',
+                                    themeColor: 'blue',
+                                    ...(prev.layoutSettings || {}),
+                                    layoutStyle: 'single-column'
+                                  }
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-2.5 transition-all cursor-pointer relative ${
+                                isSelected
+                                  ? 'bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/40 text-white'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-bold text-xs flex items-center gap-1.5">
+                                  <span>1 Kolom Penuh (Linear)</span>
+                                </span>
+                                {isSelected && (
+                                  <span className="p-0.5 rounded-full bg-indigo-600 text-white">
+                                    <Check className="w-3 h-3" />
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Visual Mini Schematic */}
+                              <div className="w-full h-12 bg-slate-950 rounded border border-slate-800 p-1 flex flex-col gap-1 items-stretch justify-center">
+                                <div className="w-full bg-slate-800/80 rounded border border-slate-700 py-0.5 px-1">
+                                  <span className="text-[7px] font-black text-slate-300">PENGALAMAN KERJA</span>
+                                </div>
+                                <div className="w-full bg-indigo-900/70 rounded border border-indigo-500/50 py-0.5 px-1">
+                                  <span className="text-[7px] font-black text-indigo-200">SKILLS &amp; PENDIDIKAN</span>
+                                </div>
+                              </div>
+
+                              <p className="text-[10px] text-slate-400 leading-snug">
+                                Seluruh seksi tersusun vertikal penuh memanjang dari atas ke bawah tanpa pembagian dua kolom.
+                              </p>
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* CARD 2: PERATAAN HEADER & TEKS */}
+                    <div className={`p-4 sm:p-5 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                        <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400">
+                          <AlignLeft className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400">
+                            2. Perataan Header &amp; Teks Nama (Alignment)
+                          </h5>
+                          <span className="text-[10px] text-slate-400">
+                            Pilih orientasi posisi nama, profesi, dan kontak pada header dokumen CV
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {[
+                          { id: 'left', label: 'Rata Kiri', sublabel: 'Formal & Standar ATS', icon: AlignLeft },
+                          { id: 'center', label: 'Rata Tengah', sublabel: 'Simetris & Elegan', icon: AlignCenter },
+                          { id: 'right', label: 'Rata Kanan', sublabel: 'Modern & Asimetris', icon: AlignRight },
+                          { id: 'justify', label: 'Rata Kanan-Kiri', sublabel: 'Nama di Kiri, Kontak di Kanan', icon: AlignJustify },
+                        ].map(({ id, label, sublabel, icon: IconComponent }) => {
+                          const isSelected = (localData.layoutSettings?.headerAlignment || 'left') === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => {
+                                handleUpdate((prev) => ({
+                                  ...prev,
+                                  layoutSettings: {
+                                    fontSize: 'standard',
+                                    spacing: 'standard',
+                                    layoutStyle: 'left-sidebar',
+                                    fontFamily: 'sans',
+                                    themeColor: 'blue',
+                                    ...(prev.layoutSettings || {}),
+                                    headerAlignment: id as any
+                                  }
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-indigo-950/50 border-indigo-500 ring-2 ring-indigo-500/40 text-white'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div className={`p-2 rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                <IconComponent className="w-5 h-5" />
+                              </div>
+                              <span className="text-xs font-bold">{label}</span>
+                              <span className="text-[9.5px] text-slate-400 leading-tight">{sublabel}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* CARD 3: POSISI FOTO PROFIL */}
+                    <div className={`p-4 sm:p-5 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                        <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400">
+                            3. Posisi Foto Profil (Profile Picture Position)
+                          </h5>
+                          <span className="text-[10px] text-slate-400">
+                            Pilih penempatan foto profil di dokumen CV atau sembunyikan foto untuk format ATS-friendly
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {[
+                          { id: 'left', label: 'Di Sisi Kiri', sublabel: 'Di sebelah kiri nama', icon: User },
+                          { id: 'right', label: 'Di Sisi Kanan', sublabel: 'Di sebelah kanan nama', icon: UserCheck },
+                          { id: 'top', label: 'Di Atas Teks', sublabel: 'Di atas nama (elegan terpusat)', icon: ArrowUp },
+                          { id: 'none', label: 'Tanpa Foto', sublabel: 'Sembunyikan (Format ATS)', icon: EyeOff },
+                        ].map(({ id, label, sublabel, icon: IconComponent }) => {
+                          const isSelected = (localData.layoutSettings?.headerPhotoPosition || 'left') === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => {
+                                handleUpdate((prev) => ({
+                                  ...prev,
+                                  layoutSettings: {
+                                    fontSize: 'standard',
+                                    spacing: 'standard',
+                                    layoutStyle: 'left-sidebar',
+                                    fontFamily: 'sans',
+                                    themeColor: 'blue',
+                                    ...(prev.layoutSettings || {}),
+                                    headerPhotoPosition: id as any
+                                  }
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-center flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-indigo-950/50 border-indigo-500 ring-2 ring-indigo-500/40 text-white'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div className={`p-2 rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                <IconComponent className="w-5 h-5" />
+                              </div>
+                              <span className="text-xs font-bold">{label}</span>
+                              <span className="text-[9.5px] text-slate-400 leading-tight">{sublabel}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* CARD 4: POSISI KONTAK HEADER */}
+                    <div className={`p-4 sm:p-5 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                        <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400">
+                            4. Posisi Detail Kontak di Header
+                          </h5>
+                          <span className="text-[10px] text-slate-400">
+                            Atur posisi informasi kontak (lokasi, email, medsos) pada header CV
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {[
+                          {
+                            id: 'bottom',
+                            label: 'Di Bawah Nama & Jabatan',
+                            desc: 'Berbaris horizontal dipisahkan garis vertikal ( | ). Terlihat rapi dan terpusat.',
+                          },
+                          {
+                            id: 'right',
+                            label: 'Di Sisi Kanan (Stacked Vertikal)',
+                            desc: 'Kolom vertikal rapat di sisi kanan header (khusus tata letak rata kiri/justify).',
+                          },
+                        ].map(({ id, label, desc }) => {
+                          const isSelected = (localData.layoutSettings?.contactPosition || 'bottom') === id;
+                          return (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => {
+                                handleUpdate((prev) => ({
+                                  ...prev,
+                                  layoutSettings: {
+                                    fontSize: 'standard',
+                                    spacing: 'standard',
+                                    layoutStyle: 'left-sidebar',
+                                    fontFamily: 'sans',
+                                    themeColor: 'blue',
+                                    ...(prev.layoutSettings || {}),
+                                    contactPosition: id as any
+                                  }
+                                }));
+                              }}
+                              className={`p-3 rounded-xl border text-left flex flex-col justify-between gap-2 transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/40 text-white'
+                                  : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold">{label}</span>
+                                {isSelected && (
+                                  <span className="p-0.5 rounded-full bg-indigo-600 text-white">
+                                    <Check className="w-3 h-3" />
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10.5px] text-slate-400 leading-snug">{desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* CARD 5: WARNA AKSEN & TIPOGRAFI CV */}
+                    <div className={`p-4 sm:p-5 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                        <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400">
+                          <Palette className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400">
+                            5. Tema Warna Aksen &amp; Tipografi Dokumen CV
+                          </h5>
+                          <span className="text-[10px] text-slate-400">
+                            Kustomisasi warna garis aksen, skala font, dan kerapatan spasi halaman CV
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Warna Aksen */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-2">
+                          Warna Garis Aksen &amp; Heading:
+                        </label>
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                          {[
+                            { id: 'blue', name: 'Royal Blue', color: 'bg-blue-600' },
+                            { id: 'emerald', name: 'Emerald', color: 'bg-emerald-600' },
+                            { id: 'slate', name: 'Slate Gray', color: 'bg-slate-600' },
+                            { id: 'indigo', name: 'Deep Indigo', color: 'bg-indigo-600' },
+                            { id: 'rose', name: 'Rose Red', color: 'bg-rose-600' },
+                            { id: 'amber', name: 'Warm Amber', color: 'bg-amber-600' },
+                          ].map(({ id, name, color }) => {
+                            const isSelected = (localData.layoutSettings?.themeColor || 'blue') === id;
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => {
+                                  handleUpdate((prev) => ({
+                                    ...prev,
+                                    layoutSettings: {
+                                      fontSize: 'standard',
+                                      spacing: 'standard',
+                                      layoutStyle: 'left-sidebar',
+                                      fontFamily: 'sans',
+                                      ...(prev.layoutSettings || {}),
+                                      themeColor: id as any
+                                    }
+                                  }));
+                                }}
+                                className={`p-2 rounded-lg border flex items-center gap-2 transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-slate-800 border-indigo-400 ring-1 ring-indigo-400 text-white'
+                                    : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                                }`}
+                              >
+                                <span className={`w-3.5 h-3.5 rounded-full ${color} shrink-0`} />
+                                <span className="text-[11px] font-medium truncate">{name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Skala Font & Kerapatan Spasi */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-300 mb-1.5">
+                            Skala Font:
+                          </label>
+                          <div className="flex rounded-lg bg-slate-900 p-1 border border-slate-700">
+                            {[
+                              { id: 'compact', label: 'Compact' },
+                              { id: 'standard', label: 'Standard' },
+                              { id: 'comfortable', label: 'Comfortable' },
+                            ].map(({ id, label }) => {
+                              const isSelected = (localData.layoutSettings?.fontSize || 'standard') === id;
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdate((prev) => ({
+                                      ...prev,
+                                      layoutSettings: {
+                                        spacing: 'standard',
+                                        layoutStyle: 'left-sidebar',
+                                        fontFamily: 'sans',
+                                        themeColor: 'blue',
+                                        ...(prev.layoutSettings || {}),
+                                        fontSize: id as any
+                                      }
+                                    }));
+                                  }}
+                                  className={`flex-1 py-1 text-center rounded text-[11px] font-bold transition-all cursor-pointer ${
+                                    isSelected ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-300 mb-1.5">
+                            Kerapatan Spasi Antar Seksi:
+                          </label>
+                          <div className="flex rounded-lg bg-slate-900 p-1 border border-slate-700">
+                            {[
+                              { id: 'tight', label: 'Padat (1 Hal)' },
+                              { id: 'standard', label: 'Standard' },
+                              { id: 'spacious', label: 'Renggang' },
+                            ].map(({ id, label }) => {
+                              const isSelected = (localData.layoutSettings?.spacing || 'standard') === id;
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdate((prev) => ({
+                                      ...prev,
+                                      layoutSettings: {
+                                        fontSize: 'standard',
+                                        layoutStyle: 'left-sidebar',
+                                        fontFamily: 'sans',
+                                        themeColor: 'blue',
+                                        ...(prev.layoutSettings || {}),
+                                        spacing: id as any
+                                      }
+                                    }));
+                                  }}
+                                  className={`flex-1 py-1 text-center rounded text-[11px] font-bold transition-all cursor-pointer ${
+                                    isSelected ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* ==================================================================== */}
             {/* TEXT EDITING MODE (INDONESIAN OR ENGLISH) */}
             {/* ==================================================================== */}
-            {editorMode !== 'assets' && (
+            {(editorMode === 'id' || editorMode === 'en') && (
               <>
+                {/* Collapsible Markdown Syntax Helper */}
+                <div className={`mb-4 rounded-xl border transition-all ${isDark ? 'bg-slate-900/90 border-indigo-500/30' : 'bg-indigo-50/70 border-indigo-200'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setShowMarkdownGuide(!showMarkdownGuide)}
+                    className="w-full px-3.5 py-2.5 flex items-center justify-between text-left text-xs font-bold cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="p-1 rounded bg-indigo-500/20 text-indigo-400">
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </span>
+                      <span className={isDark ? 'text-indigo-300' : 'text-indigo-900'}>
+                        {editLang === 'id' ? '📝 Format Markdown Didukung (Bold, Link, Heading, List, dll)' : '📝 Supported Markdown Syntax (Bold, Links, Headings, Lists, etc.)'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+                      <span>{showMarkdownGuide ? (editLang === 'id' ? 'Tutup' : 'Hide') : (editLang === 'id' ? 'Lihat Contoh' : 'Show Guide')}</span>
+                      {showMarkdownGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </div>
+                  </button>
+
+                  {showMarkdownGuide && (
+                    <div className={`px-3.5 pb-3.5 pt-1 text-[11px] space-y-2 border-t ${isDark ? 'border-indigo-500/20 text-slate-300' : 'border-indigo-100 text-slate-700'}`}>
+                      <p className="text-[10px] text-slate-400 leading-tight">
+                        {editLang === 'id' 
+                          ? 'Anda dapat menulis teks bergaya kaya pada deskripsi Home, Poin Pengalaman Kerja, Detail Proyek, dan CV menggunakan sintaks berikut:' 
+                          : 'You can write rich styled text across Home descriptions, Experience bullets, Project details, and CV using these syntax markers:'}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[10.5px]">
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          <span className="text-emerald-400 font-bold block mb-0.5">**Teks Tebal (Bold)**</span>
+                          <span className="text-slate-400">**Kata Kunci** → </span>
+                          <strong className={isDark ? 'text-white' : 'text-slate-900'}>Kata Kunci</strong>
+                        </div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          <span className="text-teal-400 font-bold block mb-0.5">*Teks Miring (Italic)*</span>
+                          <span className="text-slate-400">*Catatan Penting* → </span>
+                          <em className={isDark ? 'text-white' : 'text-slate-900'}>Catatan Penting</em>
+                        </div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          <span className="text-blue-400 font-bold block mb-0.5">[Teks Link](https://...)</span>
+                          <span className="text-slate-400">[Lihat Demo](https://...) → </span>
+                          <span className="text-blue-500 underline font-sans">Lihat Demo ↗</span>
+                        </div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          <span className="text-amber-400 font-bold block mb-0.5">`Kode Singkat`</span>
+                          <span className="text-slate-400">`npm install` → </span>
+                          <code className="px-1 py-0.5 rounded bg-slate-800 text-amber-300 text-[10px]">npm install</code>
+                        </div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          <span className="text-purple-400 font-bold block mb-0.5"># Judul &amp; ## Sub-Judul</span>
+                          <span className="text-slate-400"># Header Utama atau ## Sub Header</span>
+                        </div>
+                        <div className={`p-2 rounded-lg border ${isDark ? 'bg-slate-950/60 border-slate-800' : 'bg-white border-slate-200'}`}>
+                          <span className="text-rose-400 font-bold block mb-0.5">- Poin Daftar (Lists)</span>
+                          <span className="text-slate-400">- Item 1 \n- Item 2</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
             {/* ==================================================================== */}
             {/* SUBPAGE 1: EDUCATION (PENDIDIKAN) */}
@@ -4579,9 +7689,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                      Judul Halaman ({editLang.toUpperCase()})
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">
+                        Judul Halaman ({editLang.toUpperCase()})
+                      </label>
+                      {renderAiButton(
+                        'Judul Pendidikan',
+                        getWebText('education_title', editLang),
+                        (val) => handleWebTextChange('education_title', val, editLang),
+                        'Judul seksi riwayat akademik/pendidikan'
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={getWebText('education_title', editLang)}
@@ -4593,9 +7711,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">
-                      Intro / Pengantar ({editLang.toUpperCase()})
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">
+                        Intro / Pengantar ({editLang.toUpperCase()})
+                      </label>
+                      {renderAiButton(
+                        'Intro Pendidikan',
+                        getWebText('education_intro', editLang),
+                        (val) => handleWebTextChange('education_intro', val, editLang),
+                        'Paragraf pengantar tentang latar belakang akademik dan pondasi keilmuan'
+                      )}
+                    </div>
                     <textarea
                       rows={3}
                       value={getWebText('education_intro', editLang)}
@@ -4787,7 +7913,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 {/* Header & Cover */}
                 <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Judul Halaman ({editLang.toUpperCase()})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">Judul Halaman ({editLang.toUpperCase()})</label>
+                      {renderAiButton(
+                        'Judul Kepribadian',
+                        getWebText('personality_title', editLang),
+                        (val) => handleWebTextChange('personality_title', val, editLang),
+                        'Judul header untuk halaman kepribadian, nilai kerja, dan pilar karakter profesional.'
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={getWebText('personality_title', editLang)}
@@ -4798,11 +7932,20 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     {renderColorControls('personality_title_color', 'personality_title_color_dark', 'Judul Kepribadian')}
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Intro / Pengantar ({editLang.toUpperCase()})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">Intro / Pengantar ({editLang.toUpperCase()})</label>
+                      {renderAiButton(
+                        'Intro Kepribadian',
+                        getWebText('personality_intro', editLang),
+                        (val) => handleWebTextChange('personality_intro', val, editLang),
+                        'Deskripsi pembuka tentang karakter profesional, filosofi kerja, dan prinsip kerja sama tim.'
+                      )}
+                    </div>
                     <textarea
                       rows={3}
                       value={getWebText('personality_intro', editLang)}
                       onChange={(e) => handleWebTextChange('personality_intro', e.target.value, editLang)}
+                      placeholder="Tuliskan filosofi personal atau intro karakter (mendukung markdown: **tebal**, *miring*, - list)..."
                       className={textareaClass}
                     />
                     {renderColorControls('personality_intro_color', 'personality_intro_color_dark', 'Intro Kepribadian', '#475569', '#94a3b8')}
@@ -4820,28 +7963,112 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
 
                 {/* Personality Traits */}
                 <div className="space-y-3">
-                  <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                    Pilar Karakter / MBTI ({bilingualPersonality.length})
-                  </h5>
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                      Pilar Karakter & Nilai ({bilingualPersonality.length})
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={handleAddPersonality}
+                      className="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tambah Karakter</span>
+                    </button>
+                  </div>
+
                   {bilingualPersonality.map((pair, idx) => {
                     const item = pair[editLang] || pair.en;
                     return (
-                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
-                        <div className="text-[10px] font-bold text-emerald-400">#{idx + 1} Pilar Karakter</div>
-                        <input
-                          type="text"
-                          value={item?.title || ''}
-                          onChange={(e) => updateBilingualItem('personality', pair.baseId, editLang, 'title', e.target.value)}
-                          placeholder="Nama Karakter"
-                          className={inputClass}
-                        />
-                        <textarea
-                          rows={2}
-                          value={item?.description || ''}
-                          onChange={(e) => updateBilingualItem('personality', pair.baseId, editLang, 'description', e.target.value)}
-                          placeholder="Deskripsi karakter..."
-                          className={textareaClass}
-                        />
+                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-3`}>
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-700/40">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-emerald-400 font-mono">#{idx + 1} Pilar Karakter</span>
+                            <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{item?.title || 'Untitled'}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {/* AI Language Transfer Button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSubpageTranslate(
+                                  'personality',
+                                  pair.baseId,
+                                  'personality',
+                                  {
+                                    title: item?.title || '',
+                                    description: item?.description || '',
+                                  },
+                                  {
+                                    itemTypeName: 'Pilar Karakter',
+                                    titleLabel: 'Nama Pilar Karakter',
+                                    descriptionLabel: 'Deskripsi Karakter & Prinsip',
+                                  }
+                                )
+                              }
+                              title={`Transfer Bahasa AI: Terjemahkan Pilar Karakter #${idx + 1} (ID ↔ EN)`}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-gradient-to-r from-blue-600/25 via-indigo-600/25 to-cyan-600/25 hover:from-blue-600/40 hover:to-indigo-600/40 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              <Languages className="w-3 h-3 text-cyan-400" />
+                              <span>🌍 Transfer Bahasa ({editLang === 'id' ? 'ID → EN' : 'EN → ID'})</span>
+                            </button>
+
+                            {/* Delete button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePersonality(pair.baseId)}
+                              className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded cursor-pointer transition-colors"
+                              title="Hapus Pilar Karakter"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Title field with AI Enhance */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">
+                              Nama Karakter / Prinsip ({editLang.toUpperCase()})
+                            </label>
+                            {renderAiButton(
+                              'Nama Pilar Karakter',
+                              item?.title || '',
+                              (val) => updateBilingualItem('personality', pair.baseId, editLang, 'title', val),
+                              'Nama pilar karakter, etos kerja, atau sifat kepribadian profesional.'
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={item?.title || ''}
+                            onChange={(e) => updateBilingualItem('personality', pair.baseId, editLang, 'title', e.target.value)}
+                            placeholder="Contoh: Analytical Thinker, Adaptable & Agile"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* Description field with AI Enhance */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">
+                              Deskripsi Karakter ({editLang.toUpperCase()})
+                            </label>
+                            {renderAiButton(
+                              'Deskripsi Pilar Karakter',
+                              item?.description || '',
+                              (val) => updateBilingualItem('personality', pair.baseId, editLang, 'description', val),
+                              'Penjelasan mendalam tentang bagaimana karakter ini diterapkan dalam kolaborasi tim, kepemimpinan, atau pemecahan masalah.'
+                            )}
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={item?.description || ''}
+                            onChange={(e) => updateBilingualItem('personality', pair.baseId, editLang, 'description', e.target.value)}
+                            placeholder="Deskripsi karakter... (Mendukung Markdown: **tebal**, *miring*, ## Subjudul, - poin)"
+                            className={textareaClass}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -4856,7 +8083,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAddSubpageSection('personality')}
-                      className="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Tambah Slide</span>
@@ -4865,31 +8092,85 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                   {getSubpageSections('personality').map((pair, idx) => {
                     const item = pair[editLang] || pair.en;
                     return (
-                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-teal-400">#{idx + 1} Slide Cerita</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSubpageSection(pair.baseId)}
-                            className="p-1 text-rose-400 hover:text-rose-300"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-3`}>
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-700/40 text-[11px]">
+                          <span className="font-bold text-teal-400 font-mono">#{idx + 1} Slide Cerita Kepribadian</span>
+                          
+                          <div className="flex items-center gap-1.5">
+                            {/* AI Language Transfer Button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSubpageTranslate(
+                                  'educationSections',
+                                  pair.baseId,
+                                  'story_slide',
+                                  {
+                                    title: item?.title || '',
+                                    description: item?.content || '',
+                                  },
+                                  {
+                                    itemTypeName: 'Slide Cerita Kepribadian',
+                                    titleLabel: 'Judul Slide',
+                                    descriptionLabel: 'Konten Narasi Slide',
+                                  }
+                                )
+                              }
+                              title={`Transfer Bahasa AI: Terjemahkan Slide Cerita #${idx + 1} (ID ↔ EN)`}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-gradient-to-r from-blue-600/25 via-indigo-600/25 to-cyan-600/25 hover:from-blue-600/40 hover:to-indigo-600/40 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              <Languages className="w-3 h-3 text-cyan-400" />
+                              <span>🌍 Transfer ({editLang === 'id' ? 'ID → EN' : 'EN → ID'})</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSubpageSection(pair.baseId)}
+                              className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded cursor-pointer transition-colors"
+                              title="Hapus Slide Cerita"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          value={item?.title || ''}
-                          onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'title', e.target.value)}
-                          placeholder="Judul Slide"
-                          className={inputClass}
-                        />
-                        <textarea
-                          rows={3}
-                          value={item?.content || ''}
-                          onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'content', e.target.value)}
-                          placeholder="Konten narasi..."
-                          className={textareaClass}
-                        />
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">Judul Slide ({editLang.toUpperCase()})</label>
+                            {renderAiButton(
+                              'Judul Slide Cerita',
+                              item?.title || '',
+                              (val) => updateBilingualItem('educationSections', pair.baseId, editLang, 'title', val),
+                              'Judul slide cerita kepribadian / refleksi nilai.'
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={item?.title || ''}
+                            onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'title', e.target.value)}
+                            placeholder="Judul Slide Cerita"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">Konten Narasi ({editLang.toUpperCase()})</label>
+                            {renderAiButton(
+                              'Konten Slide Cerita',
+                              item?.content || '',
+                              (val) => updateBilingualItem('educationSections', pair.baseId, editLang, 'content', val),
+                              'Narasi reflektif atau contoh nyata penerapan nilai dan kepribadian.'
+                            )}
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={item?.content || ''}
+                            onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'content', e.target.value)}
+                            placeholder="Konten narasi... (Mendukung Markdown: **tebal**, *miring*, ## Subjudul, - poin)"
+                            className={textareaClass}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -4911,7 +8192,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
 
                 <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Judul Halaman ({editLang.toUpperCase()})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">Judul Halaman ({editLang.toUpperCase()})</label>
+                      {renderAiButton(
+                        'Judul Hobi',
+                        getWebText('hobbies_title', editLang),
+                        (val) => handleWebTextChange('hobbies_title', val, editLang),
+                        'Judul header untuk halaman hobi, minat kreatif, dan aktivitas di luar pekerjaan.'
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={getWebText('hobbies_title', editLang)}
@@ -4921,11 +8210,20 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     {renderColorControls('hobbies_title_color', 'hobbies_title_color_dark', 'Judul Hobi')}
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Intro ({editLang.toUpperCase()})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">Intro ({editLang.toUpperCase()})</label>
+                      {renderAiButton(
+                        'Intro Hobi',
+                        getWebText('hobbies_intro', editLang),
+                        (val) => handleWebTextChange('hobbies_intro', val, editLang),
+                        'Deskripsi pembuka tentang hobi, minat pribadi, dan bagaimana hal tersebut menginspirasi kreativitas.'
+                      )}
+                    </div>
                     <textarea
                       rows={3}
                       value={getWebText('hobbies_intro', editLang)}
                       onChange={(e) => handleWebTextChange('hobbies_intro', e.target.value, editLang)}
+                      placeholder="Tuliskan intro seksi hobi... (mendukung markdown: **tebal**, *miring*, - list)"
                       className={textareaClass}
                     />
                     {renderColorControls('hobbies_intro_color', 'hobbies_intro_color_dark', 'Intro Hobi', '#475569', '#94a3b8')}
@@ -4943,28 +8241,112 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
 
                 {/* Hobbies Items */}
                 <div className="space-y-3">
-                  <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                    Daftar Hobi ({bilingualHobbies.length})
-                  </h5>
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                      Daftar Hobi & Minat ({bilingualHobbies.length})
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={handleAddHobby}
+                      className="px-2.5 py-1 rounded bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tambah Hobi</span>
+                    </button>
+                  </div>
+
                   {bilingualHobbies.map((pair, idx) => {
                     const item = pair[editLang] || pair.en;
                     return (
-                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
-                        <div className="text-[10px] font-bold text-rose-400">#{idx + 1} Hobi</div>
-                        <input
-                          type="text"
-                          value={item?.title || ''}
-                          onChange={(e) => updateBilingualItem('hobbies', pair.baseId, editLang, 'title', e.target.value)}
-                          placeholder="Nama Hobi"
-                          className={inputClass}
-                        />
-                        <textarea
-                          rows={2}
-                          value={item?.description || ''}
-                          onChange={(e) => updateBilingualItem('hobbies', pair.baseId, editLang, 'description', e.target.value)}
-                          placeholder="Deskripsi hobi..."
-                          className={textareaClass}
-                        />
+                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-3`}>
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-700/40">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-rose-400 font-mono">#{idx + 1} Hobi</span>
+                            <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{item?.title || 'Untitled'}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {/* AI Language Transfer Button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSubpageTranslate(
+                                  'hobbies',
+                                  pair.baseId,
+                                  'hobby',
+                                  {
+                                    title: item?.title || '',
+                                    description: item?.description || '',
+                                  },
+                                  {
+                                    itemTypeName: 'Hobi & Minat',
+                                    titleLabel: 'Nama Hobi / Aktivitas',
+                                    descriptionLabel: 'Deskripsi Hobi & Dampak Positif',
+                                  }
+                                )
+                              }
+                              title={`Transfer Bahasa AI: Terjemahkan Hobi #${idx + 1} (ID ↔ EN)`}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-gradient-to-r from-blue-600/25 via-indigo-600/25 to-cyan-600/25 hover:from-blue-600/40 hover:to-indigo-600/40 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              <Languages className="w-3 h-3 text-cyan-400" />
+                              <span>🌍 Transfer Bahasa ({editLang === 'id' ? 'ID → EN' : 'EN → ID'})</span>
+                            </button>
+
+                            {/* Delete button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveHobby(pair.baseId)}
+                              className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded cursor-pointer transition-colors"
+                              title="Hapus Hobi"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Title field with AI Enhance */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">
+                              Nama Hobi ({editLang.toUpperCase()})
+                            </label>
+                            {renderAiButton(
+                              'Nama Hobi',
+                              item?.title || '',
+                              (val) => updateBilingualItem('hobbies', pair.baseId, editLang, 'title', val),
+                              'Nama kegiatan hobi, minat kreatif, atau olahraga.'
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={item?.title || ''}
+                            onChange={(e) => updateBilingualItem('hobbies', pair.baseId, editLang, 'title', e.target.value)}
+                            placeholder="Contoh: Street Photography, Open-Source Contributing"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* Description field with AI Enhance */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">
+                              Deskripsi Hobi ({editLang.toUpperCase()})
+                            </label>
+                            {renderAiButton(
+                              'Deskripsi Hobi',
+                              item?.description || '',
+                              (val) => updateBilingualItem('hobbies', pair.baseId, editLang, 'description', val),
+                              'Deskripsi mengapa Anda menyukai hobi ini, dampaknya bagi kreativitas, dan wawasan yang didapatkan.'
+                            )}
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={item?.description || ''}
+                            onChange={(e) => updateBilingualItem('hobbies', pair.baseId, editLang, 'description', e.target.value)}
+                            placeholder="Deskripsi hobi... (Mendukung Markdown: **tebal**, *miring*, ## Subjudul, - poin)"
+                            className={textareaClass}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -4979,7 +8361,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAddSubpageSection('hobbies')}
-                      className="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Tambah Slide</span>
@@ -4988,31 +8370,85 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                   {getSubpageSections('hobbies').map((pair, idx) => {
                     const item = pair[editLang] || pair.en;
                     return (
-                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-teal-400">#{idx + 1} Slide Cerita</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSubpageSection(pair.baseId)}
-                            className="p-1 text-rose-400 hover:text-rose-300"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                      <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-3`}>
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-700/40 text-[11px]">
+                          <span className="font-bold text-teal-400 font-mono">#{idx + 1} Slide Cerita Hobi</span>
+                          
+                          <div className="flex items-center gap-1.5">
+                            {/* AI Language Transfer Button */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openSubpageTranslate(
+                                  'educationSections',
+                                  pair.baseId,
+                                  'story_slide',
+                                  {
+                                    title: item?.title || '',
+                                    description: item?.content || '',
+                                  },
+                                  {
+                                    itemTypeName: 'Slide Cerita Hobi',
+                                    titleLabel: 'Judul Slide Cerita',
+                                    descriptionLabel: 'Konten Narasi Slide',
+                                  }
+                                )
+                              }
+                              title={`Transfer Bahasa AI: Terjemahkan Slide Cerita #${idx + 1} (ID ↔ EN)`}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-gradient-to-r from-blue-600/25 via-indigo-600/25 to-cyan-600/25 hover:from-blue-600/40 hover:to-indigo-600/40 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-400/60 shadow-sm transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              <Languages className="w-3 h-3 text-cyan-400" />
+                              <span>🌍 Transfer ({editLang === 'id' ? 'ID → EN' : 'EN → ID'})</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSubpageSection(pair.baseId)}
+                              className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded cursor-pointer transition-colors"
+                              title="Hapus Slide Cerita"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          value={item?.title || ''}
-                          onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'title', e.target.value)}
-                          placeholder="Judul Slide"
-                          className={inputClass}
-                        />
-                        <textarea
-                          rows={3}
-                          value={item?.content || ''}
-                          onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'content', e.target.value)}
-                          placeholder="Konten narasi..."
-                          className={textareaClass}
-                        />
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">Judul Slide ({editLang.toUpperCase()})</label>
+                            {renderAiButton(
+                              'Judul Slide Hobi',
+                              item?.title || '',
+                              (val) => updateBilingualItem('educationSections', pair.baseId, editLang, 'title', val),
+                              'Judul slide cerita hobi dan karya sampingan.'
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={item?.title || ''}
+                            onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'title', e.target.value)}
+                            placeholder="Judul Slide"
+                            className={inputClass}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[10px] font-bold text-slate-400">Konten Narasi ({editLang.toUpperCase()})</label>
+                            {renderAiButton(
+                              'Konten Slide Hobi',
+                              item?.content || '',
+                              (val) => updateBilingualItem('educationSections', pair.baseId, editLang, 'content', val),
+                              'Narasi pengalaman, proses kreatif, atau kisah di balik hobi.'
+                            )}
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={item?.content || ''}
+                            onChange={(e) => updateBilingualItem('educationSections', pair.baseId, editLang, 'content', e.target.value)}
+                            placeholder="Konten narasi... (Mendukung Markdown: **tebal**, *miring*, ## Subjudul, - poin)"
+                            className={textareaClass}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -5066,16 +8502,104 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
 
                 {/* Experiences List */}
                 <div className="space-y-3">
-                  <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                    Riwayat Pengalaman ({bilingualExperiences.length})
-                  </h5>
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                      Riwayat Pengalaman ({bilingualExperiences.length})
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={handleAddExperience}
+                      className="px-2 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tambah Pengalaman</span>
+                    </button>
+                  </div>
                   {bilingualExperiences.map((pair, idx) => {
                     const item = pair[editLang] || pair.en;
+                    const bullets = item?.bulletPoints || [];
                     return (
                       <div key={pair.baseId} className={`p-3.5 rounded-xl border ${cardBg} space-y-2`}>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-bold text-emerald-400 font-mono">#{idx + 1} Pengalaman</span>
-                          <span className="font-mono text-[10px] text-slate-400">{item?.period}</span>
+                        <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-slate-700/30">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-emerald-400 font-mono">#{idx + 1} Pengalaman</span>
+                            <span className="font-mono text-[10px] text-slate-400">{item?.period}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => handleMoveExperience(pair.baseId, 'up')}
+                              title={idx === 0 ? 'Sudah di posisi teratas' : 'Pindah ke Atas'}
+                              className={`p-1 rounded hover:bg-slate-700/50 transition-colors cursor-pointer ${
+                                idx === 0 ? 'opacity-25 cursor-not-allowed text-slate-500' : 'text-slate-400 hover:text-emerald-400'
+                              }`}
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === bilingualExperiences.length - 1}
+                              onClick={() => handleMoveExperience(pair.baseId, 'down')}
+                              title={idx === bilingualExperiences.length - 1 ? 'Sudah di posisi terbawah' : 'Pindah ke Bawah'}
+                              className={`p-1 rounded hover:bg-slate-700/50 transition-colors cursor-pointer ${
+                                idx === bilingualExperiences.length - 1 ? 'opacity-25 cursor-not-allowed text-slate-500' : 'text-slate-400 hover:text-emerald-400'
+                              }`}
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicateExperience(pair.baseId)}
+                              className="p-1 text-slate-400 hover:text-slate-200"
+                              title="Duplikat Pengalaman"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExperience(pair.baseId)}
+                              className="p-1 text-rose-400 hover:text-rose-300"
+                              title="Hapus Pengalaman"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Visibilitas Penampilan */}
+                        <div className="flex flex-wrap items-center gap-4 py-1 px-2.5 rounded-lg bg-slate-900/40 border border-slate-700/30 text-[10px]">
+                          <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">Visibilitas:</span>
+                          <label className="flex items-center gap-1.5 font-medium text-slate-300 hover:text-white transition-colors cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={item?.showOnHome !== false && item?.showOnWeb !== false}
+                              onChange={(e) => {
+                                updateBilingualItem('experiences', pair.baseId, editLang, 'showOnHome', e.target.checked);
+                                updateBilingualItem('experiences', pair.baseId, editLang, 'showOnWeb', e.target.checked);
+                              }}
+                              className="w-3 h-3 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Tampilkan di Home / Web</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 font-medium text-slate-300 hover:text-white transition-colors cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={item?.showOnCV !== false}
+                              onChange={(e) => updateBilingualItem('experiences', pair.baseId, editLang, 'showOnCV', e.target.checked)}
+                              className="w-3 h-3 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Tampilkan di CV</span>
+                          </label>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[10px] font-bold text-slate-400">Posisi Pekerjaan ({editLang.toUpperCase()})</label>
+                          {renderAiButton(
+                            'Posisi Pekerjaan',
+                            item?.role || '',
+                            (val) => updateBilingualItem('experiences', pair.baseId, editLang, 'role', val),
+                            'Nama posisi pekerjaan formal'
+                          )}
                         </div>
                         <input
                           type="text"
@@ -5084,21 +8608,88 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           placeholder="Posisi Pekerjaan"
                           className={inputClass}
                         />
-                        <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1">Nama Perusahaan</label>
                           <input
                             type="text"
                             value={item?.company || ''}
                             onChange={(e) => updateBilingualItem('experiences', pair.baseId, editLang, 'company', e.target.value)}
-                            placeholder="Nama Perusahaan"
+                            placeholder="Nama Perusahaan (Contoh: Global Tech Corp)"
                             className={inputClass}
                           />
-                          <input
-                            type="text"
-                            value={item?.period || ''}
-                            onChange={(e) => updateBilingualItem('experiences', pair.baseId, editLang, 'period', e.target.value)}
-                            placeholder="Periode (2022 - Sekarang)"
-                            className={inputClass}
-                          />
+                        </div>
+
+                        {/* Pengaturan Tanggal & Periode Waktu */}
+                        <ExperiencePeriodEditor
+                          item={item}
+                          pairBaseId={pair.baseId}
+                          editLang={editLang}
+                          onDateChange={handleUpdateExperienceDates}
+                          onManualTextChange={handleManualExperiencePeriodChange}
+                          inputClass={inputClass}
+                        />
+
+                        {/* Bullet Points in Subpage view */}
+                        <div className="pt-2 border-t border-slate-700/20 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400">Poin Pencapaian ({bullets.length})</span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => openAiAssistant(
+                                  `Poin Baru (${item?.role || 'Pengalaman Kerja'})`,
+                                  '',
+                                  (val) => {
+                                    const updated = [...bullets, val];
+                                    updateBilingualItem('experiences', pair.baseId, editLang, 'bulletPoints', updated);
+                                  },
+                                  editLang,
+                                  `Buat 1 poin pencapaian profesional untuk posisi ${item?.role || ''} di ${item?.company || ''}. Format Action Verb + Hasil Terukur.`
+                                )}
+                                className="text-[9px] font-bold text-purple-300 hover:text-purple-200 flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 cursor-pointer"
+                              >
+                                <Sparkles className="w-2.5 h-2.5 text-purple-400" />
+                                <span>AI Poin</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAddBulletPoint(pair.baseId, editLang)}
+                                className="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5 cursor-pointer px-1 py-0.5"
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                                <span>Tambah</span>
+                              </button>
+                            </div>
+                          </div>
+                          {bullets.map((point, pIdx) => (
+                            <div key={pIdx} className="p-2 rounded-lg border border-slate-700/30 bg-slate-900/30 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] font-mono text-slate-400">• Poin #{pIdx + 1}</span>
+                                <div className="flex items-center gap-1">
+                                  {renderAiButton(
+                                    `Poin #${pIdx + 1} (${item?.role || 'Pengalaman'})`,
+                                    point,
+                                    (val) => handleUpdateBulletPoint(pair.baseId, editLang, pIdx, val),
+                                    `Poles poin pencapaian ini untuk posisi ${item?.role || ''} di ${item?.company || ''}.`
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveBulletPoint(pair.baseId, editLang, pIdx)}
+                                    className="p-1 text-slate-500 hover:text-rose-400 shrink-0 cursor-pointer"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                              <input
+                                type="text"
+                                value={point}
+                                onChange={(e) => handleUpdateBulletPoint(pair.baseId, editLang, pIdx, e.target.value)}
+                                placeholder={`Poin #${pIdx + 1}...`}
+                                className={`${inputClass} text-[10px] py-1 w-full`}
+                              />
+                            </div>
+                          ))}
                         </div>
                       </div>
                     );
@@ -5487,7 +9078,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
 
                 <div className={`p-4 rounded-xl border ${cardBg} space-y-3`}>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Judul Section Projects ({editLang.toUpperCase()})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">Judul Section Projects / Halaman Proyek ({editLang.toUpperCase()})</label>
+                      {renderAiButton(
+                        'Judul Section Projects',
+                        getWebText('projects_title', editLang),
+                        (val) => handleWebTextChange('projects_title', val, editLang),
+                        'Judul seksi portofolio proyek dan studi kasus pilihan'
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={getWebText('projects_title', editLang)}
@@ -5497,7 +9096,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     {renderColorControls('projects_title_color', 'projects_title_color_dark', 'Judul Projects')}
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Subtitle Section Projects ({editLang.toUpperCase()})</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[10px] font-bold text-slate-400">Subtitle / Deskripsi Section Projects ({editLang.toUpperCase()})</label>
+                      {renderAiButton(
+                        'Subtitle Section Projects',
+                        getWebText('projects_subtitle', editLang),
+                        (val) => handleWebTextChange('projects_subtitle', val, editLang),
+                        'Deskripsi pengantar portofolio proyek dan solusi yang telah dibangun'
+                      )}
+                    </div>
                     <textarea
                       rows={2}
                       value={getWebText('projects_subtitle', editLang)}
@@ -5546,34 +9153,104 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                           </span>
                         </div>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">
-                            Link / URL Gambar Proyek
+                        {/* Project Images (Up to 3 images) */}
+                        <div className="space-y-2 p-2.5 rounded-lg bg-slate-950/40 border border-slate-800/80">
+                          <label className="block text-[11px] font-bold text-slate-300">
+                            Foto / Gambar Proyek (Hingga 3 Gambar)
                           </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={item?.image || ''}
-                              placeholder="https://images.unsplash.com/..."
-                              onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'image', e.target.value)}
-                              className={`${inputClass} flex-1`}
-                            />
-                            {item?.image && (
-                              <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-700/60 shrink-0 bg-slate-950">
-                                <img
-                                  src={item.image}
-                                  alt="Preview"
-                                  referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                                />
-                              </div>
-                            )}
+
+                          {/* Image 1: Main Banner */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-slate-400 mb-0.5">
+                              Gambar 1 — Banner Utama & Kartu Home
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={item?.image || ''}
+                                placeholder="https://images.unsplash.com/... (Banner Utama)"
+                                onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'image', e.target.value)}
+                                className={`${inputClass} flex-1`}
+                              />
+                              {item?.image && (
+                                <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-700/60 shrink-0 bg-slate-950">
+                                  <img
+                                    src={item.image}
+                                    alt="Preview 1"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Image 2: Pop-Up Thumbnail 2 */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-slate-400 mb-0.5">
+                              Gambar 2 — Thumbnail Tambahan Mode Pop-Up
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={item?.image2 || ''}
+                                placeholder="https://images.unsplash.com/... (Gambar 2)"
+                                onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'image2', e.target.value)}
+                                className={`${inputClass} flex-1`}
+                              />
+                              {item?.image2 && (
+                                <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-700/60 shrink-0 bg-slate-950">
+                                  <img
+                                    src={item.image2}
+                                    alt="Preview 2"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Image 3: Pop-Up Thumbnail 3 */}
+                          <div>
+                            <label className="block text-[10px] font-medium text-slate-400 mb-0.5">
+                              Gambar 3 — Thumbnail Tambahan Mode Pop-Up
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={item?.image3 || ''}
+                                placeholder="https://images.unsplash.com/... (Gambar 3)"
+                                onChange={(e) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'image3', e.target.value)}
+                                className={`${inputClass} flex-1`}
+                              />
+                              {item?.image3 && (
+                                <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-700/60 shrink-0 bg-slate-950">
+                                  <img
+                                    src={item.image3}
+                                    alt="Preview 3"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                  />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Judul Proyek ({editLang.toUpperCase()})</label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-bold text-slate-400">Judul Proyek ({editLang.toUpperCase()})</label>
+                            {renderAiButton(
+                              'Judul Proyek',
+                              item?.title || '',
+                              (val) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'title', val),
+                              'Judul studi kasus atau proyek portfolio yang menarik perhatian recruiter'
+                            )}
+                          </div>
                           <input
                             type="text"
                             value={item?.title || ''}
@@ -5583,9 +9260,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">
-                            Deskripsi Singkat (Tampil di Home Card) ({editLang.toUpperCase()})
-                          </label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-bold text-slate-400">
+                              Deskripsi Singkat (Tampil di Home Card) ({editLang.toUpperCase()})
+                            </label>
+                            {renderAiButton(
+                              'Deskripsi Singkat Proyek',
+                              item?.shortDescription || '',
+                              (val) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'shortDescription', val),
+                              `Ringkasan proyek "${item?.title || ''}" dalam 1-2 kalimat padat untuk kartu preview.`
+                            )}
+                          </div>
                           <textarea
                             rows={2}
                             placeholder="Ringkasan 1-2 baris untuk kartu halaman utama..."
@@ -5596,9 +9281,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-400 mb-0.5">
-                            Deskripsi Lengkap (Tampil di Pop-Up & All Projects) ({editLang.toUpperCase()})
-                          </label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-bold text-slate-400">
+                              Deskripsi Lengkap (Tampil di Pop-Up & All Projects) ({editLang.toUpperCase()})
+                            </label>
+                            {renderAiButton(
+                              'Deskripsi Lengkap Proyek',
+                              item?.description || '',
+                              (val) => updateBilingualItem('caseStudies', pair.baseId, editLang, 'description', val),
+                              `Narasi lengkap studi kasus "${item?.title || ''}". Uraikan problem yang diselesaikan, pendekatan analitik/teknis, dan impact bisnis yang dihasilkan.`
+                            )}
+                          </div>
                           <textarea
                             rows={4}
                             placeholder="Narasi studi kasus lengkap..."
@@ -5641,9 +9334,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Hero Badge ({editLang.toUpperCase()})
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Hero Badge ({editLang.toUpperCase()})
+                    </label>
+                    {renderAiButton(
+                      'Hero Badge',
+                      getWebText('hero_badge', editLang),
+                      (val) => handleWebTextChange('hero_badge', val, editLang),
+                      'Label kredensial singkat, misalnya: SENIOR DATA ANALYST | DECISION SCIENTIST'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('hero_badge', editLang)}
@@ -5667,9 +9368,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Wilayah ({editLang.toUpperCase()})
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Wilayah / Lokasi ({editLang.toUpperCase()})
+                    </label>
+                    {renderAiButton(
+                      'Wilayah / Lokasi Hero',
+                      getWebText('hero_location', editLang),
+                      (val) => handleWebTextChange('hero_location', val, editLang),
+                      'Lokasi profesional atau status kerja, contoh: Jakarta, Indonesia atau Remote / Hybrid'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('hero_location', editLang)}
@@ -5680,9 +9389,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Judul Utama Hero ({editLang.toUpperCase()})
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Judul Halaman / Judul Utama Home ({editLang.toUpperCase()})
+                    </label>
+                    {renderAiButton(
+                      'Judul Halaman / Hero',
+                      getWebText('hero_title', editLang),
+                      (val) => handleWebTextChange('hero_title', val, editLang),
+                      'Headline hero yang kuat dan memikat recruiter dalam 3-6 kata (bisa multi-baris)'
+                    )}
+                  </div>
                   <textarea
                     rows={2}
                     value={getWebText('hero_title', editLang)}
@@ -5694,9 +9411,17 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                    Deskripsi / Subtitle Hero ({editLang.toUpperCase()})
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">
+                      Deskripsi Halaman / Subtitle Home ({editLang.toUpperCase()})
+                    </label>
+                    {renderAiButton(
+                      'Deskripsi Halaman / Subtitle Hero',
+                      getWebText('hero_subtitle', editLang),
+                      (val) => handleWebTextChange('hero_subtitle', val, editLang),
+                      'Paragraf hook pengantar yang menjelaskan value proposition, stack utama, dan keunggulan kompetitif'
+                    )}
+                  </div>
                   <textarea
                     rows={4}
                     value={getWebText('hero_subtitle', editLang)}
@@ -5719,10 +9444,57 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Story / About Me ({editLang.toUpperCase()})</span>
                   </h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowMarkdownGuide(!showMarkdownGuide)}
+                    className="px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>{showMarkdownGuide ? 'Tutup Format MD' : 'Panduan Format MD'}</span>
+                  </button>
                 </div>
 
+                {/* Markdown Syntax Guide Box */}
+                {showMarkdownGuide && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/30 space-y-2.5 text-xs text-slate-300 shadow-inner"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                      <span className="font-bold text-emerald-400 text-[11px] flex items-center gap-1">
+                        <span>📝 Format Teks Markdown Aktif</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400">Dukungan penuh di Pengantar &amp; 6 Pilar</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10.5px]">
+                      <div className="space-y-1">
+                        <p><strong className="text-white">Tebal (Bold):</strong> <code className="text-emerald-300 font-mono bg-slate-950 px-1 py-0.5 rounded">**teks tebal**</code></p>
+                        <p><strong className="text-white">Miring (Italic):</strong> <code className="text-emerald-300 font-mono bg-slate-950 px-1 py-0.5 rounded">*teks miring*</code></p>
+                        <p><strong className="text-white">Tautan / Link:</strong> <code className="text-emerald-300 font-mono bg-slate-950 px-1 py-0.5 rounded">[Teks](https://...)</code></p>
+                      </div>
+                      <div className="space-y-1">
+                        <p><strong className="text-white">Sub Judul:</strong> <code className="text-emerald-300 font-mono bg-slate-950 px-1 py-0.5 rounded">### Judul Bagian</code></p>
+                        <p><strong className="text-white">Poin List:</strong> <code className="text-emerald-300 font-mono bg-slate-950 px-1 py-0.5 rounded">- Poin pertama</code></p>
+                        <p><strong className="text-white">Kode / Tag:</strong> <code className="text-emerald-300 font-mono bg-slate-950 px-1 py-0.5 rounded">`highlight`</code></p>
+                      </div>
+                    </div>
+                    <p className="text-[9.5px] text-slate-400 italic pt-1 border-t border-slate-800/80">
+                      💡 Tautan yang Anda buat akan otomatis membuka tab baru dengan aman dan tidak akan bentrok dengan kartu navigasi.
+                    </p>
+                  </motion.div>
+                )}
+
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Judul Halaman Kisah ({editLang.toUpperCase()})</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Judul Halaman Kisah ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Judul Halaman Kisah',
+                      getWebText('about_story_title', editLang),
+                      (val) => handleWebTextChange('about_story_title', val, editLang),
+                      'Judul halaman narasi perjalanan pribadi dan profesional'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('about_story_title', editLang)}
@@ -5733,7 +9505,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Paragraf Pengantar Utama ({editLang.toUpperCase()})</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Paragraf Pengantar Utama ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Pengantar Kisah Story',
+                      getWebText('about_story_intro', editLang),
+                      (val) => handleWebTextChange('about_story_intro', val, editLang),
+                      'Narasi storytelling tentang filosofi kerja, motivasi di dunia data/teknologi, dan prinsip integritas'
+                    )}
+                  </div>
                   <textarea
                     rows={4}
                     value={getWebText('about_story_intro', editLang)}
@@ -5748,9 +9528,16 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     6 Pilar Nilai (Kiri &amp; Kanan) ({editLang.toUpperCase()})
                   </h5>
                   <div className="space-y-3">
-                    {[1, 2, 3].map((num) => (
+                    {[
+                      { num: 1, label: editLang === 'id' ? 'Pilar Kiri #1: Pendidikan' : 'Left Pillar #1: Educational Background', sub: '#/educational' },
+                      { num: 2, label: editLang === 'id' ? 'Pilar Kiri #2: Kepribadian & Nilai' : 'Left Pillar #2: Personality & Values', sub: '#/personality' },
+                      { num: 3, label: editLang === 'id' ? 'Pilar Kiri #3: Hobi & Minat' : 'Left Pillar #3: Hobbies & Interests', sub: '#/hobbies' },
+                    ].map(({ num, label, sub }) => (
                       <div key={num} className={`p-3 rounded-lg border ${cardBg} space-y-2`}>
-                        <div className="text-[10px] font-bold text-emerald-500">Pilar Kiri #{num}</div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-bold text-emerald-500">{label}</div>
+                          <span className="text-[9px] text-slate-400 font-mono">{sub}</span>
+                        </div>
                         <input
                           type="text"
                           value={getWebText(`about_story_left_${num}_title`, editLang)}
@@ -5767,9 +9554,16 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                         />
                       </div>
                     ))}
-                    {[1, 2, 3].map((num) => (
+                    {[
+                      { num: 1, label: editLang === 'id' ? 'Pilar Kanan #1: Perjalanan Karir' : 'Right Pillar #1: Career Journey', sub: '#/career-journey' },
+                      { num: 2, label: editLang === 'id' ? 'Pilar Kanan #2: Keahlian & Arsenal' : 'Right Pillar #2: Skills & Technical Arsenal', sub: '#/skills' },
+                      { num: 3, label: editLang === 'id' ? 'Pilar Kanan #3: Studi Kasus & Proyek' : 'Right Pillar #3: Projects & Case Studies', sub: '#/projects' },
+                    ].map(({ num, label, sub }) => (
                       <div key={num} className={`p-3 rounded-lg border ${cardBg} space-y-2`}>
-                        <div className="text-[10px] font-bold text-indigo-400">Pilar Kanan #{num}</div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] font-bold text-indigo-400">{label}</div>
+                          <span className="text-[9px] text-slate-400 font-mono">{sub}</span>
+                        </div>
                         <input
                           type="text"
                           value={getWebText(`about_story_right_${num}_title`, editLang)}
@@ -5880,7 +9674,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Judul Section Skills</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Judul Section Skills ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Judul Section Skills',
+                      getWebText('skills_title', editLang),
+                      (val) => handleWebTextChange('skills_title', val, editLang),
+                      'Judul seksi keahlian teknis, stack teknologi, dan competencies'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('skills_title', editLang)}
@@ -5891,7 +9693,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Subtitle Section Skills</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Subtitle Section Skills ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Subtitle Section Skills',
+                      getWebText('skills_subtitle', editLang),
+                      (val) => handleWebTextChange('skills_subtitle', val, editLang),
+                      'Deskripsi singkat penguasaan tools, bahasa pemrograman, dan metodologi kerja'
+                    )}
+                  </div>
                   <textarea
                     rows={2}
                     value={getWebText('skills_subtitle', editLang)}
@@ -5902,7 +9712,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Deskripsi Ringkasan Kategori (Di bawah Emblem Lingkaran Home)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Deskripsi Ringkasan Kategori (Di bawah Emblem Lingkaran Home)</label>
+                    {renderAiButton(
+                      'Deskripsi Ringkasan Kategori Skills',
+                      getWebText('skills_home_group_desc', editLang),
+                      (val) => handleWebTextChange('skills_home_group_desc', val, editLang),
+                      'Penjelasan singkat pengelompokan skill di halaman beranda'
+                    )}
+                  </div>
                   <textarea
                     rows={2}
                     value={getWebText('skills_home_group_desc', editLang)}
@@ -6262,7 +10080,7 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
             {/* SECTION 10: EXPERIENCES (MAIN SECTION) */}
             {/* ==================================================================== */}
             {currentCategory === 'experiences' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
                   <h4 className="font-bold text-xs uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
                     <Briefcase className="w-3.5 h-3.5" />
@@ -6271,7 +10089,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Judul Section Experience</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Judul Section Experience ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Judul Section Experience',
+                      getWebText('experience_title', editLang),
+                      (val) => handleWebTextChange('experience_title', val, editLang),
+                      'Judul seksi pengalaman kerja profesional dan rekam jejak industri'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('experience_title', editLang)}
@@ -6282,7 +10108,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Subtitle Section Experience</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Subtitle Section Experience ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Subtitle Section Experience',
+                      getWebText('experience_subtitle', editLang),
+                      (val) => handleWebTextChange('experience_subtitle', val, editLang),
+                      'Deskripsi singkat pengantar rekam jejak karir dan pencapaian profesional'
+                    )}
+                  </div>
                   <textarea
                     rows={2}
                     value={getWebText('experience_subtitle', editLang)}
@@ -6290,6 +10124,297 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                     className={textareaClass}
                   />
                   {renderColorControls('experience_subtitle_color', 'experience_subtitle_color_dark', 'Subtitle Experience', '#475569', '#94a3b8')}
+                </div>
+
+                {/* Daftar Pengalaman Kerja & Poin-poin */}
+                <div className="pt-2 border-t border-slate-700/40 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-200 uppercase tracking-wide flex items-center gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Daftar Pengalaman Kerja ({bilingualExperiences.length})</span>
+                      </h5>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Kelola posisi, perusahaan, periode, tools, dan rincian poin-poin pencapaian kerja.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddExperience}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Tambah Pengalaman</span>
+                    </button>
+                  </div>
+
+                  {bilingualExperiences.length === 0 ? (
+                    <div className={`p-6 rounded-xl border text-center ${isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                      <Briefcase className="w-8 h-8 text-slate-500 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs font-bold text-slate-300">Belum Ada Riwayat Pengalaman Kerja</p>
+                      <p className="text-[11px] text-slate-500 mt-1 mb-3">Klik tombol di bawah untuk menambahkan pengalaman kerja pertama Anda.</p>
+                      <button
+                        type="button"
+                        onClick={handleAddExperience}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Tambah Pengalaman Sekarang</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {bilingualExperiences.map((pair, idx) => {
+                        const item = pair[editLang] || pair.en;
+                        const bullets = item?.bulletPoints || [];
+                        const tools = item?.tools || [];
+
+                        return (
+                          <div
+                            key={pair.baseId}
+                            className={`p-4 rounded-xl border ${cardBg} space-y-3.5 transition-all shadow-sm`}
+                          >
+                            {/* Header Item */}
+                            <div className="flex items-center justify-between pb-2 border-b border-slate-700/30">
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold flex items-center justify-center">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <span className="font-bold text-xs text-slate-200">
+                                    {item?.role || 'Posisi Pekerjaan'}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 block font-mono">
+                                    {item?.company || 'Perusahaan'} • {item?.period || 'Periode'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => handleMoveExperience(pair.baseId, 'up')}
+                                  title={idx === 0 ? 'Sudah berada di posisi paling atas' : 'Pindah ke Atas (Urutkan Lebih Awal)'}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    idx === 0
+                                      ? 'opacity-25 cursor-not-allowed text-slate-500'
+                                      : 'hover:bg-slate-700/50 text-slate-400 hover:text-emerald-400'
+                                  }`}
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === bilingualExperiences.length - 1}
+                                  onClick={() => handleMoveExperience(pair.baseId, 'down')}
+                                  title={idx === bilingualExperiences.length - 1 ? 'Sudah berada di posisi paling bawah' : 'Pindah ke Bawah (Urutkan Lebih Akhir)'}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    idx === bilingualExperiences.length - 1
+                                      ? 'opacity-25 cursor-not-allowed text-slate-500'
+                                      : 'hover:bg-slate-700/50 text-slate-400 hover:text-emerald-400'
+                                  }`}
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpTranslateModalState({
+                                      isOpen: true,
+                                      experienceBaseId: pair.baseId,
+                                      sourceLang: editLang,
+                                      sourceData: {
+                                        role: item?.role || '',
+                                        company: item?.company || '',
+                                        period: item?.period || '',
+                                        bulletPoints: bullets,
+                                      },
+                                    });
+                                  }}
+                                  title={`Transfer & terjemahkan item pekerjaan ini ke bahasa ${editLang === 'id' ? 'Inggris (EN)' : 'Indonesia (ID)'} via AI`}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 hover:text-white border border-purple-500/30 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                                >
+                                  <Languages className="w-3.5 h-3.5 text-purple-400" />
+                                  <span>Transfer ke {editLang === 'id' ? 'EN' : 'ID'} (AI)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicateExperience(pair.baseId)}
+                                  title="Duplikat Pengalaman"
+                                  className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveExperience(pair.baseId)}
+                                  title="Hapus Pengalaman"
+                                  className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Visibilitas Penampilan */}
+                            <div className="flex flex-wrap items-center gap-4 p-2.5 rounded-lg bg-slate-900/40 border border-slate-700/30">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Visibilitas:</span>
+                              <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300 hover:text-white transition-colors cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={item?.showOnHome !== false && item?.showOnWeb !== false}
+                                  onChange={(e) => {
+                                    updateBilingualItem('experiences', pair.baseId, editLang, 'showOnHome', e.target.checked);
+                                    updateBilingualItem('experiences', pair.baseId, editLang, 'showOnWeb', e.target.checked);
+                                  }}
+                                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
+                                />
+                                <span>Tampilkan di Home / Web</span>
+                              </label>
+                              <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300 hover:text-white transition-colors cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={item?.showOnCV !== false}
+                                  onChange={(e) => updateBilingualItem('experiences', pair.baseId, editLang, 'showOnCV', e.target.checked)}
+                                  className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-0 cursor-pointer"
+                                />
+                                <span>Tampilkan di CV</span>
+                              </label>
+                            </div>
+
+                            {/* Form Input Utama */}
+                            <div className="space-y-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                                  Posisi / Job Role ({editLang.toUpperCase()})
+                                </label>
+                                <input
+                                  type="text"
+                                  value={item?.role || ''}
+                                  onChange={(e) => updateBilingualItem('experiences', pair.baseId, editLang, 'role', e.target.value)}
+                                  placeholder="Contoh: Senior Data Engineer"
+                                  className={inputClass}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                                  Nama Perusahaan
+                                </label>
+                                <input
+                                  type="text"
+                                  value={item?.company || ''}
+                                  onChange={(e) => updateBilingualItem('experiences', pair.baseId, editLang, 'company', e.target.value)}
+                                  placeholder="Contoh: PT Teknologi Bangsa"
+                                  className={inputClass}
+                                />
+                              </div>
+
+                              {/* Pengaturan Tanggal & Periode Waktu */}
+                              <ExperiencePeriodEditor
+                                item={item}
+                                pairBaseId={pair.baseId}
+                                editLang={editLang}
+                                onDateChange={handleUpdateExperienceDates}
+                                onManualTextChange={handleManualExperiencePeriodChange}
+                                inputClass={inputClass}
+                              />
+
+                              {/* Tools / Tags */}
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1">
+                                  Tools / Tech Stack (Dipisahkan Koma)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={tools.join(', ')}
+                                  onChange={(e) => {
+                                    const parsed = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                                    updateBilingualItem('experiences', pair.baseId, editLang, 'tools', parsed);
+                                  }}
+                                  placeholder="Python, SQL, Apache Kafka, BigQuery"
+                                  className={inputClass}
+                                />
+                              </div>
+                            </div>
+
+                            {/* POIN-POIN PENGALAMAN (BULLET POINTS) - MODEL TUNGGAL AI PER PEKERJAAN */}
+                            <div className="pt-2 border-t border-slate-700/20 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                                  <span>Poin-Poin Pencapaian & Tanggung Jawab ({bullets.length})</span>
+                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400 uppercase">
+                                    {editLang.toUpperCase()}
+                                  </span>
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setJobAiModalState({
+                                        isOpen: true,
+                                        experienceBaseId: pair.baseId,
+                                        role: item?.role || '',
+                                        company: item?.company || '',
+                                        existingBullets: bullets,
+                                      })
+                                    }
+                                    className="text-[10px] font-bold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 flex items-center gap-1.5 py-1 px-2.5 rounded-lg shadow-sm border border-purple-400/30 transition-all cursor-pointer"
+                                    title="Jelaskan pekerjaan Anda dan AI akan merumuskan poin-poin pencapaian dengan variasi rekomendasi"
+                                  >
+                                    <Sparkles className="w-3 h-3 text-amber-300" />
+                                    <span>✨ AI Rumuskan Poin Pekerjaan</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddBulletPoint(pair.baseId, editLang)}
+                                    className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 py-1 px-2 rounded hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    <span>Tambah Manual</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {bullets.length === 0 ? (
+                                <p className="text-[11px] text-slate-500 italic py-1">
+                                  Belum ada rincian poin. Klik "✨ AI Rumuskan Poin Pekerjaan" untuk menceritakan tugas Anda, atau klik "+ Tambah Manual".
+                                </p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {bullets.map((point, pIdx) => (
+                                    <div key={pIdx} className="p-2.5 rounded-lg border border-slate-700/40 bg-slate-900/30 space-y-1.5">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold text-slate-400 font-mono flex items-center gap-1">
+                                          <span className="text-emerald-400">•</span> Poin #{pIdx + 1}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveBulletPoint(pair.baseId, editLang, pIdx)}
+                                          title="Hapus Poin Ini"
+                                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                      <textarea
+                                        rows={2}
+                                        value={point}
+                                        onChange={(e) => handleUpdateBulletPoint(pair.baseId, editLang, pIdx, e.target.value)}
+                                        placeholder={`Poin pencapaian #${pIdx + 1}...`}
+                                        className={`${textareaClass} text-[11px] leading-relaxed w-full`}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -6307,7 +10432,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Judul Section Contact</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Judul Section Contact ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Judul Section Contact',
+                      getWebText('contact_title', editLang),
+                      (val) => handleWebTextChange('contact_title', val, editLang),
+                      'Judul ajakan untuk berkolaborasi atau menghubungi Anda'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('contact_title', editLang)}
@@ -6318,7 +10451,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Subtitle Section Contact</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Subtitle Section Contact ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Subtitle Section Contact',
+                      getWebText('contact_subtitle', editLang),
+                      (val) => handleWebTextChange('contact_subtitle', val, editLang),
+                      'Kalimat undangan ramah dan terbuka untuk diskusi peluang kerja atau proyek'
+                    )}
+                  </div>
                   <textarea
                     rows={3}
                     value={getWebText('contact_subtitle', editLang)}
@@ -6356,7 +10497,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Job Title / Posisi ({editLang.toUpperCase()})</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Job Title / Posisi ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Job Title / Posisi',
+                      getWebText('title', editLang) || (editLang === 'id' ? (ID_TRANSLATIONS as any).title : localData.title),
+                      (val) => handleWebTextChange('title', val, editLang),
+                      'Fokuskan pada spesialisasi data analytics, AI, atau software engineering'
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={getWebText('title', editLang) || (editLang === 'id' ? (ID_TRANSLATIONS as any).title : localData.title)}
@@ -6367,7 +10516,15 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">Ringkasan Professional / About Me ({editLang.toUpperCase()})</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-400">Ringkasan Professional / About Me ({editLang.toUpperCase()})</label>
+                    {renderAiButton(
+                      'Ringkasan Professional / About Me',
+                      getWebText('aboutMe', editLang) || (editLang === 'id' ? (ID_TRANSLATIONS as any).aboutMe : localData.aboutMe || ''),
+                      (val) => handleWebTextChange('aboutMe', val, editLang),
+                      'Ringkasan eksekutif 2-3 kalimat yang menonjolkan keahlian data, pemecahan masalah bisnis, dan nilai tambah'
+                    )}
+                  </div>
                   <textarea
                     rows={5}
                     value={getWebText('aboutMe', editLang) || (editLang === 'id' ? (ID_TRANSLATIONS as any).aboutMe : localData.aboutMe || '')}
@@ -6390,6 +10547,10 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                 {editorMode === 'assets' ? (
                   <span>
                     Perubahan pola background, warna tema, foto avatar, dan aset visual akan langsung ter-render secara real-time di layar. Klik <strong>"Simpan Draft"</strong> untuk menyimpan permanen.
+                  </span>
+                ) : editorMode === 'social' ? (
+                  <span>
+                    Kelola tautan sosial media, narahubung utama, dan visibilitas di Web serta Header/Footer CV. Klik <strong>"Simpan Draft"</strong> untuk menyimpan permanen.
                   </span>
                 ) : (
                   <span>
@@ -6443,6 +10604,81 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
             </>
           )}
         </motion.div>
+      )}
+
+      {/* AI Assistant Dialog Modal */}
+      <AIAssistantModal
+        isOpen={aiModalState.isOpen}
+        onClose={() => setAiModalState((prev) => ({ ...prev, isOpen: false }))}
+        fieldLabel={aiModalState.fieldLabel}
+        currentValue={aiModalState.currentValue}
+        targetLang={aiModalState.targetLang}
+        onApply={aiModalState.onApply}
+        contextHint={aiModalState.contextHint}
+      />
+
+      {/* Dedicated Per-Job AI Assistant Modal */}
+      <JobExperienceAiModal
+        isOpen={jobAiModalState.isOpen}
+        onClose={() => setJobAiModalState((prev) => ({ ...prev, isOpen: false }))}
+        role={jobAiModalState.role}
+        company={jobAiModalState.company}
+        existingBullets={jobAiModalState.existingBullets}
+        lang={editLang}
+        isDark={theme === 'dark'}
+        onApply={(newBullets) => {
+          updateBilingualItem('experiences', jobAiModalState.experienceBaseId, editLang, 'bulletPoints', newBullets);
+        }}
+      />
+
+      {/* Dedicated Per-Job AI Language Transfer Modal */}
+      <ExperienceTranslateModal
+        isOpen={expTranslateModalState.isOpen}
+        onClose={() => setExpTranslateModalState((prev) => ({ ...prev, isOpen: false }))}
+        experienceBaseId={expTranslateModalState.experienceBaseId}
+        sourceLang={expTranslateModalState.sourceLang}
+        sourceData={expTranslateModalState.sourceData}
+        isDark={theme === 'dark'}
+        onApply={handleApplyExperienceTranslation}
+      />
+
+      {/* Generic Subpage Item AI Language Transfer Modal (Personality, Hobbies, Story Slides, etc.) */}
+      <SubpageItemTranslateModal
+        isOpen={subpageTranslateModalState.isOpen}
+        onClose={() => setSubpageTranslateModalState((prev) => ({ ...prev, isOpen: false }))}
+        baseId={subpageTranslateModalState.baseId}
+        itemType={subpageTranslateModalState.itemType}
+        sourceLang={subpageTranslateModalState.sourceLang}
+        sourceData={subpageTranslateModalState.sourceData}
+        isDark={theme === 'dark'}
+        labels={subpageTranslateModalState.labels}
+        onApply={handleApplySubpageTranslation}
+      />
+
+      {/* Dedicated Methodology AI Language Transfer Modal */}
+      {methodologyTranslateModalOpen && (
+        <SubpageItemTranslateModal
+          isOpen={methodologyTranslateModalOpen}
+          onClose={() => setMethodologyTranslateModalOpen(false)}
+          baseId="core-methodology"
+          itemType="methodology"
+          sourceLang={editLang}
+          sourceData={{
+            title: editLang === 'id'
+              ? (localData.webTexts?.[`methodologyTitle_id`] || (localData.webTexts?.methodologyTitle && editLang === 'id' ? localData.webTexts.methodologyTitle : '') || localData.methodologyTitle || (ID_TRANSLATIONS as any).methodologyTitle || 'Metodologi Utama')
+              : (localData.webTexts?.[`methodologyTitle_en`] || (localData.webTexts?.methodologyTitle && editLang === 'en' ? localData.webTexts.methodologyTitle : '') || localData.methodologyTitle || 'Core Methodology'),
+            description: editLang === 'id'
+              ? (localData.webTexts?.[`methodologyText_id`] || (localData.webTexts?.methodologyText && editLang === 'id' ? localData.webTexts.methodologyText : '') || localData.methodologyText || (ID_TRANSLATIONS as any).methodologyText || '')
+              : (localData.webTexts?.[`methodologyText_en`] || (localData.webTexts?.methodologyText && editLang === 'en' ? localData.webTexts.methodologyText : '') || localData.methodologyText || '')
+          }}
+          isDark={theme === 'dark'}
+          labels={{
+            itemTypeName: 'Core Methodology',
+            titleLabel: 'Judul Seksi Metodologi',
+            descriptionLabel: 'Deskripsi & Filosofi Metodologi'
+          }}
+          onApply={handleApplyMethodologyTranslation}
+        />
       )}
     </AnimatePresence>
   );
