@@ -1463,46 +1463,46 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
       <motion.div 
         key="resume-modal-backdrop"
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1, transition: { duration: 0.25 } }}
+        animate={{ opacity: 1, transition: { duration: 0.35, ease: "easeOut" } }}
         exit={{ 
           opacity: 0, 
           transition: { 
-            duration: 0.65, 
-            delay: 0.38, // Synchronized with line shrink
+            duration: 0.45, 
+            delay: 0.22, // Synchronized with line shrink
             ease: "easeInOut" 
           } 
         }}
         onClick={onClose}
         className={directDownload 
           ? "fixed -top-[9999px] -left-[9999px] opacity-0 pointer-events-none w-[800px] overflow-hidden"
-          : "fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[250] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto"
+          : "fixed inset-0 bg-slate-950/90 sm:backdrop-blur-sm z-[250] flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto"
         }
       >
         <div 
-          className="relative w-full max-w-4xl lg:max-w-5xl flex flex-col pointer-events-auto my-auto"
+          className="relative w-full max-w-4xl lg:max-w-5xl flex flex-col pointer-events-auto my-auto rounded-2xl shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* STEP 1 (Open: Expand from center | Close: STEP 2 Shrinks to center simultaneously as background clears, retaining full opacity and crisp glow independently) */}
+          {/* STEP 1 (Open: Smooth elegant line expansion from center | Close: Shrinks into center) */}
           <motion.div
             key="resume-modal-line"
             initial={{ scaleX: 0, opacity: 0 }}
             animate={{ 
               scaleX: 1, 
               opacity: 1,
-              transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } 
+              transition: { duration: 0.52, ease: [0.16, 1, 0.3, 1] } 
             }}
             exit={{ 
               scaleX: 0, 
               opacity: 0, 
               transition: { 
                 scaleX: { 
-                  duration: 0.65, 
-                  delay: 0.38, 
+                  duration: 0.45, 
+                  delay: 0.22, 
                   ease: [0.22, 1, 0.36, 1] 
                 },
                 opacity: { 
-                  duration: 0.08, 
-                  delay: 0.98,
+                  duration: 0.12, 
+                  delay: 0.58,
                   ease: "easeOut" 
                 }
               } 
@@ -1510,7 +1510,9 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             style={{ 
               transformOrigin: 'center center',
               background: lineStyles.background,
-              boxShadow: lineStyles.boxShadow
+              boxShadow: lineStyles.boxShadow,
+              willChange: 'transform, opacity',
+              transform: 'translateZ(0)'
             }}
             className="relative h-2.5 sm:h-3 w-full rounded-t-xl z-30 shrink-0 border-t border-white/20"
           >
@@ -1524,41 +1526,44 @@ export default function ResumeModal({ onClose, cvData, onUpdate, theme = 'light'
             />
           </motion.div>
 
-          {/* STEP 2 (Open: Unhide downwards | Close: STEP 1 Fold up into the line) */}
+          {/* STEP 2 (Open: Luxurious slow & smooth downward unhide | Close: STEP 1 Smooth fold up into line) */}
           <motion.div
             key="resume-modal-body"
             initial={{ 
               opacity: 0, 
-              scaleY: 0, 
               clipPath: 'inset(0% 0% 100% 0%)' 
             }}
             animate={{ 
               opacity: 1, 
-              scaleY: 1, 
               clipPath: 'inset(0% 0% 0% 0%)',
               transition: { 
-                duration: 0.52, 
-                delay: 0.45, // Delay on open so line finishes expanding first
-                ease: [0.22, 1, 0.36, 1],
-                opacity: { duration: 0.35, delay: 0.45 }
+                duration: 0.62, 
+                delay: 0.26, // Smooth overlap as line reaches near full width
+                ease: [0.16, 1, 0.3, 1],
+                opacity: { duration: 0.45, delay: 0.26, ease: "easeOut" }
               }
             }}
             exit={{ 
               opacity: 0, 
-              scaleY: 0, 
               clipPath: 'inset(0% 0% 100% 0%)',
               transition: { 
-                duration: 0.36, 
-                delay: 0, // STEP 1 on close: Immediately folds up into line without shifting the line
+                duration: 0.42, 
+                delay: 0, // Folds up smoothly into line first
                 ease: [0.22, 1, 0.36, 1],
-                opacity: { duration: 0.22 }
+                opacity: { duration: 0.32, ease: "easeIn" }
               }
             }}
-            style={{ transformOrigin: 'top center' }}
-            className={`relative rounded-b-2xl shadow-2xl border border-t-0 w-full overflow-hidden transition-colors flex flex-col max-h-[90vh] sm:max-h-[92vh] ${
+            style={{ 
+              transformOrigin: 'top center',
+              willChange: 'clip-path, opacity',
+              transform: 'translateZ(0)',
+              WebkitBackfaceVisibility: 'hidden',
+              backfaceVisibility: 'hidden'
+            }}
+            className={`relative rounded-b-2xl border border-t-0 w-full overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[92vh] ${
               isDark 
-                ? 'bg-slate-900 border-slate-800 text-slate-100 shadow-slate-950/80' 
-                : 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+                ? 'bg-slate-900 border-slate-800 text-slate-100' 
+                : 'bg-white border-slate-200 text-slate-800'
             }`}
           >
         {/* Force exact A4 sizes on print automatically and strip default browser watermarks */}

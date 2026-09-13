@@ -282,15 +282,26 @@ export default function AboutMeStoryPage({
       />
 
       {/* FULL-PAGE 3D PHYSICS LANYARD CANVAS (Layered ABOVE feature points, but BELOW header/title) */}
-      <div className="absolute inset-0 w-full h-full z-20 pointer-events-auto overflow-hidden touch-none">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="absolute inset-0 w-full h-full z-20 pointer-events-auto overflow-hidden touch-none"
+      >
         <Lanyard 
           position={[0, 0, 19]} 
-          gravity={[0, -40, 0]} 
+          gravity={[0, -25, 0]} 
           fov={20}
-          cardScale={1.85}
-          mobileCardScale={1.12}
-          lanyardWidth={0.38}
-          mobileLanyardWidth={0.24}
+          cardScale={1.55}
+          mobileCardScale={1.10}
+          anchorY={5.0}
+          targetCenterY={-0.25}
+          startY={3.8}
+          mobileAnchorY={4.2}
+          mobileTargetCenterY={-0.15}
+          mobileStartY={3.2}
+          lanyardWidth={0.46}
+          mobileLanyardWidth={0.28}
           lanyardText={(() => {
             if (cvData.nickname && cvData.nickname.trim()) return `Portfolio ${cvData.nickname.trim()}`;
             if (!cvData.name || !cvData.name.trim()) return 'Portfolio Zufar';
@@ -303,7 +314,7 @@ export default function AboutMeStoryPage({
           imageFit="cover"
           className="w-full h-full"
         />
-      </div>
+      </motion.div>
 
       <div className="max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1560px] mx-auto relative z-30 pointer-events-none">
         

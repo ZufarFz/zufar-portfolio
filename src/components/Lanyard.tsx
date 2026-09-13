@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unknown-property */
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
-import { Canvas, extend, useFrame } from '@react-three/fiber';
+import { Canvas, extend, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useTexture, Environment, Lightformer } from '@react-three/drei';
 import { BallCollider, CuboidCollider, Physics, RigidBody, useRopeJoint, useSphericalJoint } from '@react-three/rapier';
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline';
@@ -44,12 +44,18 @@ export interface LanyardProps {
   mobileLanyardWidth?: number;
   cardScale?: number;
   mobileCardScale?: number;
+  anchorY?: number;
+  mobileAnchorY?: number;
+  targetCenterY?: number;
+  mobileTargetCenterY?: number;
+  startY?: number;
+  mobileStartY?: number;
   className?: string;
 }
 
 export default function Lanyard({
   position = [0, 0, 19],
-  gravity = [0, -40, 0],
+  gravity = [0, -25, 0],
   fov = 20,
   transparent = true,
   frontImage = null,
@@ -57,10 +63,16 @@ export default function Lanyard({
   imageFit = 'cover',
   lanyardImage = null,
   lanyardText = null,
-  lanyardWidth = 0.38,
-  mobileLanyardWidth = 0.25,
-  cardScale = 1.85,
-  mobileCardScale = 1.15,
+  lanyardWidth = 0.46,
+  mobileLanyardWidth = 0.28,
+  cardScale = 1.55,
+  mobileCardScale = 1.10,
+  anchorY = 5.0,
+  mobileAnchorY = 4.2,
+  targetCenterY = -0.25,
+  mobileTargetCenterY = -0.15,
+  startY = 3.8,
+  mobileStartY = 3.2,
   className = ''
 }: LanyardProps) {
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
@@ -72,15 +84,25 @@ export default function Lanyard({
   }, []);
 
   const activeCardScale = isMobile ? (mobileCardScale ?? 1.15) : cardScale;
-  const activeLanyardWidth = isMobile ? (mobileLanyardWidth ?? 0.25) : lanyardWidth;
+  const activeLanyardWidth = isMobile ? (mobileLanyardWidth ?? 0.36) : lanyardWidth;
+  const activeAnchorY = isMobile ? (mobileAnchorY ?? 3.8) : anchorY;
+  const activeTargetCenterY = isMobile ? (mobileTargetCenterY ?? -0.45) : targetCenterY;
+  const activeStartY = isMobile ? (mobileStartY ?? 3.0) : startY;
 
   return (
     <div className={`lanyard-wrapper ${className}`} style={{ touchAction: 'none' }}>
       <Canvas
         camera={{ position: position, fov: fov }}
-        dpr={[1, 2]}
+        dpr={isMobile ? 1 : [1, 1.5]}
         performance={{ min: 0.8 }}
-        gl={{ alpha: transparent, antialias: true, powerPreference: 'high-performance' }}
+        gl={{ 
+          alpha: transparent, 
+          antialias: !isMobile, 
+          powerPreference: 'high-performance',
+          depth: true,
+          stencil: false,
+          preserveDrawingBuffer: false
+        }}
         onCreated={({ gl }) => {
           gl.setClearColor(new THREE.Color(0x000000), transparent ? 0 : 1);
           gl.domElement.style.touchAction = 'none';
@@ -90,7 +112,7 @@ export default function Lanyard({
         <ambientLight intensity={2.8} />
         <directionalLight position={[4, 8, 6]} intensity={1.5} />
         <Suspense fallback={null}>
-          <Physics gravity={gravity} timeStep={1 / 60} numSolverIterations={2}>
+          <Physics gravity={gravity} timeStep={1 / 60} numSolverIterations={3}>
             <Band
               isMobile={isMobile}
               frontImage={frontImage}
@@ -100,6 +122,9 @@ export default function Lanyard({
               lanyardText={lanyardText}
               lanyardWidth={activeLanyardWidth}
               cardScale={activeCardScale}
+              anchorY={activeAnchorY}
+              targetCenterY={activeTargetCenterY}
+              startY={activeStartY}
             />
           </Physics>
         </Suspense>
@@ -119,6 +144,9 @@ interface BandProps {
   lanyardText?: string | null;
   lanyardWidth?: number;
   cardScale?: number;
+  anchorY?: number;
+  targetCenterY?: number;
+  startY?: number;
 }
 
 function Band({
@@ -130,9 +158,13 @@ function Band({
   imageFit = 'cover',
   lanyardImage = null,
   lanyardText = null,
-  lanyardWidth = 0.38,
-  cardScale = 1.85
+  lanyardWidth = 0.80,
+  cardScale = 1.85,
+  anchorY = 4.5,
+  targetCenterY = -1.25,
+  startY = 3.2
 }: BandProps) {
+  const { size } = useThree();
   const band = useRef<any>(null);
   const fixed = useRef<any>(null);
   const j1 = useRef<any>(null);
@@ -153,19 +185,21 @@ function Band({
   const quat = useMemo(() => new THREE.Quaternion(), []);
   const euler = useMemo(() => new THREE.Euler(), []);
 
+  const resolution = useMemo(() => new THREE.Vector2(size.width, size.height), [size.width, size.height]);
+
   const segmentProps = useMemo(() => ({
     type: 'dynamic' as const,
     canSleep: true,
     colliders: false as const,
-    angularDamping: 2,
-    linearDamping: 2
+    angularDamping: 3.5,
+    linearDamping: 3.5
   }), []);
 
   const cardProps = useMemo(() => ({
     canSleep: true,
     colliders: false as const,
-    angularDamping: 1.0,
-    linearDamping: 1.6
+    angularDamping: 2.2,
+    linearDamping: 2.2
   }), []);
 
   const { nodes, materials } = useGLTF(cardGLB) as any;
@@ -181,49 +215,55 @@ function Band({
     }
 
     const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 128;
+    canvas.width = isMobile ? 1024 : 2048;
+    canvas.height = isMobile ? 80 : 128;
     const ctx = canvas.getContext('2d');
     if (!ctx) return rawTexture;
 
+    const w = canvas.width;
+    const h = canvas.height;
+
     // Dark sleek lanyard strap background
     ctx.fillStyle = '#090d16';
-    ctx.fillRect(0, 0, 2048, 128);
+    ctx.fillRect(0, 0, w, h);
 
     // Subtle edge borders/stitching
     ctx.fillStyle = '#334155';
-    ctx.fillRect(0, 0, 2048, 8);
-    ctx.fillRect(0, 120, 2048, 8);
+    const borderH = isMobile ? 6 : 9;
+    ctx.fillRect(0, 0, w, borderH);
+    ctx.fillRect(0, h - borderH, w, borderH);
 
     // Large Bold Typography with generous spacing between repetitions
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 82px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.font = isMobile 
+      ? '900 48px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      : '900 78px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textBaseline = 'middle';
 
     // Generous spacing between repetitions with clean bullet & diamond glyphs
     const textToDraw = `        ✦   ${lanyardText.toUpperCase()}   ✦        `;
-    const textWidth = ctx.measureText(textToDraw).width || 800;
+    const textWidth = ctx.measureText(textToDraw).width || (isMobile ? 400 : 600);
     
     // Draw repeating text across canvas width with generous spacing
-    const repeats = Math.ceil(2048 / textWidth) + 2;
+    const repeats = Math.ceil(w / textWidth) + 2;
     for (let i = 0; i < repeats; i++) {
-      ctx.fillText(textToDraw, i * textWidth, 64);
+      ctx.fillText(textToDraw, i * textWidth, h / 2);
     }
 
     const canvasTex = new THREE.CanvasTexture(canvas);
     canvasTex.wrapS = canvasTex.wrapT = THREE.RepeatWrapping;
     canvasTex.colorSpace = THREE.SRGBColorSpace;
-    canvasTex.anisotropy = 8;
+    canvasTex.anisotropy = isMobile ? 1 : 4;
     canvasTex.needsUpdate = true;
     return canvasTex;
-  }, [lanyardText, rawTexture]);
+  }, [lanyardText, rawTexture, isMobile]);
 
   // useTexture must be called unconditionally; use a blank pixel when an image
   // isn't supplied for a given face, then skip compositing it below.
   const frontTex = useTexture(frontImage || BLANK_PIXEL);
   const backTex = useTexture(backImage || BLANK_PIXEL);
 
-  // Composite the front/back images into the card's texture atlas (1024x1024 crisp HD)
+  // Composite the front/back images into the card's texture atlas (lightweight on mobile)
   const cardMap = useMemo(() => {
     const baseMap = materials.base?.map;
     if (!baseMap) return null;
@@ -231,8 +271,8 @@ function Band({
 
     const baseImg = baseMap.image;
     if (!baseImg) return baseMap;
-    const W = 1024;
-    const H = 1024;
+    const W = isMobile ? 512 : 1024;
+    const H = isMobile ? 512 : 1024;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -266,18 +306,39 @@ function Band({
     const composite = new THREE.CanvasTexture(canvas);
     composite.colorSpace = THREE.SRGBColorSpace;
     composite.flipY = baseMap.flipY;
-    composite.anisotropy = 8;
+    composite.anisotropy = isMobile ? 1 : 4;
+    composite.generateMipmaps = true;
     composite.needsUpdate = true;
     return composite;
-  }, [frontImage, backImage, imageFit, frontTex, backTex, materials.base?.map]);
-
-  const [curve] = useState(
-    () =>
-      new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()])
-  );
+  }, [frontImage, backImage, imageFit, frontTex, backTex, materials.base?.map, isMobile]);
 
   const s = cardScale / 2.25;
-  const ropeLength = isMobile ? 1.25 : 1.6;
+  // Natural equilibrium hanging position: top rim of the clasp D-ring is at [0, 1.51 * s, 0].
+  // The card's visual center is at the rigid body origin (Y = 0).
+  // Thus when the card center rests at targetCenterY, the clip ring (j3) is at: targetCenterY + 1.51 * s.
+  const equilibriumClipY = targetCenterY + 1.51 * s;
+  const totalRopeSpan = Math.max(0.8, anchorY - equilibriumClipY);
+  // Add a 2% compliance buffer so the 3 segments never overstretch Rapier's solver at rest
+  const ropeSegmentLen = (totalRopeSpan / 3) * 1.02;
+
+  // Initial drop-in starting position: from above near the ceiling
+  const startCardCenterY = startY;
+  const startClipY = startCardCenterY + 1.51 * s;
+  const initRopeSpan = Math.max(0.45, anchorY - startClipY);
+  const initRopeSeg = initRopeSpan / 3;
+
+  // Initialize curve points starting at the upper drop position so initial frame is perfectly straight and clean
+  const [curve] = useState(() => {
+    const c = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.04, anchorY - initRopeSpan, 0),
+      new THREE.Vector3(0.03, anchorY - initRopeSpan + 0.11 * s, 0),
+      new THREE.Vector3(0.02, anchorY - initRopeSeg * 2, 0),
+      new THREE.Vector3(0.01, anchorY - initRopeSeg, 0),
+      new THREE.Vector3(0, anchorY, 0)
+    ]);
+    c.curveType = 'centripetal';
+    return c;
+  });
 
   const draggedRef = useRef<boolean>(false);
   const dragOffsetRef = useRef<{ x: number; y: number } | null>(null);
@@ -287,14 +348,16 @@ function Band({
   const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const targetPoint = useMemo(() => new THREE.Vector3(), []);
+  const dragVelocityRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastDragPosRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
 
-  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], ropeLength]);
-  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], ropeLength]);
-  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], ropeLength]);
-  // Precisely align strap end (j3) to pass directly into the top metal ring (clamp)
+  useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], ropeSegmentLen]);
+  useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], ropeSegmentLen]);
+  useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], ropeSegmentLen]);
+  // Precisely align strap end (j3) to attach at the top bar of the clasp D-ring in local 3D coordinates
   useSphericalJoint(j3, card, [
     [0, 0, 0],
-    [0, 1.50 * s, 0]
+    [0, 1.516 * s, -0.05]
   ]);
 
   useEffect(() => {
@@ -402,6 +465,11 @@ function Band({
   }, [dragged]);
 
   useFrame((state, delta) => {
+    const safeDelta = Math.min(delta, 0.033);
+
+    let targetDragCardX = 0;
+    let targetDragCardY = 0;
+
     if (dragged && card.current) {
       const px = isPointerActive.current ? pointerNDC.current.x : state.pointer.x;
       const py = isPointerActive.current ? pointerNDC.current.y : state.pointer.y;
@@ -409,96 +477,166 @@ function Band({
       raycaster.setFromCamera(new THREE.Vector2(px, py), state.camera);
       raycaster.ray.intersectPlane(plane, targetPoint);
 
+      targetDragCardX = targetPoint.x - (dragOffsetRef.current?.x ?? dragged.x);
+      targetDragCardY = targetPoint.y - (dragOffsetRef.current?.y ?? dragged.y);
+
+      // Track drag velocity for realistic physical throw release
+      const now = performance.now();
+      const dt = (now - lastDragPosRef.current.time) / 1000;
+      if (dt > 0.005 && dt < 0.2) {
+        const vx = (targetDragCardX - lastDragPosRef.current.x) / dt;
+        const vy = (targetDragCardY - lastDragPosRef.current.y) / dt;
+        dragVelocityRef.current = {
+          x: THREE.MathUtils.clamp(vx, -20, 20),
+          y: THREE.MathUtils.clamp(vy, -20, 20)
+        };
+      }
+      lastDragPosRef.current = { x: targetDragCardX, y: targetDragCardY, time: now };
+
       [card, j1, j2, j3, fixed].forEach(ref => ref.current?.wakeUp());
       card.current.setNextKinematicTranslation({
-        x: targetPoint.x - (dragOffsetRef.current?.x ?? dragged.x),
-        y: targetPoint.y - (dragOffsetRef.current?.y ?? dragged.y),
+        x: targetDragCardX,
+        y: targetDragCardY,
         z: 0
       });
     }
+
     if (fixed.current && card.current && j1.current && j2.current && j3.current && band.current) {
-      [j1, j2].forEach(ref => {
+      [j1, j2, j3].forEach(ref => {
+        if (!ref.current) return;
         if (!ref.current.lerped) ref.current.lerped = new THREE.Vector3().copy(ref.current.translation());
-        const clampedDistance = Math.max(0.1, Math.min(1, ref.current.lerped.distanceTo(ref.current.translation())));
-        ref.current.lerped.lerp(
-          ref.current.translation(),
-          delta * (minSpeed + clampedDistance * (maxSpeed - minSpeed))
-        );
+        const target = ref.current.translation();
+        const dist = Math.min(2.5, ref.current.lerped.distanceTo(target));
+        // Responsive adaptive lerp factor so rope segments never lag behind during rapid throws or bounces
+        const factor = THREE.MathUtils.clamp(safeDelta * (28 + dist * 35), 0.40, 0.98);
+        ref.current.lerped.lerp(target, factor);
       });
-      curve.points[0].copy(j3.current.translation());
-      curve.points[1].copy(j2.current.lerped);
-      curve.points[2].copy(j1.current.lerped);
-      curve.points[3].copy(fixed.current.translation());
-      band.current.geometry.setPoints(curve.getPoints(isMobile ? 16 : 28));
-      ang.copy(card.current.angvel());
+
+      const cardTrans = card.current.translation();
       const r = card.current.rotation();
       quat.set(r.x, r.y, r.z, r.w);
       euler.setFromQuaternion(quat, 'YXZ');
 
+      const curTrans = dragged
+        ? new THREE.Vector3(targetDragCardX, targetDragCardY, 0)
+        : new THREE.Vector3(cardTrans.x, cardTrans.y, cardTrans.z);
+
+      // Calculate the exact 3D world coordinates of the top rim of the clasp D-ring
+      // Local position inside the RigidBody: [0, 1.516 * s, -0.05]
+      // Full 3D quaternion transformation ensures 100% attachment under ANY 3D pitch, yaw, roll, or bounce!
+      const localClipTop = new THREE.Vector3(0, 1.516 * s, -0.05);
+      const localClipTangent = new THREE.Vector3(0, 1.636 * s, -0.05);
+
+      const worldClipTop = localClipTop.applyQuaternion(quat).add(curTrans);
+      const worldClipTangent = localClipTangent.applyQuaternion(quat).add(curTrans);
+
+      if (j3.current?.lerped) {
+        j3.current.lerped.set(worldClipTop.x, worldClipTop.y, 0);
+      }
+
+      // Lock all 5 curve control points strictly to Z = 0 in the frontal plane.
+      // This mathematically guarantees that MeshLine's billboard normal:
+      // normal = (-dir.y, dir.x) never suffers from 3D camera ray foreshortening or sign-flipping!
+      curve.points[0].set(worldClipTop.x, worldClipTop.y, 0);
+      curve.points[1].set(worldClipTangent.x, worldClipTangent.y, 0);
+      curve.points[2].set(j2.current.lerped.x, j2.current.lerped.y, 0);
+      curve.points[3].set(j1.current.lerped.x, j1.current.lerped.y, 0);
+      curve.points[4].set(fixed.current.translation().x, fixed.current.translation().y, 0);
+
+      // Width tapering callback: smooth, crisp ribbon connection at the top rim
+      band.current.geometry.setPoints(
+        curve.getPoints(isMobile ? 24 : 36),
+        (p: number) => (p < 0.06 ? 0.85 + p * 2.5 : 1.0)
+      );
+
+      ang.copy(card.current.angvel());
       let newAngY = ang.y;
       let newAngX = ang.x * 0.96;
       let newAngZ = ang.z * 0.96;
 
       if (!dragged) {
-        // Multi-directional 3D tilt towards cursor (left, right, top, bottom, and corners)
         let targetEulerY = 0;
         let targetEulerX = 0;
         let targetEulerZ = 0;
 
         if (hovered && !isMobile) {
-          // Keep rigid body active so physics sleep never freezes the tilt effect
           card.current.wakeUp();
+          const tiltSensitivityX = 0.52;
+          const tiltSensitivityY = 0.62;
+          targetEulerY = THREE.MathUtils.clamp(pointerRef.current.x * tiltSensitivityY, -0.60, 0.60);
+          targetEulerX = THREE.MathUtils.clamp(pointerRef.current.y * tiltSensitivityX, -0.50, 0.50);
+          targetEulerZ = THREE.MathUtils.clamp(-pointerRef.current.x * pointerRef.current.y * 0.18, -0.22, 0.22);
 
-          // Cursor Right (x > 0) -> tilts right face inwards
-          // Cursor Left (x < 0) -> tilts left face inwards
-          // Cursor Top (y > 0) -> tilts top edge inwards/backwards
-          // Cursor Bottom (y < 0) -> tilts bottom edge inwards
-          // Corners -> seamless diagonal pitch, yaw & roll combination
-          const tiltSensitivityX = 0.58;
-          const tiltSensitivityY = 0.70;
-          targetEulerY = THREE.MathUtils.clamp(pointerRef.current.x * tiltSensitivityY, -0.65, 0.65);
-          targetEulerX = THREE.MathUtils.clamp(pointerRef.current.y * tiltSensitivityX, -0.55, 0.55);
-          targetEulerZ = THREE.MathUtils.clamp(-pointerRef.current.x * pointerRef.current.y * 0.2, -0.25, 0.25);
-        } else {
-          // Subtle organic idle breathing / floating micro-tilt when not hovered
-          const idleTime = state.clock.elapsedTime;
-          targetEulerY = Math.sin(idleTime * 1.2) * 0.035;
-          targetEulerX = Math.cos(idleTime * 0.9) * 0.025;
+          const springTorqueY = -Math.sin(euler.y - targetEulerY) * 7.5;
+          const springTorqueX = -Math.sin(euler.x - targetEulerX) * 6.5;
+          const springTorqueZ = -Math.sin(euler.z - targetEulerZ) * 5.0;
+
+          newAngY = ang.y * 0.94 + springTorqueY * safeDelta;
+          newAngX = ang.x * 0.93 + springTorqueX * safeDelta;
+          newAngZ = ang.z * 0.93 + springTorqueZ * safeDelta;
+          card.current.setAngvel({ x: newAngX, y: newAngY, z: newAngZ });
+        } else if (!isMobile) {
+          // Subtle organic idle breathing on desktop only when active
+          if (!card.current.isSleeping()) {
+            const idleTime = state.clock.elapsedTime;
+            targetEulerY = Math.sin(idleTime * 1.2) * 0.035;
+            targetEulerX = Math.cos(idleTime * 0.9) * 0.025;
+
+            const springTorqueY = -Math.sin(euler.y - targetEulerY) * 3.5;
+            const springTorqueX = -Math.sin(euler.x - targetEulerX) * 2.5;
+            const springTorqueZ = -Math.sin(euler.z - targetEulerZ) * 2.5;
+
+            newAngY = ang.y * 0.94 + springTorqueY * safeDelta;
+            newAngX = ang.x * 0.93 + springTorqueX * safeDelta;
+            newAngZ = ang.z * 0.93 + springTorqueZ * safeDelta;
+            card.current.setAngvel({ x: newAngX, y: newAngY, z: newAngZ });
+          }
         }
-
-        const springTorqueY = -Math.sin(euler.y - targetEulerY) * (hovered ? 9.5 : 4.5);
-        const springTorqueX = -Math.sin(euler.x - targetEulerX) * (hovered ? 8.5 : 3.0);
-        const springTorqueZ = -Math.sin(euler.z - targetEulerZ) * (hovered ? 6.0 : 3.5);
-
-        newAngY = ang.y * 0.94 + springTorqueY * delta;
-        newAngX = ang.x * 0.93 + springTorqueX * delta;
-        newAngZ = ang.z * 0.93 + springTorqueZ * delta;
       }
-
-      card.current.setAngvel({ x: newAngX, y: newAngY, z: newAngZ });
     }
   });
 
-  curve.curveType = 'chordal';
-
   return (
     <>
-      <group position={[0, isMobile ? 5.2 : 5.8, 0]}>
-        <RigidBody ref={fixed} {...segmentProps} type="fixed" />
-        <RigidBody position={[0.8, 0, 0]} ref={j1} {...segmentProps}>
+      {/* Lanyard band rendered first with renderOrder 0 so metal clamp and clip always render crisply in front */}
+      <mesh ref={band} renderOrder={0}>
+        {/* @ts-ignore */}
+        <meshLineGeometry />
+        {/* @ts-ignore */}
+        <meshLineMaterial
+          color="white"
+          depthTest={false}
+          resolution={resolution}
+          useMap
+          map={finalTexture}
+          repeat={[-3.5, 1]}
+          lineWidth={lanyardWidth}
+        />
+      </mesh>
+
+      <group position={[0, anchorY, 0]}>
+        <RigidBody ref={fixed} {...segmentProps} type="fixed" position={[0, 0, 0]} />
+        <RigidBody position={[0.04, -initRopeSeg, 0]} ref={j1} {...segmentProps}>
           <BallCollider args={[0.1]} />
         </RigidBody>
-        <RigidBody position={[1.6, 0, 0]} ref={j2} {...segmentProps}>
+        <RigidBody position={[0.10, -initRopeSeg * 2, 0]} ref={j2} {...segmentProps}>
           <BallCollider args={[0.1]} />
         </RigidBody>
-        <RigidBody position={[2.4, 0, 0]} ref={j3} {...segmentProps}>
+        <RigidBody position={[0.18, -initRopeSpan, 0]} ref={j3} {...segmentProps}>
           <BallCollider args={[0.1]} />
         </RigidBody>
-        <RigidBody position={[3.2, 0, 0]} ref={card} {...cardProps} type={dragged ? 'kinematicPosition' : 'dynamic'}>
+        <RigidBody
+          position={[0.22, -initRopeSpan - 1.516 * s, 0]}
+          rotation={[0.25, Math.PI * 0.88, Math.PI]}
+          ref={card}
+          {...cardProps}
+          type={dragged ? 'kinematicPosition' : 'dynamic'}
+        >
           <CuboidCollider position={[0, -1.25 * s, 0]} args={[0.8 * s, 1.125 * s, 0.01]} />
           <group
             scale={cardScale}
             position={[0, -1.25 * s, -0.05]}
+            renderOrder={1}
             onPointerOver={() => {
               hover(true);
               card.current?.wakeUp();
@@ -530,6 +668,13 @@ function Band({
                   domTarget.releasePointerCapture(e.pointerId);
                 } catch (_) {}
               }
+              if (card.current) {
+                card.current.wakeUp();
+                const vx = THREE.MathUtils.clamp(dragVelocityRef.current.x * 0.85, -16, 16);
+                const vy = THREE.MathUtils.clamp(dragVelocityRef.current.y * 0.85, -16, 16);
+                card.current.setLinvel({ x: vx, y: vy, z: 0 }, true);
+                card.current.setAngvel({ x: 0, y: 0, z: THREE.MathUtils.clamp(-vx * 0.35, -5, 5) }, true);
+              }
               draggedRef.current = false;
               isPointerActive.current = false;
               dragOffsetRef.current = null;
@@ -541,6 +686,13 @@ function Band({
                 try {
                   domTarget.releasePointerCapture(e.pointerId);
                 } catch (_) {}
+              }
+              if (card.current) {
+                card.current.wakeUp();
+                const vx = THREE.MathUtils.clamp(dragVelocityRef.current.x * 0.85, -16, 16);
+                const vy = THREE.MathUtils.clamp(dragVelocityRef.current.y * 0.85, -16, 16);
+                card.current.setLinvel({ x: vx, y: vy, z: 0 }, true);
+                card.current.setAngvel({ x: 0, y: 0, z: THREE.MathUtils.clamp(-vx * 0.35, -5, 5) }, true);
               }
               draggedRef.current = false;
               isPointerActive.current = false;
@@ -589,7 +741,7 @@ function Band({
             <mesh geometry={nodes.card.geometry}>
               <meshStandardMaterial
                 map={cardMap}
-                map-anisotropy={8}
+                map-anisotropy={isMobile ? 1 : 4}
                 roughness={0.8}
                 metalness={0.4}
               />
@@ -599,20 +751,6 @@ function Band({
           </group>
         </RigidBody>
       </group>
-      <mesh ref={band}>
-        {/* @ts-ignore */}
-        <meshLineGeometry />
-        {/* @ts-ignore */}
-        <meshLineMaterial
-          color="white"
-          depthTest={false}
-          resolution={isMobile ? [1080, 2160] : [1440, 1440]}
-          useMap
-          map={finalTexture}
-          repeat={[-2.8, 1]}
-          lineWidth={lanyardWidth}
-        />
-      </mesh>
     </>
   );
 }
