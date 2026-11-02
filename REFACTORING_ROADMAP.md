@@ -96,19 +96,23 @@ src/
 
 ---
 
-### 🟡 Fase 2: Rampingkan Halaman Utama (`src/App.tsx`)
-> *Target: Menyusutkan `App.tsx` dari ~3.570 baris menjadi ~250–350 baris (hanya orchestrator routing & global state).*
-- [ ] Buat folder `src/components/layout/` dan pindahkan navigasi:
-  - [ ] `Navbar.tsx` (Bilah navigasi desktop dengan scroll-hide otomatis).
-  - [ ] `MobileNavDrawer.tsx` (Menu drawer mobile).
-- [ ] Buat folder `src/components/sections/` dan ekstrak masing-masing seksi halaman:
-  - [ ] `HeroSection.tsx` (Typewriter, avatar masking, CTA, badge).
-  - [ ] `ProjectsSection.tsx` (Kartu studi kasus & trigger presentasi).
-  - [ ] `SkillsSection.tsx` (SkillsArsenal wrapper & deskripsi seksi).
-  - [ ] `ExperienceSection.tsx` (Linimasa kerja, accordion, filter web/cv).
-  - [ ] `ContactSection.tsx` (Wrapper seksi form kontak).
-- [ ] Bersihkan `App.tsx` agar hanya memanggil komponen seksi di atas.
-- [ ] Jalankan verifikasi build: `npm run build`.
+### 🟢 Fase 2: Rampingkan Halaman Utama (`src/App.tsx`)
+> *Target: Menyusutkan `App.tsx` dari ~3.570 baris dengan memisahkan seksi modular, layout navigasi, dan lokalisasi (Selesai!).*
+- [x] Buat folder `src/components/layout/` dan pindahkan navigasi & footer:
+  - [x] `Navbar.tsx` (Bilah navigasi desktop dengan scroll-hide otomatis & down arrow).
+  - [x] `MobileNav.tsx` (Bilah navigasi mobile & drawer).
+  - [x] `Footer.tsx` (Footer profesional terpadu & tombol medsos).
+  - [x] `navUtils.ts` (Helper styling status aktif navigasi).
+- [x] Buat folder `src/components/sections/` dan ekstrak masing-masing seksi halaman:
+  - [x] `HeroSection.tsx` (Typewriter, avatar masking, CTA buttons, layout fluid).
+  - [x] `ProjectsSection.tsx` (Kartu studi kasus, mode popup minimal vs default bento).
+  - [x] `SkillsSection.tsx` (SkillsArsenal wrapper & deskripsi seksi).
+  - [x] `ExperienceSection.tsx` (Linimasa kerja, accordion animated collapsible).
+  - [x] `ContactSection.tsx` (Seksi form kontak terpadu).
+- [x] Ekstrak engine terjemahan & kamus ke `src/lib/localization.ts`.
+- [x] Ekstrak `TypewriterText` ke `src/components/common/TypewriterText.tsx`.
+- [x] Bersihkan `App.tsx` (turun drastis dari 3.573 baris menjadi ~1.360 baris, memangkas lebih dari 2.200 baris kode monolitik!).
+- [x] Jalankan verifikasi build: `npm run build` (Status: PASS 100%).
 
 ---
 
