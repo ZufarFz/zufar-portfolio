@@ -126,7 +126,7 @@ export const AboutMeStoryPage: React.FC<AboutMeStoryPageProps> = ({
 
   const lanyardText = (() => {
     if (cvData.nickname && cvData.nickname.trim()) return `Portfolio ${cvData.nickname.trim()}`;
-    if (!cvData.name || !cvData.name.trim()) return 'Portfolio Zufar';
+    if (!cvData.name || !cvData.name.trim()) return 'Portfolio';
     const parts = cvData.name.trim().split(/\s+/);
     const shortName = parts.length > 1 && parts[0].replace('.', '').length <= 2 ? parts[1] : parts[0];
     return `Portfolio ${shortName}`;

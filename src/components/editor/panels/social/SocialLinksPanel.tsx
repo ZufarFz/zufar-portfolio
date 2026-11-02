@@ -822,7 +822,7 @@ export const SocialLinksPanel: React.FC<SocialLinksPanelProps> = ({
                 {localData.webTexts?.site_url || 'https://domain-portfolio-anda.com'}
               </div>
               <h6 className="text-xs font-bold text-white line-clamp-1 leading-snug">
-                {localData.webTexts?.og_title || `${localData.name || 'Muhammad Zufar Fauzi'} | ${localData.title || 'Junior Data Analyst'} Portfolio`}
+                {localData.webTexts?.og_title || [localData.name, localData.title, 'Portfolio'].filter(Boolean).join(' | ') || 'Web Portfolio'}
               </h6>
               <p className="text-[10.5px] text-slate-400 line-clamp-2 leading-tight">
                 {localData.webTexts?.og_description || localData.webTexts?.hero_subtitle || localData.aboutMe || 'Portfolio interaktif & Data Analytics showcase.'}

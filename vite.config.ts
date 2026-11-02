@@ -21,9 +21,10 @@ function portfolioMetaPlugin(): Plugin {
         siteUrl = siteUrl.slice(0, -1);
       }
 
-      const name = data.name || 'Muhammad Zufar Fauzi';
-      const title = data.title || 'Junior Data Analyst';
-      const pageTitle = (webTexts.og_title || `${name} | ${title} Portfolio`).trim();
+      const name = (data.name || '').trim();
+      const title = (data.title || '').trim();
+      const defaultTitle = [name, title, 'Portfolio'].filter(Boolean).join(' | ') || 'Web Portfolio';
+      const pageTitle = (webTexts.og_title || defaultTitle).trim();
 
       const rawDesc = webTexts.og_description || webTexts.hero_subtitle || data.aboutMe || '';
       const pageDesc = rawDesc
@@ -42,24 +43,26 @@ function portfolioMetaPlugin(): Plugin {
       }
 
       const currentUrl = siteUrl ? `${siteUrl}/` : '';
+      const altText = [name, title].filter(Boolean).join(' - ') || 'Portfolio Profile';
+      const siteName = name ? `${name} Portfolio` : 'Web Portfolio';
 
       const metaTags = [
         `<!-- Open Graph / WhatsApp / LinkedIn / Facebook (Auto-generated from portfolioData.ts) -->`,
         `<meta name="description" content="${pageDesc}" />`,
-        `<meta name="author" content="${name}" />`,
+        name ? `<meta name="author" content="${name}" />` : '',
         `<meta property="og:type" content="website" />`,
         currentUrl ? `<meta property="og:url" content="${currentUrl}" />` : '',
         `<meta property="og:title" content="${pageTitle}" />`,
         `<meta property="og:description" content="${pageDesc}" />`,
-        `<meta property="og:image" content="${imageUrl}" />`,
-        `<meta property="og:image:alt" content="${name} - ${title}" />`,
-        `<meta property="og:site_name" content="${name} Portfolio" />`,
+        imageUrl ? `<meta property="og:image" content="${imageUrl}" />` : '',
+        `<meta property="og:image:alt" content="${altText}" />`,
+        `<meta property="og:site_name" content="${siteName}" />`,
         `<!-- Twitter / X Cards -->`,
         `<meta name="twitter:card" content="summary_large_image" />`,
         currentUrl ? `<meta name="twitter:url" content="${currentUrl}" />` : '',
         `<meta name="twitter:title" content="${pageTitle}" />`,
         `<meta name="twitter:description" content="${pageDesc}" />`,
-        `<meta name="twitter:image" content="${imageUrl}" />`
+        imageUrl ? `<meta name="twitter:image" content="${imageUrl}" />` : ''
       ].filter(Boolean).join('\n    ');
 
       let modified = html;
