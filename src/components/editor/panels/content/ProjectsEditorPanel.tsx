@@ -266,3 +266,4 @@ export const ProjectsEditorPanel: React.FC<ProjectsEditorPanelProps> = ({
     </div>
   );
 };
+

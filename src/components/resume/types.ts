@@ -41,3 +41,4 @@ export interface ResumeModalProps {
   inlinePreview?: boolean;
   directDownload?: boolean;
 }
+

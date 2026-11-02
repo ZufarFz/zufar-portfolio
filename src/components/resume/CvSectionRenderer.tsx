@@ -177,3 +177,4 @@ export const CvSectionRenderer: React.FC<CvSectionRendererProps> = ({
 };
 
 export default CvSectionRenderer;
+

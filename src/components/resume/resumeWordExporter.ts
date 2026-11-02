@@ -215,3 +215,4 @@ export async function downloadWordDoc(
   link.click();
   document.body.removeChild(link);
 }
+

@@ -224,3 +224,4 @@ export const CvHeader: React.FC<CvHeaderProps> = ({
 };
 
 export default CvHeader;
+

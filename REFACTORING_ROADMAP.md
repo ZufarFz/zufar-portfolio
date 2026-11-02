@@ -175,6 +175,39 @@ src/
 
 ---
 
+### 🟢 Fase 6: Modularisasi Sub-pages & Presentation Domain (< 300 Baris Per File)
+> *Target: Merapikan seluruh folder `src/components/subpages/` dan memecah file presentasi & story ke sub-folder domain terisolasi dengan batas ketat < 300 baris per file (Selesai!).*
+- [x] **Domain `sections/` (`src/components/subpages/sections/`)**:
+  - `sectionThemeHelpers.ts` (~219 baris): Resolusi warna latar belakang & pemetaan detail entitas terhubung.
+  - `SectionCredentialBadge.tsx` (~33 baris): Badge animasi verifikasi kredensial resmi.
+  - `SectionMediaCard.tsx` (~116 baris): Card ilustrasi gambar normal & background overlay dengan masking gradasi.
+  - `SubPageSectionItem.tsx` (~249 baris): Koordinator layout split-grid vs centered-hero.
+  - `index.ts` (Re-export barrel).
+- [x] **Domain `gallery/` (`src/components/subpages/gallery/`)**:
+  - `ProjectsGalleryActiveCard.tsx` (~87 baris): Panel kartu aktif dengan deskripsi, tag tools, dan tombol eksternal.
+  - `ProjectsGalleryThumbnails.tsx` (~168 baris): Slider carousel 3D melingkar, kalkulasi indeks relatif & tombol navigasi.
+  - `ProjectsGallerySubPage.tsx` (~146 baris): Background transisi gambar layar penuh, listener resize responsif, dan orkestrator state.
+  - `index.ts` (Re-export barrel).
+- [x] **Domain `story/` (`src/components/subpages/story/`)**:
+  - `StoryHeaderBanner.tsx` (~90 baris): Banner background gambar atas dengan gradasi fade dinamis & judul.
+  - `StoryMobileQuickGrid.tsx` (~103 baris): Tombol navigasi cepat 2-kolom mobile & resolver ikon kustom.
+  - `StoryPointsGrid.tsx` (~273 baris): Kartu bilateral desktop 3-kiri & 3-kanan serta seksi bab tambahan.
+  - `AboutMeStoryPage.tsx` (~243 baris): Physics canvas 3D lanyard Rapier, tekstur SVG, dan floating assets.
+  - `index.ts` (Re-export barrel).
+- [x] **Domain `presentation/` (`src/components/subpages/presentation/`)**:
+  - `SlideVisualShowcase.tsx` (~171 baris): Showcase visual deck salindia (metrik pertumbuhan, diagram model kurva, bullet points, kutipan tipografi).
+  - `CaseStudyPresentationPage.tsx` (~264 baris): Pengendali presentasi, slideshow otomatis 5 detik, navigasi keyboard (panah kiri/kanan), dan bilah progres.
+  - `index.ts` (Re-export barrel).
+- [x] **Domain `custom/` (`src/components/subpages/custom/`)**:
+  - `customSubpageHelpers.ts` (~113 baris): Generator entitas fallback (personality, hobbies, skills, career journey).
+  - `CustomSubPage.tsx` (~196 baris): Halaman subpage dinamis fleksibel.
+  - `index.ts` (Re-export barrel).
+- [x] **Barrel Pusat (`src/components/subpages/index.ts`)**: Re-export terpusat untuk semua domain.
+- [x] Seluruh file dalam domain subpages kini **100% di bawah 300 baris** (rata-rata 80 - 270 baris).
+- [x] Jalankan verifikasi build: `npm run build` (Status: PASS 100%, 0 error).
+
+---
+
 ## 📌 Catatan Riwayat Branch
 * Branch aktif pengerjaan refactoring: **`dev`**
 * Branch produksi aman: **`main`**

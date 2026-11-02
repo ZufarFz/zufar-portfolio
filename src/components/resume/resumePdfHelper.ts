@@ -168,3 +168,4 @@ export function getHarmonizedLineStyles(
     sparkShadow: `0 0 12px #ffffff, 0 0 20px hsl(${targetHue} 95% ${highlightLightness}% / 1)`,
   };
 }
+

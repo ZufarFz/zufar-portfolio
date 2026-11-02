@@ -60,3 +60,4 @@ export const ContactEditorPanel: React.FC<ContentPanelBaseProps> = ({
     </div>
   );
 };
+

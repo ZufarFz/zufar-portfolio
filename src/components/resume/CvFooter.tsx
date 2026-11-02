@@ -74,3 +74,4 @@ export const CvFooter: React.FC<CvFooterProps> = ({ cvData }) => {
     </div>
   );
 };
+

@@ -13,8 +13,8 @@ import { CASE_STUDIES } from './data/portfolioData';
 import ResumeModal from './components/ResumeModal';
 import ProjectDetailModal from './components/ProjectDetailModal';
 import AdminLoginPage from './components/AdminLoginPage';
-import CaseStudyPresentationPage from './components/CaseStudyPresentationPage';
-import AboutMeStoryPage from './components/AboutMeStoryPage';
+import { CaseStudyPresentationPage, AboutMeStoryPage } from './components/subpages';
+
 import AboutMeSubPages from './components/AboutMeSubPages';
 import { QuickEditorDrawer } from './components/QuickEditorDrawer';
 import { MobilePhoneMockup } from './components/MobilePhoneMockup';
