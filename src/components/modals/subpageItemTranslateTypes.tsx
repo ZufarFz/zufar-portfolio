@@ -97,3 +97,4 @@ export function getItemTypeConfig(
 
   return map[itemType] || map.generic;
 }
+

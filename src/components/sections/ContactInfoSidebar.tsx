@@ -87,3 +87,4 @@ export const ContactInfoSidebar: React.FC<ContactInfoSidebarProps> = ({
 };
 
 export default ContactInfoSidebar;
+

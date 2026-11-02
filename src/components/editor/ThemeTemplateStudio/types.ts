@@ -10,3 +10,4 @@ export interface ThemeTemplateStudioProps {
   onApplyFullZenPreset: () => void;
   onAddSingleAsset: (asset: Partial<FloatingAsset>) => void;
 }
+

@@ -181,3 +181,4 @@ export const SectionGradientShadow: React.FC<SectionGradientShadowProps> = ({
 };
 
 export default SectionGradientShadow;
+

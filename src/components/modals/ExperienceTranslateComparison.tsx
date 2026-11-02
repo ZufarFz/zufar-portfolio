@@ -230,3 +230,4 @@ export const ExperienceTranslateComparison: React.FC<ExperienceTranslateComparis
     </div>
   );
 };
+

@@ -5,3 +5,4 @@ export { TechLogo } from './TechLogo';
 export type { TechLogoProps } from './TechLogo';
 export { SocialIcon, getAbsoluteSocialUrl } from './SocialIcon';
 export type { SocialIconProps } from './SocialIcon';
+

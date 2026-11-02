@@ -116,3 +116,4 @@ export const TechLogo: React.FC<TechLogoProps> = ({
 };
 
 export default TechLogo;
+

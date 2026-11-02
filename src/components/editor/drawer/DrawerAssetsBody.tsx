@@ -188,3 +188,4 @@ export const DrawerAssetsBody: React.FC<DrawerAssetsBodyProps> = ({
     </div>
   );
 };
+

@@ -8,3 +8,4 @@ export * from './aiAssistantTypes';
 export * from './jobExperienceAiTypes';
 export * from './experienceTranslateTypes';
 export * from './subpageItemTranslateTypes';
+

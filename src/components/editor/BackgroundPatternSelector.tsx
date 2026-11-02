@@ -218,3 +218,4 @@ export default function BackgroundPatternSelector({
     </div>
   );
 }
+

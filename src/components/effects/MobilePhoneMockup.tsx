@@ -187,3 +187,4 @@ export const MobilePhoneMockup: React.FC<MobilePhoneMockupProps> = ({
 };
 
 export default MobilePhoneMockup;
+

@@ -44,3 +44,4 @@ export interface MobilePhoneMockupProps {
   onThemeChange?: (newTheme: 'light' | 'dark') => void;
   onLangChange?: (newLang: 'id' | 'en') => void;
 }
+

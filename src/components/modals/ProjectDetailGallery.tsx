@@ -116,3 +116,4 @@ export const ProjectDetailGallery: React.FC<ProjectDetailGalleryProps> = ({
     </div>
   );
 };
+

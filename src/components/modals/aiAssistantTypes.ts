@@ -46,3 +46,4 @@ export const TONES: { id: ToneOption; labelId: string; labelEn: string; icon: st
     desc: 'Alur penjelasan yang mengalir dan berkarakter'
   }
 ];
+

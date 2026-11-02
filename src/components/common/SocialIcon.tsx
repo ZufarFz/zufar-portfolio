@@ -24,3 +24,4 @@ export const SocialIcon: React.FC<SocialIconProps> = ({
 
 export { getAbsoluteSocialUrl };
 export default SocialIcon;
+

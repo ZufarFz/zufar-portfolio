@@ -189,3 +189,4 @@ export const SkillDetailedView: React.FC<SkillDetailedViewProps> = ({
 };
 
 export default SkillDetailedView;
+

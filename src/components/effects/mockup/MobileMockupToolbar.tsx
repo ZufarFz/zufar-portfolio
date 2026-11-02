@@ -119,3 +119,4 @@ export const MobileMockupToolbar: React.FC<MobileMockupToolbarProps> = ({
     </div>
   );
 };
+

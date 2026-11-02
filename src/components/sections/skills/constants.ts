@@ -61,3 +61,4 @@ export const CATEGORY_MAP: Record<string, { labelId: string; labelEn: string; jp
     jp: '基幹技術'
   }
 };
+

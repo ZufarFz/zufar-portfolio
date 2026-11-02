@@ -226,3 +226,4 @@ export const ThemeTemplateStudio: React.FC<ThemeTemplateStudioProps> = ({
 };
 
 export default ThemeTemplateStudio;
+

@@ -22,3 +22,4 @@ export interface JobExperienceAiModalProps {
   lang: 'id' | 'en';
   isDark?: boolean;
 }
+

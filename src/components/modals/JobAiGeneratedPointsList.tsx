@@ -156,3 +156,4 @@ export const JobAiGeneratedPointsList: React.FC<JobAiGeneratedPointsListProps> =
     </div>
   );
 };
+

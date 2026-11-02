@@ -276,3 +276,4 @@ export const SvgAssetModal: React.FC<SvgAssetModalProps> = ({
     </div>
   );
 };
+

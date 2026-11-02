@@ -75,3 +75,4 @@ export const SkillCardItem: React.FC<SkillCardItemProps> = ({ skill, isDark }) =
 };
 
 export default SkillCardItem;
+

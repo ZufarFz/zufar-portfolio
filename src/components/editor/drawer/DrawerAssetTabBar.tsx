@@ -116,3 +116,4 @@ export const DrawerAssetTabBar: React.FC<DrawerAssetTabBarProps> = ({
     </div>
   );
 };
+

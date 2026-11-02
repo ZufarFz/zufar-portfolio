@@ -19,3 +19,4 @@ export interface ExperienceTranslateModalProps {
   isDark?: boolean;
   onApply: (translatedData: TranslatedExperienceData, targetLang: 'id' | 'en') => void;
 }
+

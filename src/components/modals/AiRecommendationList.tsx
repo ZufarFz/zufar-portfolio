@@ -106,3 +106,4 @@ export const AiRecommendationList: React.FC<AiRecommendationListProps> = ({
     </div>
   );
 };
+

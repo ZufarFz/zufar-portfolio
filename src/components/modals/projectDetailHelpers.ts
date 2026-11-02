@@ -100,3 +100,4 @@ export function getHarmonizedLineStyles(
     activeThumbnailBadgeText: `hsl(${targetHue}, ${sat}%, 75%)`
   };
 }
+

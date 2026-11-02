@@ -153,3 +153,4 @@ export function renderDataAndDevOpsLogos(
 
   return null;
 }
+

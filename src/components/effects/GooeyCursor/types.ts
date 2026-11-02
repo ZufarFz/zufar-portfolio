@@ -35,3 +35,4 @@ export interface SplashParticle {
   life: number;
   maxLife: number;
 }
+

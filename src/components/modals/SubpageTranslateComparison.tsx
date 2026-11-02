@@ -162,3 +162,4 @@ export const SubpageTranslateComparison: React.FC<SubpageTranslateComparisonProp
     </div>
   );
 };
+

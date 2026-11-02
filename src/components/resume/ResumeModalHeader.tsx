@@ -34,3 +34,4 @@ export const ResumeModalHeader: React.FC<ResumeModalHeaderProps> = ({ onClose })
     </div>
   );
 };
+

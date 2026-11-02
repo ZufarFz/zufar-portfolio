@@ -213,3 +213,4 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 };
 
 export default ProjectDetailModal;
+

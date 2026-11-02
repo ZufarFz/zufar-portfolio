@@ -52,3 +52,4 @@ export const ResumeModalFooter: React.FC<ResumeModalFooterProps> = ({
     </div>
   );
 };
+
