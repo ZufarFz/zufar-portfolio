@@ -1,62 +1,88 @@
 # 🚀 Web Portfolio
 
-Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untuk profesional di bidang Data Analytics dan Software Engineering. Dilengkapi dengan tampilan responsif, pengubah tema gelap/terang (dark/light mode), dukungan dua bahasa (Bahasa Indonesia & Bahasa Inggris), presentasi studi kasus interaktif, pembuat Resume/CV otomatis, serta penyimpanan data lokal via `portfolioData.ts`.
+Aplikasi portofolio web interaktif dan futuristik berkinerja tinggi yang dirancang khusus untuk profesional di bidang Data Analytics dan Software Engineering. Dibangun dengan arsitektur modular yang ramping (< 300 baris per komponen), studio preset tema & tata letak dinamis, kartu ID lanyard fisika 3D Rapier, kursor cair (*liquid gooey cursor*), presentasi studi kasus interaktif bergaya pitch-deck, pembuat Resume ATS otomatis dengan ekspor PDF, serta sinkronisasi data lokal melalui `portfolioData.ts` sebagai sumber kebenaran tunggal (*single source of truth*).
 
 ---
 
 ## ✨ Fitur Utama
 
-- **🌐 Dukungan Dua Bahasa (Bilingual)**: Beralih dengan mulus antara Bahasa Indonesia (`ID`) dan Bahasa Inggris (`EN`).
-- **🌓 Sistem Tema Dinamis**: Fitur beralih mode Gelap/Terang secara halus dengan kontras visual yang disesuaikan serta perbaikan otomatis warna isian formulir (WebKit autofill).
-- **🪪 Kartu Identitas Holografik Interaktif**: Kartu identitas 3D dengan gaya cyberpunk yang responsif terhadap gerakan kursor/sentuhan.
-- **📊 Presentasi Studi Kasus & Editor Slide PPT**: Modul tampilan slide interaktif untuk proyek analisis data, lengkap dengan fitur pratinjau dan penyuntingan slide presentasi.
-- **📄 Resume (CV) Interaktif & Ekspor PDF**: Modal pratinjau CV interaktif yang mendukung pengunduhan file PDF secara langsung menggunakan `html2pdf.js`.
-- **🛠️ Matriks Keterampilan (Skills Arsenal)**: Penampil keahlian teknis terstruktur berdasarkan kategori, indikator tingkat kemahiran, dan filter interaktif.
-- **✉️ Formulir Kontak Direct Gmail**: Formulir kontak terintegrasi yang membuka halaman pembuat pesan Gmail secara otomatis dengan isi pesan dan subjek yang sudah terisi.
-- **⚡ Panel Admin & Manajemen Data Lokal**: Sistem CMS terintegrasi untuk pengelolaan konten dinamis dan penyimpanan data lokal via `portfolioData.ts`.
-- **📱 Navigasi Pintar Responsif**: Bilah navigasi atas yang otomatis tersembunyi saat digulir ke bawah dan muncul kembali saat digulir ke atas.
+- **🌐 Sinkronisasi Dua Bahasa (Bilingual)**: Beralih mulus antara Bahasa Indonesia (`ID`) dan Bahasa Inggris (`EN`) di seluruh seksi, sub-halaman, dan metadata tanpa memuat ulang halaman (*zero page reload*).
+- **🎨 Studio Preset Tema & Tata Letak (Template Studio)**: Katalog preset langsung untuk mengubah tema warna (contoh: *Executive Sapphire*, *Japanese Zen Minimalist*, *Tsukimi Midnight*) serta blueprint tata letak seksi Profil dan Projek.
+- **🪪 Kartu ID Lanyard Fisika 3D Interaktif**: Kartu identitas 3D interaktif berbasis simulasi fisika *rigid-body* nyata menggunakan `@react-three/fiber` dan `@react-three/rapier`.
+- **✨ Kursor Cair (Liquid Gooey Cursor)**: Efek jejak kursor kanvas dinamis bergaya cairan (*gooey*) yang merespons pergerakan mouse dengan pengaturan fisika dan warna yang dapat dikustomisasi.
+- **🌊 Pola Latar Belakang SVG & Mesin Ornamen Melayang**: Pola SVG performa tinggi (Wagara tradisional Jepang, Geometris Bauhaus/Memphis, Cat Air) serta ornamen melayang (*floating assets*) dengan animasi masuk dan mengapung.
+- **📱 Simulator Mockup Perangkat Seluler**: Pratinjau interaktif layar HP langsung di browser lengkap dengan rotasi orientasi, gaya bezel, dan simulasi viewport mobile yang akurat.
+- **📊 Presentasi Studi Kasus & Viewer Pitch-Deck**: Penampil slide presentasi interaktif layar penuh untuk membedah studi kasus data, metodologi, dan stack teknologi secara mendalam.
+- **📄 Resume (CV) Standar ATS & Ekspor PDF**: Modal pratinjau CV format A4 standar ATS dengan optimasi styling cetak dan pengunduhan file PDF langsung menggunakan `html2pdf.js`.
+- **⚡ Visual CMS & Quick Editor Drawer**: Laci penyuntingan visual di dalam halaman dengan pratinjau real-time, asisten AI untuk poin pengalaman & alih bahasa, serta ekspor sekali klik ke `portfolioData.ts`.
+- **✉️ Formulir Kontak Direct Gmail**: Formulir kontak terintegrasi yang secara otomatis membuka Gmail dengan subjek dan isi pesan yang sudah terformat rapi.
 
 ---
 
-## 🛠️ Teknologi & Perpustakaan
+## 🛠️ Teknologi & Pustaka
 
 - **Framework Utama**: [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- **Build Tool**: [Vite 6](https://vitejs.dev/)
+- **Build Tool**: [Vite 6](https://vitejs.dev/) + [esbuild](https://esbuild.github.io/)
 - **Desain & Tampilan**: [Tailwind CSS v4](https://tailwindcss.com/)
 - **Animasi**: [Motion](https://motion.dev/) (Framer Motion API)
+- **Grafika 3D & Fisika**: [Three.js](https://threejs.org/), [@react-three/fiber](https://r3f.docs.pmnd.rs/), [@react-three/rapier](https://github.com/pmndrs/react-three-rapier)
+- **Integrasi AI**: [@google/genai](https://www.npmjs.com/package/@google/genai)
+- **Rich Text & Format Teks**: `react-markdown`
 - **Ikon**: [Lucide React](https://lucide.dev/)
-- **Sumber Data**: `portfolioData.ts` & LocalStorage
 - **Ekspor PDF**: `html2pdf.js`
-- **Lingkungan Server**: Express (Node.js)
+- **Lingkungan Server**: Express (Node.js) via `tsx`
 
 ---
 
-## 📁 Struktur Proyek
+## 📁 Arsitektur Proyek Modular
 
-```
-├── public/                  # Aset statis dan ikon
+Codebase menerapkan standar modularitas tinggi dengan prinsip **Separation of Concerns** dan batasan ketat **< 300 baris per file**:
+
+```text
+├── public/                      # Aset statis, avatar, dan ikon
 ├── src/
-│   ├── components/          # Komponen UI Reusable
-│   │   ├── AboutMeStoryPage.tsx         # Cerita & rekam jejak karir
-│   │   ├── AboutMeSubPages.tsx          # Sub-halaman biografi detail
-│   │   ├── AdminPage.tsx                # Panel pengelolaan konten
-│   │   ├── BackgroundTextures.tsx       # Latar belakang kanvas dekoratif
-│   │   ├── CaseStudyPresentationPage.tsx# Presentasi studi kasus data
-│   │   ├── ContactForm.tsx              # Formulir kontak terisi otomatis Gmail
-│   │   ├── InteractiveIDCard.tsx        # Komponen Kartu Identitas 3D Cyberpunk
-│   │   ├── PPTSlideEditor.tsx           # Editor slide presentasi
-│   │   ├── ResumeModal.tsx              # Pratinjau CV & Ekspor PDF
-│   │   ├── SkillsArsenal.tsx            # Matriks keterampilan terintegrasi
-│   │   └── SocialIcon.tsx               # Ikon media sosial
-│   ├── data/                # File konfigurasi & data statis (portfolioData.ts)
-│   ├── lib/                 # Utilitas (Penyimpanan lokal)
-│   ├── App.tsx              # Komponen Utama & Routing Aplikasi
-│   ├── index.css            # CSS Global, Impor Tailwind & Styling Autofill
-│   ├── main.tsx             # Entry Point Aplikasi
-│   └── types.ts             # Antarmuka TypeScript (Interfaces)
-├── metadata.json            # Metadata aplikasi
-├── package.json             # Dependensi NPM & skrip
-└── tsconfig.json            # Konfigurasi TypeScript
+│   ├── components/              # 9 Subdirektori Domain Terisolasi
+│   │   ├── admin/               # Panel admin dan halaman login otentikasi
+│   │   ├── common/              # Komponen UI reusable (MarkdownText, SocialIcon, TechLogo)
+│   │   ├── editor/              # Quick Editor CMS Drawer, Theme Studio & Panel
+│   │   │   ├── drawer/          # Header, TabBar, BodyRouter, ModalsManager, Handlers
+│   │   │   ├── panels/          # Panel editor konten, desain grafis, dan medsos/CV
+│   │   │   └── ThemeTemplateStudio/ # Studio katalog preset tema, layout & aset SVG
+│   │   ├── effects/             # Efek visual kanvas & fisika interaktif
+│   │   │   ├── GooeyCursor/     # Fisika kursor cair & elemen head
+│   │   │   ├── Lanyard/         # Fisika kartu ID card 3D Rapier
+│   │   │   ├── mockup/          # Simulator perangkat mobile
+│   │   │   └── BackgroundTextures.tsx, FloatingAssetsOverlay.tsx, BorderGlow.tsx
+│   │   ├── layout/              # Shell navigasi web (Navbar, MobileNav, Footer)
+│   │   ├── modals/              # Dialog interaktif (ProjectDetail, Asisten AI & Alih Bahasa)
+│   │   ├── resume/              # Dokumen Resume A4 ATS, layout & modul cetak
+│   │   ├── sections/            # Seksi-seksi utama landing page (Hero, Skills, Projects, Experience, Contact)
+│   │   │   └── skills/          # SkillCard, DetailedView, tab filter kategori
+│   │   ├── subpages/            # Sub-halaman eksplorasi interaktif
+│   │   │   ├── custom/          # Halaman dinamis kustom buatan pengguna
+│   │   │   ├── gallery/         # Galeri visual studi kasus
+│   │   │   ├── presentation/    # Slide presentasi pitch-deck proyek
+│   │   │   ├── sections/        # Blok seksi detail (Pendidikan, Kepribadian, Hobi, Target Karir)
+│   │   │   └── story/           # Narasi linimasa perjalanan karir
+│   │   └── index.ts             # Central barrel export seluruh domain
+│   │
+│   ├── data/                    # Single Source of Truth & Katalog Preset
+│   │   ├── patterns/            # String SVG motif pola (Wagara Jepang, Geometris, Cat Air)
+│   │   ├── layoutTemplates.ts   # Blueprint preset tata letak
+│   │   ├── themeTemplates.ts    # Preset palet warna dan tema
+│   │   ├── themeAssets.ts       # Katalog ornamen SVG mandiri
+│   │   └── portfolioData.ts     # Konfigurasi aktif dan seluruh data teks
+│   │
+│   ├── lib/                     # Utilitas penyimpanan lokal, tema warna, client API
+│   ├── types/                   # Antarmuka (interfaces) & model data TypeScript
+│   ├── App.tsx                  # Orkestrator layout aplikasi utama
+│   ├── main.tsx                 # Entry point aplikasi sisi klien
+│   └── index.css                # CSS Global & impor Tailwind CSS
+│
+├── server.ts                    # Server Express untuk dev & runtime produksi
+├── package.json                 # Dependensi proyek & skrip npm
+├── vite.config.ts               # Konfigurasi bundler Vite
+└── tsconfig.json                # Konfigurasi compiler TypeScript
 ```
 
 ---
@@ -65,19 +91,19 @@ Aplikasi portofolio web interaktif bertema futuristik yang dirancang khusus untu
 
 ### Prasyarat
 
-Pastikan perangkat Anda sudah terpasang perangkat lunak berikut:
+Pastikan perangkat Anda telah terpasang:
 - **Node.js**: `v18.x` atau versi yang lebih baru
 - **npm**: `v9.x` atau versi yang lebih baru
 
 ### Langkah Instalasi
 
-1. **Kloning repositori ini**:
+1. **Kloning repositori**:
    ```bash
    git clone https://github.com/ZufarFz/zufar-portfolio.git
    cd zufar-portfolio
    ```
 
-2. **Pasang dependensi**:
+2. **Pasang seluruh dependensi**:
    ```bash
    npm install
    ```
@@ -86,25 +112,25 @@ Pastikan perangkat Anda sudah terpasang perangkat lunak berikut:
    ```bash
    npm run dev
    ```
-   Buka `http://localhost:3000` di peramban (browser) Anda.
+   Buka [http://localhost:3000](http://localhost:3000) pada peramban (*browser*) Anda.
 
 ---
 
 ## 📜 Skrip yang Tersedia
 
-Dalam direktori proyek, Anda dapat menjalankan skrip berikut:
+Di dalam direktori proyek, Anda dapat menjalankan perintah berikut:
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `npm run dev` | Menjalankan server lokal Vite pada port 3000 |
-| `npm run build` | Membuat bundel produksi teroptimasi di folder `dist/` |
-| `npm run preview` | Meninjau hasil build produksi secara lokal |
-| `npm run lint` | Menjalankan pemeriksaan tipe TypeScript (`tsc --noEmit`) |
-| `npm run clean` | Menghapus artefak build (`dist/`) |
+| `npm run dev` | Menjalankan server pengembangan fullstack lokal pada port 3000 |
+| `npm run build` | Melakukan build produksi teroptimasi dengan Vite dan bundling server dengan esbuild |
+| `npm run start` | Menjalankan server hasil kompilasi produksi (`dist/server.cjs`) |
+| `npm run preview` | Meninjau hasil build klien produksi secara lokal |
+| `npm run lint` | Melakukan pengecekan tipe statis TypeScript (`tsc --noEmit`) |
+| `npm run clean` | Menghapus folder direktori artefak build produksi (`dist/`) |
 
 ---
 
 ## 📄 Lisensi
 
-Proyek ini dilindungi di bawah Lisensi MIT.
-
+Proyek ini bersifat sumber terbuka (*open-source*) dan dilindungi di bawah [Lisensi MIT](LICENSE).
