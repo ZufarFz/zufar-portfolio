@@ -6443,8 +6443,173 @@ export const QuickEditorDrawer: React.FC<QuickEditorDrawerProps> = ({
                         })}
                       </div>
                     </div>
-                  </div>
-                )}
+                  
+                    {/* 1.5 LINK PREVIEW & SOCIAL MEDIA SEO (WHATSAPP, LINKEDIN, TWITTER) */}
+                    <div className={`p-4 rounded-xl border ${cardBg} space-y-4`}>
+                      <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
+                            <Share2 className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h5 className="font-bold text-xs uppercase tracking-wider text-emerald-400">
+                              Preview Link WhatsApp &amp; Sosial Media (SEO)
+                            </h5>
+                            <p className="text-[10px] text-slate-400">
+                              Tersimpan otomatis di portfolioData.ts &amp; auto-inject ke HTML tanpa edit index.html
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">
+                          Auto-Inject
+                        </span>
+                      </div>
+
+                      {/* Live WhatsApp Preview Box Simulation */}
+                      <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <SocialIcon platform="whatsapp" className="w-3.5 h-3.5" />
+                          <span>Simulasi Tampilan Link di WhatsApp:</span>
+                        </span>
+                        
+                        <div className="max-w-sm rounded-lg overflow-hidden border border-slate-700/80 bg-slate-900 shadow-md">
+                          <div className="relative h-32 w-full bg-slate-800 flex items-center justify-center overflow-hidden border-b border-slate-700">
+                            <img 
+                              src={localData.webTexts?.og_image || localData.avatarUrl || localData.homeImageUrl || '/profile.png'} 
+                              alt="Thumbnail Preview"
+                              className="w-full h-full object-cover object-center"
+                              onError={(e) => {
+                                e.target.src = '/profile.png';
+                              }}
+                            />
+                            <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-xs text-[9px] font-mono text-white">
+                              Preview Image
+                            </div>
+                          </div>
+                          <div className="p-2.5 space-y-1">
+                            <div className="text-[10px] text-emerald-400 font-mono truncate">
+                              {localData.webTexts?.site_url || 'https://domain-portfolio-anda.com'}
+                            </div>
+                            <h6 className="text-xs font-bold text-white line-clamp-1 leading-snug">
+                              {localData.webTexts?.og_title || `${localData.name || 'Muhammad Zufar Fauzi'} | ${localData.title || 'Junior Data Analyst'} Portfolio`}
+                            </h6>
+                            <p className="text-[10.5px] text-slate-400 line-clamp-2 leading-tight">
+                              {localData.webTexts?.og_description || localData.webTexts?.hero_subtitle || localData.aboutMe || 'Portfolio interaktif & Data Analytics showcase.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Input Fields */}
+                      <div className="space-y-3">
+                        {/* Domain / Site URL */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <Globe className="w-3 h-3 text-sky-400" />
+                              <span>Domain Web / Site URL (Wajib untuk Thumbnail WA)</span>
+                            </span>
+                            <span className="text-[9.5px] text-slate-400">Contoh: https://zufarfz.github.io</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.webTexts?.site_url || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => ({
+                                ...prev,
+                                webTexts: {
+                                  ...prev.webTexts,
+                                  site_url: val
+                                }
+                              }));
+                            }}
+                            placeholder="https://zufar-portfolio.vercel.app atau https://domainanda.com"
+                            className={inputClass}
+                          />
+                          <p className="text-[9.5px] text-slate-400 mt-1">
+                            💡 WhatsApp wajib menggunakan URL lengkap berawalan <code>https://</code> agar foto thumbnail dapat ditarik.
+                          </p>
+                        </div>
+
+                        {/* OG Title */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span>Judul Preview Link (og:title)</span>
+                            <span className="text-[9.5px] text-slate-400">Default: Nama | Posisi</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.webTexts?.og_title || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => ({
+                                ...prev,
+                                webTexts: {
+                                  ...prev.webTexts,
+                                  og_title: val
+                                }
+                              }));
+                            }}
+                            placeholder={`${localData.name || 'Nama Anda'} | ${localData.title || 'Posisi'} Portfolio`}
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* OG Description */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span>Deskripsi Preview Link (og:description)</span>
+                            <span className="text-[9.5px] text-slate-400">1 - 2 kalimat singkat</span>
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={localData.webTexts?.og_description || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => ({
+                                ...prev,
+                                webTexts: {
+                                  ...prev.webTexts,
+                                  og_description: val
+                                }
+                              }));
+                            }}
+                            placeholder="Portfolio interaktif & Data Analytics showcase. Mengubah data transaksi mentah menjadi wawasan bisnis strategis..."
+                            className={inputClass}
+                          />
+                        </div>
+
+                        {/* OG Image */}
+                        <div>
+                          <label className="block text-[10.5px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <Image className="w-3 h-3 text-pink-400" />
+                              <span>Path / URL Gambar Thumbnail (og:image)</span>
+                            </span>
+                            <span className="text-[9.5px] text-slate-400">Default: /profile.png</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={localData.webTexts?.og_image || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdate(prev => ({
+                                ...prev,
+                                webTexts: {
+                                  ...prev.webTexts,
+                                  og_image: val
+                                }
+                              }));
+                            }}
+                            placeholder="/profile.png atau URL gambar online"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    </div>)}
 
                 {/* 2. SUB-TAB 2: CORE METHODOLOGY & CV SETTINGS */}
                 {socialCvSubTab === 'methodology_cv' && (

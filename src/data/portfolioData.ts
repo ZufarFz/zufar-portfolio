@@ -5,6 +5,10 @@ import { CaseStudy, Experience, SkillItem, SkillCategory, PersonalityItem, Hobby
 // ============================================================================
 
 export const DEFAULT_WEB_TEXTS: Record<string, string> = {
+  "site_url": "",
+  "og_title": "Muhammad Zufar Fauzi | Junior Data Analyst Portfolio",
+  "og_description": "Portfolio interaktif & Data Analytics showcase karya Muhammad Zufar Fauzi. Mengubah data transaksi mentah menjadi wawasan bisnis strategis.",
+  "og_image": "/profile.png",
   "education_title": "Educational Background & Story",
   "education_intro": "Explore my academic achievements, scientific training foundations, and formal credential roadmaps represented in customized presentation sheets.",
   "personality_title": "Personality & Values",
@@ -103,6 +107,10 @@ export const DEFAULT_WEB_TEXTS: Record<string, string> = {
 
 export const ID_TRANSLATIONS = {
   "webTexts": {
+    "site_url": "",
+    "og_title": "Muhammad Zufar Fauzi | Junior Data Analyst Portfolio",
+    "og_description": "Portfolio interaktif & Data Analytics showcase karya Muhammad Zufar Fauzi. Mengubah data transaksi mentah menjadi wawasan bisnis strategis.",
+    "og_image": "/profile.png",
     "education_title": "Latar Belakang & Kisah Pendidikan",
     "education_intro": "Jelajahi pencapaian akademis saya, fondasi pelatihan ilmiah, dan peta jalan kredensial formal yang disajikan dalam lembar presentasi kustom.",
     "personality_title": "Kepribadian & Nilai Utama",
@@ -559,6 +567,10 @@ export const DEFAULT_CV_DATA: CVData = {
     "analyticsSpecialties": "RFM Customer Clustering, Time-Series Forecasting, Logistic Nodes Optimization"
   },
   "webTexts": {
+    "site_url": "",
+    "og_title": "Muhammad Zufar Fauzi | Junior Data Analyst Portfolio",
+    "og_description": "Portfolio interaktif & Data Analytics showcase karya Muhammad Zufar Fauzi. Mengubah data transaksi mentah menjadi wawasan bisnis strategis.",
+    "og_image": "/profile.png",
     "education_title": "Educational Background & Story",
     "education_intro": "Explore my academic achievements, scientific training foundations, and formal credential roadmaps represented in customized presentation sheets.",
     "personality_title": "Personality & Values",
