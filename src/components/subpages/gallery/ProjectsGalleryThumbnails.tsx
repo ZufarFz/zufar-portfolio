@@ -166,3 +166,4 @@ export const ProjectsGalleryThumbnails: React.FC<ProjectsGalleryThumbnailsProps>
 };
 
 export default ProjectsGalleryThumbnails;
+

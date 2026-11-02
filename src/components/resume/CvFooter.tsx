@@ -1,6 +1,6 @@
 import React from 'react';
 import { CVData } from '../../types';
-import SocialIcon, { getAbsoluteSocialUrl } from '../SocialIcon';
+import SocialIcon, { getAbsoluteSocialUrl } from '../common/SocialIcon';
 
 interface CvFooterProps {
   cvData: CVData;

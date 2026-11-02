@@ -8,7 +8,7 @@ import {
   Heart, 
   LayoutGrid 
 } from 'lucide-react';
-import MarkdownText from '../../MarkdownText';
+import MarkdownText from '../../common/MarkdownText';
 import { StoryMobileQuickGrid, getStoryCustomIcon } from './StoryMobileQuickGrid';
 
 interface StoryPointsGridProps {

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Database, ChevronDown } from 'lucide-react';
 import { CVData } from '../../types';
-import MarkdownText from '../MarkdownText';
-import BackgroundTextures from '../BackgroundTextures';
-import FloatingAssetsOverlay from '../FloatingAssetsOverlay';
-import SectionGradientShadow from '../SectionGradientShadow';
+import MarkdownText from '../common/MarkdownText';
+import { BackgroundTextures, FloatingAssetsOverlay, SectionGradientShadow } from '../effects';
+
+
 import { getThemeColorPalette } from '../../lib/themeUtils';
 
 interface ExperienceSectionProps {

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { CVData } from '../../../../types';
 import { ID_TRANSLATIONS } from '../../../../data/portfolioData';
-import MarkdownText from '../../../MarkdownText';
+import MarkdownText from '../../../common/MarkdownText';
 
 interface CvMethodologyPanelProps {
   localData: CVData;

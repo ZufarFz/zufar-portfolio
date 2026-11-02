@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { CVData } from '../../../types';
-import MarkdownText from '../../MarkdownText';
+import MarkdownText from '../../common/MarkdownText';
 import { getSectionThemeColors, resolveSectionDetails } from './sectionThemeHelpers';
 import { SectionCredentialBadge } from './SectionCredentialBadge';
 import { SectionMediaCard, SectionBgOverlay } from './SectionMediaCard';
@@ -247,3 +247,4 @@ export const SubPageSectionItem: React.FC<SubPageSectionItemProps> = ({
 };
 
 export default SubPageSectionItem;
+

@@ -217,3 +217,4 @@ export function resolveSectionDetails(
 
   return { displayTitle, displayBadge, displayContent, iconName, tools };
 }
+

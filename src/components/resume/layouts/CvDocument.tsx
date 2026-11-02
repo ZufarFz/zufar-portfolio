@@ -5,7 +5,7 @@ import { LayoutStyles } from '../resumeStyles';
 import { CvHeader } from '../CvHeader';
 import { CvFooter } from '../CvFooter';
 import { CvSectionRenderer } from '../CvSectionRenderer';
-import MarkdownText from '../../MarkdownText';
+import MarkdownText from '../../common/MarkdownText';
 
 interface CvDocumentProps {
   cvData: CVData;

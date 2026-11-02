@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import MarkdownText from '../../MarkdownText';
+import MarkdownText from '../../common/MarkdownText';
 import { createFadeGradientStyle } from '../subpageUtils';
 
 interface StoryHeaderBannerProps {
@@ -88,3 +88,4 @@ export const StoryHeaderBanner: React.FC<StoryHeaderBannerProps> = ({
 };
 
 export default StoryHeaderBanner;
+

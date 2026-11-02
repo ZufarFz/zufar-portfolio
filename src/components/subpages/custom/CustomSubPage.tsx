@@ -2,11 +2,11 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Sparkles } from 'lucide-react';
 import { CVData } from '../../../types';
-import MarkdownText from '../../MarkdownText';
-import BackgroundTextures from '../../BackgroundTextures';
-import FloatingAssetsOverlay from '../../FloatingAssetsOverlay';
-import SectionGradientShadow from '../../SectionGradientShadow';
-import SkillsArsenal from '../../SkillsArsenal';
+import MarkdownText from '../../common/MarkdownText';
+import { BackgroundTextures, FloatingAssetsOverlay, SectionGradientShadow } from '../../effects';
+
+
+import SkillsArsenal from '../../sections/SkillsArsenal';
 import { getThemeColorPalette } from '../../../lib/themeUtils';
 import { createFadeGradientStyle } from '../subpageUtils';
 import { SubPageSectionItem } from '../sections/SubPageSectionItem';
@@ -194,3 +194,4 @@ export const CustomSubPage: React.FC<CustomSubPageProps> = ({
 };
 
 export default CustomSubPage;
+

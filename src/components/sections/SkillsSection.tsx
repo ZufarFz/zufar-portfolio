@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { CVData } from '../../types';
-import BackgroundTextures from '../BackgroundTextures';
-import FloatingAssetsOverlay from '../FloatingAssetsOverlay';
-import SectionGradientShadow from '../SectionGradientShadow';
-import SkillsArsenal from '../SkillsArsenal';
+import { BackgroundTextures, FloatingAssetsOverlay, SectionGradientShadow } from '../effects';
+
+
+import SkillsArsenal from './SkillsArsenal';
 import { getThemeColorPalette } from '../../lib/themeUtils';
 
 interface SkillsSectionProps {

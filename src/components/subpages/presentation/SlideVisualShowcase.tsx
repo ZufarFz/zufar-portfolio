@@ -169,3 +169,4 @@ export const SlideVisualShowcase: React.FC<SlideVisualShowcaseProps> = ({
 };
 
 export default SlideVisualShowcase;
+

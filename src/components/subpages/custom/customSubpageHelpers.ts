@@ -111,3 +111,4 @@ export function getSubpageBgSettings(prefix: string, cvData: CVData, isDark: boo
     subpageBgColorVal,
   };
 }
+

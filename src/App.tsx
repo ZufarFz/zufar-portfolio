@@ -10,15 +10,15 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CASE_STUDIES } from './data/portfolioData';
-import ResumeModal from './components/ResumeModal';
-import ProjectDetailModal from './components/ProjectDetailModal';
-import AdminLoginPage from './components/AdminLoginPage';
-import { CaseStudyPresentationPage, AboutMeStoryPage } from './components/subpages';
+import { ResumeModal } from './components/resume';
+import { ProjectDetailModal } from './components/modals';
+import { AdminLoginPage } from './components/admin';
+import { CaseStudyPresentationPage, AboutMeStoryPage, AboutMeSubPages } from './components/subpages';
 
-import AboutMeSubPages from './components/AboutMeSubPages';
-import { QuickEditorDrawer } from './components/QuickEditorDrawer';
-import { MobilePhoneMockup } from './components/MobilePhoneMockup';
-import GooeyCursor from './components/GooeyCursor';
+
+import { QuickEditorDrawer } from './components/editor';
+import { MobilePhoneMockup, GooeyCursor } from './components/effects';
+
 import { fetchCVData, downloadCVDataAsTypeScript, DEFAULT_CV_DATA, EMPTY_CV_DATA, DEFAULT_WEB_TEXTS, STORAGE_KEY } from './lib/storage';
 import { CVData, CaseStudy } from './types';
 import { getThemeColorPalette } from './lib/themeUtils';

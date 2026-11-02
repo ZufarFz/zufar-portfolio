@@ -15,7 +15,7 @@ import {
 import { motion } from 'motion/react';
 import { ContentPanelBaseProps } from '../../types';
 import { SkillItem, SkillCategory } from '../../../../types';
-import TechLogo from '../../../TechLogo';
+import TechLogo from '../../../common/TechLogo';
 import { DEFAULT_SKILL_CATEGORIES, getBilingualPairs } from '../../editorUtils';
 
 interface SkillsEditorPanelProps extends ContentPanelBaseProps {

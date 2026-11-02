@@ -31,3 +31,4 @@ export const SectionCredentialBadge: React.FC<SectionCredentialBadgeProps> = ({
 };
 
 export default SectionCredentialBadge;
+

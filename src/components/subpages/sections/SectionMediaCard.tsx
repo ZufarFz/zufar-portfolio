@@ -114,3 +114,4 @@ export const SectionBgOverlay: React.FC<SectionBgOverlayProps> = ({
 };
 
 export default SectionMediaCard;
+

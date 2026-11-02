@@ -2,10 +2,10 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { User, Download } from 'lucide-react';
 import { CVData } from '../../types';
-import MarkdownText from '../MarkdownText';
-import BackgroundTextures from '../BackgroundTextures';
-import FloatingAssetsOverlay from '../FloatingAssetsOverlay';
-import SectionGradientShadow from '../SectionGradientShadow';
+import MarkdownText from '../common/MarkdownText';
+import { BackgroundTextures, FloatingAssetsOverlay, SectionGradientShadow } from '../effects';
+
+
 import TypewriterText from '../common/TypewriterText';
 import { getThemeColorPalette } from '../../lib/themeUtils';
 

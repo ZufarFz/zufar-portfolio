@@ -1,9 +1,9 @@
 import React from 'react';
 import { CVData } from '../../types';
-import ContactForm from '../ContactForm';
-import BackgroundTextures from '../BackgroundTextures';
-import FloatingAssetsOverlay from '../FloatingAssetsOverlay';
-import SectionGradientShadow from '../SectionGradientShadow';
+import ContactForm from './ContactForm';
+import { BackgroundTextures, FloatingAssetsOverlay, SectionGradientShadow } from '../effects';
+
+
 import { getThemeColorPalette } from '../../lib/themeUtils';
 
 interface ContactSectionProps {

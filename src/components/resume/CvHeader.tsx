@@ -2,8 +2,8 @@ import React from 'react';
 import { CVData } from '../../types';
 import { LayoutSettings } from './types';
 import { LayoutStyles } from './resumeStyles';
-import SocialIcon, { getAbsoluteSocialUrl } from '../SocialIcon';
-import MarkdownText from '../MarkdownText';
+import SocialIcon, { getAbsoluteSocialUrl } from '../common/SocialIcon';
+import MarkdownText from '../common/MarkdownText';
 
 interface CvHeaderProps {
   cvData: CVData;

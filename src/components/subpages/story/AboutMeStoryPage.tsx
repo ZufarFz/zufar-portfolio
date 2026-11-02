@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CVData } from '../../../types';
-import Lanyard from '../../Lanyard';
-import BackgroundTextures from '../../BackgroundTextures';
-import FloatingAssetsOverlay from '../../FloatingAssetsOverlay';
-import SectionGradientShadow from '../../SectionGradientShadow';
+import { Lanyard, BackgroundTextures, FloatingAssetsOverlay, SectionGradientShadow } from '../../effects';
+
+
+
 import { getThemeColorPalette } from '../../../lib/themeUtils';
 import { StoryHeaderBanner } from './StoryHeaderBanner';
 import { StoryPointsGrid } from './StoryPointsGrid';
@@ -241,3 +241,4 @@ export const AboutMeStoryPage: React.FC<AboutMeStoryPageProps> = ({
 };
 
 export default AboutMeStoryPage;
+

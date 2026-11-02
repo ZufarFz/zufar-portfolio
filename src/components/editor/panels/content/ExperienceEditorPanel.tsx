@@ -10,7 +10,7 @@ import {
   Sparkles 
 } from 'lucide-react';
 import { ContentPanelBaseProps } from '../../types';
-import { ExperiencePeriodEditor } from '../../../ExperiencePeriodEditor';
+import { ExperiencePeriodEditor } from '../../ExperiencePeriodEditor';
 
 interface ExperienceEditorPanelProps extends ContentPanelBaseProps {
   bilingualExperiences: any[];

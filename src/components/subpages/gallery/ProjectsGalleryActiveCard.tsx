@@ -85,3 +85,4 @@ export const ProjectsGalleryActiveCard: React.FC<ProjectsGalleryActiveCardProps>
 };
 
 export default ProjectsGalleryActiveCard;
+

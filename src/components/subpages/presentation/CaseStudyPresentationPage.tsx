@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CaseStudy, CaseStudySlide } from '../../../types';
-import MarkdownText from '../../MarkdownText';
+import MarkdownText from '../../common/MarkdownText';
 import { SlideVisualShowcase } from './SlideVisualShowcase';
 
 export interface CaseStudyPresentationPageProps {
@@ -262,3 +262,4 @@ export const CaseStudyPresentationPage: React.FC<CaseStudyPresentationPageProps>
 };
 
 export default CaseStudyPresentationPage;
+

@@ -3,7 +3,7 @@ import { Database, GraduationCap, Briefcase, Sparkles } from 'lucide-react';
 import { CVData } from '../../types';
 import { LayoutSettings } from './types';
 import { LayoutStyles } from './resumeStyles';
-import MarkdownText from '../MarkdownText';
+import MarkdownText from '../common/MarkdownText';
 
 interface CvSectionRendererProps {
   sectionId: string;

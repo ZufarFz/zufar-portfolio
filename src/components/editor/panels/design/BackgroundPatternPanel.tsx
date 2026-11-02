@@ -1,7 +1,7 @@
 import React from 'react';
 import { CVData } from '../../../../types';
 import { Sparkles, Layers, RotateCcw, CheckCircle2 } from 'lucide-react';
-import BackgroundPatternSelector from '../../../BackgroundPatternSelector';
+import BackgroundPatternSelector from '../../BackgroundPatternSelector';
 
 interface BackgroundPatternPanelProps {
   localData: CVData;

@@ -17,7 +17,7 @@ import {
   Eye 
 } from 'lucide-react';
 import { CVData, CustomSocial } from '../../../../types';
-import SocialIcon, { getAbsoluteSocialUrl } from '../../../SocialIcon';
+import SocialIcon, { getAbsoluteSocialUrl } from '../../../common/SocialIcon';
 import { SOCIAL_PLATFORM_PRESETS } from '../../types';
 
 interface SocialLinksPanelProps {

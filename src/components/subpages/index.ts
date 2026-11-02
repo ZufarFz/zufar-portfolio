@@ -14,5 +14,8 @@ export type { AboutMeStoryPageProps } from './story';
 export { CaseStudyPresentationPage } from './presentation';
 export type { CaseStudyPresentationPageProps } from './presentation';
 
+export { AboutMeSubPages } from './AboutMeSubPages';
+export type { AboutMeSubPagesProps } from './AboutMeSubPages';
+
 // Subpage Utilities
 export { createFadeGradientStyle, IconMap, renderIcon, SmoothImage } from './subpageUtils';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CVData } from '../../types';
-import SocialIcon, { getAbsoluteSocialUrl } from '../SocialIcon';
+import SocialIcon, { getAbsoluteSocialUrl } from '../common/SocialIcon';
 
 interface SocialFooterButtonProps {
   s: any;
