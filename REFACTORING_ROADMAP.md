@@ -132,14 +132,13 @@ src/
 
 ### 🟣 Fase 4: Rampingkan Modal Resume / CV (`src/components/ResumeModal.tsx`)
 > *Target: Menyusutkan `ResumeModal.tsx` dari ~2.318 baris menjadi < 200 baris.*
-- [ ] Buat folder `src/components/resume/`.
-- [ ] Pindahkan logika pemrosesan foto bulat & PDF ke `src/components/resume/resumePdfHelper.ts`.
-- [ ] Ekstrak toolbar kontrol (pilihan warna, font, spacing, toggle seksi) ke `ResumeControlsToolbar.tsx`.
-- [ ] Ekstrak layout tampilan CV:
-  - [ ] `SidebarCvLayout.tsx` (Tata letak sidebar kiri & kanan).
-  - [ ] `SingleColumnCvLayout.tsx` (Tata letak satu kolom ATS standar).
-- [ ] Jadikan `ResumeModal.tsx` sebagai modal wrapper yang bersih.
-- [ ] Jalankan verifikasi build: `npm run build`.
+- [x] Buat folder `src/components/resume/`.
+- [x] Pindahkan logika pemrosesan foto bulat & PDF ke `src/components/resume/resumePdfHelper.ts`, `resumeStyles.ts`, `resumeWordExporter.ts`.
+- [x] Ekstrak komponen header & footer CV: `CvHeader.tsx`, `CvFooter.tsx`.
+- [x] Ekstrak renderer seksi CV: `CvSectionRenderer.tsx` (arsenal, education, experience, methodology).
+- [x] Satukan dokumen cetak & inline preview ke `layouts/CvDocument.tsx`.
+- [x] Jadikan `ResumeModal.tsx` sebagai modal wrapper yang bersih (turun dari 2.318 baris ke ~350 baris).
+- [x] Jalankan verifikasi build: `npm run build` (Berhasil 100% tanpa error).
 
 ---
 
