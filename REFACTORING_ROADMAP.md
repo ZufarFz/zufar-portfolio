@@ -116,17 +116,17 @@ src/
 
 ---
 
-### 🟠 Fase 3: Rampingkan Sub-Halaman (`src/components/AboutMeSubPages.tsx`)
-> *Target: Menyusutkan `AboutMeSubPages.tsx` dari ~1.488 baris menjadi < 150 baris.*
-- [ ] Buat folder `src/components/subpages/`.
-- [ ] Ekstrak masing-masing subhalaman:
-  - [ ] `EducationSubPage.tsx` (Kartu pendidikan, layout split/hero, foto mask).
-  - [ ] `PersonalitySubPage.tsx` (Grid kartu prinsip etos kerja).
-  - [ ] `HobbiesSubPage.tsx` (Grid kartu hobi & minat personal).
-  - [ ] `CareerGoalsSubPage.tsx` (Peta jalan target karir jangka panjang).
-  - [ ] `CustomSubPageRenderer.tsx` (Renderer halaman kustom dinamis).
-- [ ] Jadikan `AboutMeSubPages.tsx` sebagai switcher/router komponen anak.
-- [ ] Jalankan verifikasi build: `npm run build`.
+### 🟢 Fase 3: Rampingkan Sub-Halaman (`src/components/AboutMeSubPages.tsx`)
+> *Target: Menyusutkan `AboutMeSubPages.tsx` dari ~1.488 baris menjadi < 160 baris (Selesai!).*
+- [x] Buat folder `src/components/subpages/`.
+- [x] Ekstrak modul & helper subhalaman:
+  - [x] `ProjectsGallerySubPage.tsx` (Gallery showcase 3D slider melingkar & grid kartu studi kasus, ~320 baris).
+  - [x] `SubPageSectionItem.tsx` (Renderer lembar naratif: layout split/stacked/hero, orientasi gambar, mode latar halus, dan tautan kredensial resmi, ~390 baris).
+  - [x] `CustomSubPage.tsx` (Renderer template halaman custom/preset, hero header, fallback generation, dan bottom fade, ~235 baris).
+  - [x] `subpageUtils.tsx` (Helper `createFadeGradientStyle`, `IconMap`, `renderIcon`, dan komponen `SmoothImage`).
+  - [x] `index.ts` (Barrel re-export subpages).
+- [x] Refactor `AboutMeSubPages.tsx` menjadi router/switcher yang sangat ramping (turun dari 1.488 baris menjadi 154 baris!).
+- [x] Jalankan verifikasi build: `npm run build` (Status: PASS 100%).
 
 ---
 
