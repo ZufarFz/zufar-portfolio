@@ -86,12 +86,13 @@ src/
 ## 📋 Checklist Eksekusi Bertahap
 
 ### 🟢 Fase 1: Rampingkan Motif SVG & Background (Paling Aman & Instan)
-> *Target: Menyusutkan `BackgroundTextures.tsx` dari ~1.560 baris menjadi < 100 baris.*
-- [ ] Buat folder `src/data/patterns/`.
-- [ ] Pindahkan 13 konstanta SVG Wagara Jepang ke `src/data/patterns/japaneseWagara.ts`.
-- [ ] Pindahkan 10 konstanta SVG Geometris Modern ke `src/data/patterns/modernGeometric.ts`.
-- [ ] Refactor `BackgroundTextures.tsx` agar mengimpor dari kedua file tersebut.
-- [ ] Jalankan verifikasi build: `npm run build`.
+> *Target: Menyusutkan `BackgroundTextures.tsx` dari ~1.560 baris menjadi < 250 baris (Selesai!).*
+- [x] Buat folder `src/data/patterns/`.
+- [x] Pindahkan 13 konstanta SVG Wagara Jepang ke `src/data/patterns/japaneseWagara.tsx`.
+- [x] Pindahkan 10 konstanta SVG Geometris Modern ke `src/data/patterns/modernGeometric.tsx`.
+- [x] Pindahkan 4 tekstur cat air ke `src/data/patterns/watercolorTextures.tsx`.
+- [x] Refactor `BackgroundTextures.tsx` menjadi registry dispatcher ramping (~245 baris).
+- [x] Jalankan verifikasi build: `npm run build` (Status: PASS 100%).
 
 ---
 
@@ -161,3 +162,4 @@ src/
 ## 📌 Catatan Riwayat Branch
 * Branch aktif pengerjaan refactoring: **`dev`**
 * Branch produksi aman: **`main`**
+
